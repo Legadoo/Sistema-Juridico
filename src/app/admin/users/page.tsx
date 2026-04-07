@@ -1,252 +1,725 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
-import { AdminShell } from "@/components/AdminShell";
+import { useEffect, useMemo, useState } from "react";
+import AdminShell from "@/components/AdminShell";
+import PremiumModal from "@/components/PremiumModal";
+import PremiumToast from "@/components/PremiumToast";
 
-type Me = { id: string; name: string; role: string };
-type UserRow = { id: string; name: string; email: string; role: string; active: boolean; createdAt: string };
+type MeResponse = {
+  ok?: boolean;
+  user?: {
+    id?: string;
+    name?: string;
+    role?: string;
+  };
+};
+
+type Me = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+type UserRole = "SUPERADMIN" | "MASTER" | "SECRETARY";
+
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  active: boolean;
+  createdAt?: string;
+};
+
+type ToastState = {
+  open: boolean;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+};
+
+type FormState = {
+  name: string;
+  email: string;
+  password: string;
+  role: "MASTER" | "SECRETARY";
+};
+
+type DeleteAction = {
+  user: UserRow;
+} | null;
+
+const emptyForm: FormState = {
+  name: "",
+  email: "",
+  password: "",
+  role: "SECRETARY",
+};
+
+function normalizeMe(data: MeResponse): Me | null {
+  if (!data?.ok || !data?.user) return null;
+
+  return {
+    id: data.user.id ?? "",
+    name: data.user.name ?? "Usuário",
+    role: data.user.role ?? "SECRETARY",
+  };
+}
+
+function formatDate(date?: string) {
+  if (!date) return "Sem data";
+  try {
+    return new Date(date).toLocaleDateString("pt-BR");
+  } catch {
+    return date;
+  }
+}
 
 export default function UsersPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // criar
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("SECRETARY");
-  const [password, setPassword] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<FormState>(emptyForm);
+  const [savingCreate, setSavingCreate] = useState(false);
 
-  // editar (modal)
+  const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPassword, setEditPassword] = useState("");
-  const [editRole, setEditRole] = useState<"MASTER" | "SECRETARY">("SECRETARY");
+  const [editForm, setEditForm] = useState<FormState>(emptyForm);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [deleteAction, setDeleteAction] = useState<DeleteAction>(null);
+  const [runningDelete, setRunningDelete] = useState(false);
+
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    message: "",
+    type: "info",
+  });
+
+  const isSuper = me?.role === "SUPERADMIN";
+  const canManage = me?.role === "SUPERADMIN" || me?.role === "MASTER";
+
+  const stats = useMemo(() => {
+    return {
+      total: users.length,
+      active: users.filter((u) => u.active).length,
+      inactive: users.filter((u) => !u.active).length,
+    };
+  }, [users]);
+
+  function showToast(message: string, type: ToastState["type"]) {
+    setToast({ open: true, message, type });
+  }
 
   async function load() {
-    setMsg(null);
+    setLoading(true);
 
-    const m = await fetch("/api/me").then(r => r.json()).catch(() => null);
-    if (!m?.ok) return;
+    const meResponse = await fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => null);
 
-    setMe({ id: m.user.id, name: m.user.name, role: m.user.role });
-
-    if (m.user.role !== "MASTER" && m.user.role !== "SUPERADMIN") {
-      setMsg("Sem permissão.");
+    const normalizedMe = normalizeMe(meResponse);
+    if (!normalizedMe) {
+      setLoading(false);
       return;
     }
 
-    const res = await fetch("/api/admin/users").then(r => r.json()).catch(() => null);
-    if (res?.ok) setUsers(res.users);
+    setMe(normalizedMe);
+
+    const response = await fetch("/api/admin/users", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => null);
+
+    const list =
+      Array.isArray(response?.users) ? response.users :
+      Array.isArray(response) ? response :
+      [];
+
+    setUsers(list);
+    setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let ignore = false;
 
-  async function createUser(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
+    async function run() {
+      if (!ignore) {
+        await load();
+      }
+    }
 
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, email, role, password }),
-    }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
+    void run();
 
-    if (!res || !res.ok || !res.d.ok) {
-      setMsg(res?.d?.message || "Erro ao criar usuário.");
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  function openCreateModal() {
+    setCreateForm(emptyForm);
+    setCreateOpen(true);
+  }
+
+  function openEditModal(user: UserRow) {
+    setEditId(user.id);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role === "MASTER" ? "MASTER" : "SECRETARY",
+    });
+    setEditOpen(true);
+  }
+
+  async function submitCreate() {
+    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password.trim()) {
+      showToast("Preencha nome, email e senha.", "warning");
       return;
     }
 
-    setName(""); setEmail(""); setPassword(""); setRole("SECRETARY");
-    await load();
-  }
+    setSavingCreate(true);
 
-  async function toggleActive(userId: string, active: boolean) {
-    const res = await fetch("/api/admin/users/toggle-active", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userId, active }),
-    }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: createForm.name.trim(),
+          email: createForm.email.trim(),
+          password: createForm.password,
+          role: createForm.role,
+        }),
+      }).then(async (r) => ({
+        ok: r.ok,
+        data: await r.json().catch(() => ({})),
+      }));
 
-    if (!res || !res.ok || !res.d.ok) {
-      alert(res?.d?.message || "Erro ao alterar status.");
-      return;
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao criar usuário.", "error");
+        return;
+      }
+
+      setCreateOpen(false);
+      setCreateForm(emptyForm);
+      await load();
+      showToast("Usuário criado com sucesso.", "success");
+    } catch {
+      showToast("Não foi possível criar o usuário.", "error");
+    } finally {
+      setSavingCreate(false);
     }
-
-    await load();
   }
 
-  async function deleteUser(userId: string) {
-    if (me?.role !== "SUPERADMIN") return;
+  async function submitEdit() {
+    if (!editId) return;
 
-    const ok = confirm("EXCLUIR conta PERMANENTEMENTE? Essa pessoa perderá acesso e será apagada do sistema.");
-    if (!ok) return;
-
-    const res = await fetch("/api/admin/users/delete", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userId }),
-    }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
-
-    if (!res || !res.ok || !res.d.ok) {
-      alert(res?.d?.message || "Erro ao excluir usuário.");
-      return;
-    }
-
-    await load();
-  }
-
-  function openEdit(u: UserRow) {
-    setEditId(u.id);
-    setEditName(u.name);
-    setEditEmail(u.email);
-    setEditPassword("");
-    setEditRole(u.role === "MASTER" ? "MASTER" : "SECRETARY");
-  }
-
-  async function saveEdit() {
-    if (!editId || !me) return;
-
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       userId: editId,
-      name: editName,
-      email: editEmail,
-      password: editPassword,
+      name: editForm.name.trim(),
+      email: editForm.email.trim(),
+      password: editForm.password,
     };
 
-    // só SUPERADMIN pode trocar cargo
-    if (me.role === "SUPERADMIN") {
-      payload.role = editRole;
+    if (isSuper) {
+      payload.role = editForm.role;
     }
 
-    const res = await fetch("/api/admin/users/update", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
+    setSavingEdit(true);
 
-    if (!res || !res.ok || !res.d.ok) {
-      alert(res?.d?.message || "Erro ao salvar.");
-      return;
+    try {
+      const response = await fetch("/api/admin/users/update", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async (r) => ({
+        ok: r.ok,
+        data: await r.json().catch(() => ({})),
+      }));
+
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao atualizar usuário.", "error");
+        return;
+      }
+
+      setEditOpen(false);
+      setEditId(null);
+      await load();
+      showToast("Usuário atualizado com sucesso.", "success");
+    } catch {
+      showToast("Não foi possível atualizar o usuário.", "error");
+    } finally {
+      setSavingEdit(false);
     }
-
-    setEditId(null);
-    await load();
   }
 
-  if (!me) return <div style={{ padding: 16 }}>Carregando...</div>;
+  async function toggleActive(user: UserRow) {
+    try {
+      const response = await fetch("/api/admin/users/toggle-active", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      }).then(async (r) => ({
+        ok: r.ok,
+        data: await r.json().catch(() => ({})),
+      }));
 
-  const isSuper = me.role === "SUPERADMIN";
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao alterar status do usuário.", "error");
+        return;
+      }
+
+      await load();
+      showToast(
+        user.active ? "Usuário desativado com sucesso." : "Usuário ativado com sucesso.",
+        "success"
+      );
+    } catch {
+      showToast("Não foi possível alterar o status.", "error");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteAction) return;
+
+    setRunningDelete(true);
+
+    try {
+      const response = await fetch("/api/admin/users/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: deleteAction.user.id }),
+      }).then(async (r) => ({
+        ok: r.ok,
+        data: await r.json().catch(() => ({})),
+      }));
+
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao excluir usuário.", "error");
+        return;
+      }
+
+      setDeleteAction(null);
+      await load();
+      showToast("Usuário excluído com sucesso.", "success");
+    } catch {
+      showToast("Não foi possível excluir o usuário.", "error");
+    } finally {
+      setRunningDelete(false);
+    }
+  }
+
+  if (!me && loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: "linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
+          color: "#E2E8F0",
+        }}
+      >
+        Carregando usuários...
+      </div>
+    );
+  }
 
   return (
-    <AdminShell userName={me.name} role={me.role}>
-      <div style={{ display: "grid", gap: 14 }}>
-        <h1 style={{ margin: 0 }}>Usuários</h1>
+    <AdminShell role={me?.role ?? "SECRETARY"} userName={me?.name ?? "Usuário"}>
+      <PremiumToast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+      />
 
-        {msg && (
-          <div style={{ background: "#fff4f4", border: "1px solid #ffd0d0", padding: 10, borderRadius: 10 }}>
-            {msg}
-          </div>
-        )}
+      <PremiumModal
+        open={createOpen}
+        onClose={() => {
+          if (!savingCreate) setCreateOpen(false);
+        }}
+        title="Novo usuário"
+        description="Cadastre um novo integrante interno no JuridicVas com o padrão visual premium do sistema."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setCreateOpen(false)} disabled={savingCreate}>
+              Cancelar
+            </button>
+            <button className="jv-premium-btn" onClick={submitCreate} disabled={savingCreate}>
+              {savingCreate ? "Salvando..." : "Salvar usuário"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            className="jv-premium-input"
+            placeholder="Nome"
+            value={createForm.name}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Email"
+            value={createForm.email}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Senha"
+            type="password"
+            value={createForm.password}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
+          />
 
-        <form onSubmit={createUser} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, display: "grid", gap: 10 }}>
-          <div style={{ fontWeight: 900 }}>Criar usuário</div>
-
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" style={{ padding: 10 }} />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ padding: 10 }} />
-
-          <select value={role} onChange={(e) => setRole(e.target.value)} style={{ padding: 10 }}>
-            <option value="SECRETARY">SECRETARY</option>
-            {isSuper && <option value="MASTER">MASTER</option>}
-          </select>
-
-          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" type="password" style={{ padding: 10 }} />
-
-          <button style={{ padding: 10, borderRadius: 12, border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 900 }}>
-            Criar usuário
-          </button>
-
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
-            MASTER só cria SECRETARY. SUPERADMIN cria MASTER e SECRETARY.
-          </div>
-        </form>
-
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 14 }}>
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Lista</div>
-
-          <div style={{ display: "grid", gap: 8 }}>
-            {users.map(u => {
-              const canDelete = isSuper && u.role !== "SUPERADMIN" && u.id !== me.id;
-
-              return (
-                <div key={u.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, border: "1px solid #f0f0f0", borderRadius: 12, padding: 10, alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: 900 }}>{u.name}</div>
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{u.email}</div>
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{u.role} · {u.active ? "Ativo" : "Inativo"}</div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <button type="button" onClick={() => openEdit(u)}
-                      style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontWeight: 900 }}>
-                      Editar
-                    </button>
-
-                    <button type="button" onClick={() => toggleActive(u.id, !u.active)}
-                      style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontWeight: 900 }}>
-                      {u.active ? "Desativar" : "Ativar"}
-                    </button>
-
-                    {canDelete && (
-                      <button type="button" onClick={() => deleteUser(u.id)}
-                        style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff", cursor: "pointer", fontWeight: 900, color: "#991b1b" }}>
-                        Excluir
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {users.length === 0 && <div style={{ color: "#6b7280" }}>Nenhum usuário encontrado.</div>}
-          </div>
+          {isSuper && (
+            <select
+              className="jv-premium-input"
+              value={createForm.role}
+              onChange={(e) =>
+                setCreateForm((prev) => ({
+                  ...prev,
+                  role: e.target.value as "MASTER" | "SECRETARY",
+                }))
+              }
+            >
+              <option value="SECRETARY">SECRETARY</option>
+              <option value="MASTER">MASTER</option>
+            </select>
+          )}
         </div>
+      </PremiumModal>
 
-        {editId && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", display: "grid", placeItems: "center", padding: 16 }}>
-            <div style={{ width: 560, maxWidth: "100%", background: "#fff", borderRadius: 14, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <div style={{ fontWeight: 900 }}>Editar usuário</div>
-                <button onClick={() => setEditId(null)} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 16 }}>✕</button>
+      <PremiumModal
+        open={editOpen}
+        onClose={() => {
+          if (!savingEdit) setEditOpen(false);
+        }}
+        title="Editar usuário"
+        description="Atualize os dados do usuário sem sair do fluxo de gestão administrativa."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setEditOpen(false)} disabled={savingEdit}>
+              Cancelar
+            </button>
+            <button className="jv-premium-btn" onClick={submitEdit} disabled={savingEdit}>
+              {savingEdit ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            className="jv-premium-input"
+            placeholder="Nome"
+            value={editForm.name}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Email"
+            value={editForm.email}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Nova senha (opcional)"
+            type="password"
+            value={editForm.password}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, password: e.target.value }))}
+          />
+
+          {isSuper && (
+            <select
+              className="jv-premium-input"
+              value={editForm.role}
+              onChange={(e) =>
+                setEditForm((prev) => ({
+                  ...prev,
+                  role: e.target.value as "MASTER" | "SECRETARY",
+                }))
+              }
+            >
+              <option value="SECRETARY">SECRETARY</option>
+              <option value="MASTER">MASTER</option>
+            </select>
+          )}
+        </div>
+      </PremiumModal>
+
+      <PremiumModal
+        open={!!deleteAction}
+        onClose={() => {
+          if (!runningDelete) setDeleteAction(null);
+        }}
+        title="Excluir usuário"
+        description="Esta ação removerá permanentemente o usuário selecionado."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setDeleteAction(null)} disabled={runningDelete}>
+              Cancelar
+            </button>
+            <button className="jv-premium-btn" onClick={confirmDelete} disabled={runningDelete}>
+              {runningDelete ? "Processando..." : "Confirmar"}
+            </button>
+          </>
+        }
+        size="sm"
+      >
+        <div
+          style={{
+            padding: 16,
+            borderRadius: 18,
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.18)",
+            color: "#E2E8F0",
+            lineHeight: 1.7,
+          }}
+        >
+          {deleteAction?.user ? (
+            <>
+              <strong>{deleteAction.user.name}</strong>
+              <div style={{ color: "#94A3B8", marginTop: 6 }}>
+                Email: {deleteAction.user.email}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </PremiumModal>
+
+      <div style={{ display: "grid", gap: 24 }}>
+        <section
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 28,
+            padding: 28,
+            background:
+              "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
+            border: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: "0 24px 45px rgba(0,0,0,0.30)",
+            backdropFilter: "blur(16px)",
+          }}
+        >
+          <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 12 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                width: "fit-content",
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#BFDBFE",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+              }}
+            >
+              GESTÃO DE USUÁRIOS
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: 34,
+                    fontWeight: 900,
+                    letterSpacing: "-0.05em",
+                    color: "#F8FAFC",
+                  }}
+                >
+                  Usuários
+                </h1>
+
+                <p
+                  style={{
+                    margin: "10px 0 0",
+                    color: "#94A3B8",
+                    fontSize: 15,
+                    lineHeight: 1.7,
+                    maxWidth: 760,
+                  }}
+                >
+                  Controle premium de acesso, permissões e status dos usuários internos do sistema.
+                </p>
               </div>
 
-              <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" style={{ width: "100%", marginTop: 10, padding: 10 }} />
-              <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" style={{ width: "100%", marginTop: 10, padding: 10 }} />
-              <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Nova senha (opcional)" type="password" style={{ width: "100%", marginTop: 10, padding: 10 }} />
-
-              {isSuper && (
-                <select value={editRole} onChange={(e) => setEditRole(e.target.value as any)} style={{ width: "100%", marginTop: 10, padding: 10 }}>
-                  <option value="SECRETARY">SECRETARY</option>
-                  <option value="MASTER">MASTER</option>
-                </select>
+              {canManage && (
+                <button className="jv-premium-btn" onClick={openCreateModal}>
+                  Novo usuário
+                </button>
               )}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                <button onClick={() => setEditId(null)} style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", fontWeight: 900 }}>
-                  Cancelar
-                </button>
-                <button onClick={saveEdit} style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid #111827", background: "#111827", color: "#fff", fontWeight: 900 }}>
-                  Salvar
-                </button>
-              </div>
-
-              <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
-                MASTER só edita SECRETARY (básico + senha). SUPERADMIN pode trocar cargo e excluir contas.
-              </div>
             </div>
           </div>
-        )}
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Usuários totais</div>
+            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+              {stats.total}
+            </div>
+          </div>
+
+          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Ativos</div>
+            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+              {stats.active}
+            </div>
+          </div>
+
+          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Inativos</div>
+            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+              {stats.inactive}
+            </div>
+          </div>
+        </section>
+
+        <section className="jv-glass" style={{ borderRadius: 28, padding: 22 }}>
+          {loading ? (
+            <div style={{ color: "#94A3B8" }}>Carregando usuários...</div>
+          ) : users.length === 0 ? (
+            <div
+              style={{
+                padding: 18,
+                borderRadius: 18,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                color: "#94A3B8",
+              }}
+            >
+              Nenhum usuário encontrado.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 14 }}>
+              {users.map((user) => (
+                <div
+                  key={user.id}
+                  style={{
+                    borderRadius: 22,
+                    padding: 18,
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 18,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 18 }}>
+                        {user.name}
+                      </div>
+
+                      <div style={{ color: "#94A3B8", fontSize: 14 }}>
+                        {user.email}
+                      </div>
+
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                        <span
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 999,
+                            background: "rgba(99,102,241,0.10)",
+                            color: "#C7D2FE",
+                            border: "1px solid rgba(99,102,241,0.18)",
+                            fontSize: 12,
+                            fontWeight: 800,
+                          }}
+                        >
+                          {user.role}
+                        </span>
+
+                        <span
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 999,
+                            background: user.active ? "rgba(16,185,129,0.10)" : "rgba(245,158,11,0.10)",
+                            color: user.active ? "#A7F3D0" : "#FDE68A",
+                            border: user.active
+                              ? "1px solid rgba(16,185,129,0.18)"
+                              : "1px solid rgba(245,158,11,0.18)",
+                            fontSize: 12,
+                            fontWeight: 800,
+                          }}
+                        >
+                          {user.active ? "Ativo" : "Inativo"}
+                        </span>
+
+                        <span
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 999,
+                            background: "rgba(56,189,248,0.08)",
+                            color: "#BAE6FD",
+                            border: "1px solid rgba(56,189,248,0.16)",
+                            fontSize: 12,
+                            fontWeight: 800,
+                          }}
+                        >
+                          Criado em {formatDate(user.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                      {canManage && (
+                        <>
+                          <button className="jv-premium-btn-secondary" onClick={() => openEditModal(user)}>
+                            Editar
+                          </button>
+
+                          <button className="jv-premium-btn-secondary" onClick={() => toggleActive(user)}>
+                            {user.active ? "Desativar" : "Ativar"}
+                          </button>
+                        </>
+                      )}
+
+                      {isSuper && (
+                        <button
+                          className="jv-premium-btn-secondary"
+                          onClick={() => setDeleteAction({ user })}
+                          style={{
+                            borderColor: "rgba(239,68,68,0.22)",
+                            color: "#FCA5A5",
+                            background: "rgba(239,68,68,0.07)",
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </AdminShell>
   );

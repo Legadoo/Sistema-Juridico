@@ -1,0 +1,136 @@
+﻿
+====================================================================================================
+FILE: .\src\app\admin\processes\page.tsx
+------------------------------------------------------------
+TARGET LINE: 74
+  68:     setMe({ id: m.user.id, name: m.user.name, role: m.user.role });
+  69: 
+  70:     const c = await fetch("/api/admin/clients").then(r => r.json()).catch(() => null);
+  71:     if (c?.ok) setClients(c.clients);
+  72: 
+  73:     const p = await fetch("/api/admin/processes").then(r => r.json()).catch(() => null);
+  74:     if (p?.ok) setProcesses((p.processes || []).filter((x: any) => !x.archived));
+  75:   }
+  76: 
+  77:   useEffect(() => {
+  78:     let ignore = false;
+  79: 
+  80:     async function run() {
+------------------------------------------------------------
+TARGET LINE: 106
+ 100: 
+ 101:     if (!cleanClient || !cleanCnj) {
+ 102:       setMsg("Preencha CNJ e Cliente.");
+ 103:       return;
+ 104:     }
+ 105: 
+ 106:     const payload: any = {
+ 107:       clientId: cleanClient,
+ 108:       cnj: cleanCnj,
+ 109:       number: cleanCnj,
+ 110:       processNumber: cleanCnj,
+ 111:       title: cleanTitle || "Processo",
+ 112:     };
+------------------------------------------------------------
+TARGET LINE: 202
+ 196:       alert("Digite o texto da atualização.");
+ 197:       return;
+ 198:     }
+ 199: 
+ 200:     setSavingByProc(prev => ({ ...prev, [processId]: true }));
+ 201: 
+ 202:     const body: any = {
+ 203:       text,
+ 204:       message: text,
+ 205:       content: text,
+ 206:       visibleToClient,
+ 207:       isPublic: visibleToClient,
+ 208:       public: visibleToClient,
+
+====================================================================================================
+FILE: .\src\app\admin\users\page.tsx
+------------------------------------------------------------
+TARGET LINE: 125
+ 119:     setEditRole(u.role === "MASTER" ? "MASTER" : "SECRETARY");
+ 120:   }
+ 121: 
+ 122:   async function saveEdit() {
+ 123:     if (!editId || !me) return;
+ 124: 
+ 125:     const payload: any = {
+ 126:       userId: editId,
+ 127:       name: editName,
+ 128:       email: editEmail,
+ 129:       password: editPassword,
+ 130:     };
+ 131: 
+------------------------------------------------------------
+TARGET LINE: 243
+ 237: 
+ 238:               <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" style={{ width: "100%", marginTop: 10, padding: 10 }} />
+ 239:               <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" style={{ width: "100%", marginTop: 10, padding: 10 }} />
+ 240:               <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="Nova senha (opcional)" type="password" style={{ width: "100%", marginTop: 10, padding: 10 }} />
+ 241: 
+ 242:               {isSuper && (
+ 243:                 <select value={editRole} onChange={(e) => setEditRole(e.target.value as any)} style={{ width: "100%", marginTop: 10, padding: 10 }}>
+ 244:                   <option value="SECRETARY">SECRETARY</option>
+ 245:                   <option value="MASTER">MASTER</option>
+ 246:                 </select>
+ 247:               )}
+ 248: 
+ 249:               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+
+====================================================================================================
+FILE: .\src\app\api\admin\clients\update\route.ts
+------------------------------------------------------------
+TARGET LINE: 27
+  21:   const document = onlyDigits((body?.document ?? "").toString());
+  22:   const phone = (body?.phone ?? "").toString().trim();
+  23:   const email = (body?.email ?? "").toString().trim();
+  24: 
+  25:   if (!clientId) return NextResponse.json({ ok: false, message: "clientId obrigatório." }, { status: 400 });
+  26: 
+  27:   const data: any = {};
+  28:   if (name) data.name = name;
+  29:   if (document) data.document = document;
+  30:   data.phone = phone || null;
+  31:   data.email = email || null;
+  32: 
+  33:   const updated = await prisma.client.update({
+
+====================================================================================================
+FILE: .\src\app\api\admin\processes\route.ts
+------------------------------------------------------------
+TARGET LINE: 52
+  46:         clientId,
+  47:         notes, // se não quiser salvar nada, pode apagar essa linha
+  48:       },
+  49:     });
+  50: 
+  51:     return NextResponse.json({ ok: true, process: created });
+  52:   } catch (e: any) {
+  53:     if (e?.code === "P2002") {
+  54:       return NextResponse.json({ ok: false, message: "Esse CNJ já está cadastrado." }, { status: 400 });
+  55:     }
+  56:     console.error(e);
+  57:     return NextResponse.json({ ok: false, message: "Erro ao criar processo." }, { status: 500 });
+  58:   }
+
+====================================================================================================
+FILE: .\src\app\api\admin\users\update\route.ts
+------------------------------------------------------------
+TARGET LINE: 39
+  33:   // Email único
+  34:   if (email && email !== target.email) {
+  35:     const exists = await prisma.user.findUnique({ where: { email } });
+  36:     if (exists) return NextResponse.json({ ok: false, message: "Email já está em uso." }, { status: 400 });
+  37:   }
+  38: 
+  39:   const data: any = {};
+  40: 
+  41:   // Dados básicos (MASTER e SUPERADMIN)
+  42:   if (name) data.name = name;
+  43:   if (email) data.email = email;
+  44:   if (password) data.password = await bcrypt.hash(password, 10);
+  45: 
+

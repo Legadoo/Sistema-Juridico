@@ -49,8 +49,13 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, process: created });
-  } catch (e: any) {
-    if (e?.code === "P2002") {
+  } catch (e: unknown) {
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "code" in e &&
+      (e as { code?: string }).code === "P2002"
+    ) {
       return NextResponse.json({ ok: false, message: "Esse CNJ já está cadastrado." }, { status: 400 });
     }
     console.error(e);

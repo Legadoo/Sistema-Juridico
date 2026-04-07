@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   if (!clientId) return NextResponse.json({ ok: false, message: "clientId obrigatório." }, { status: 400 });
 
-  const data: any = {};
+  const data: Record<string, unknown> = {};
   if (name) data.name = name;
   if (document) data.document = document;
   data.phone = phone || null;

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     if (exists) return NextResponse.json({ ok: false, message: "Email já está em uso." }, { status: 400 });
   }
 
-  const data: any = {};
+  const data: Record<string, unknown> = {};
 
   // Dados básicos (MASTER e SUPERADMIN)
   if (name) data.name = name;

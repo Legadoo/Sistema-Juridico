@@ -1,7 +1,7 @@
 ﻿import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-import { AdminShell } from "@/components/AdminShell";
+import AdminShell from "@/components/AdminShell";
 
 export default async function SettingsPage() {
   const user = await getSessionUser();
@@ -74,3 +74,4 @@ export default async function SettingsPage() {
     </AdminShell>
   );
 }
+

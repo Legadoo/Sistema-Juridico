@@ -74,3 +74,108 @@ button{
   border-radius: 999px;
   padding: 6px 10px;
 }
+
+/* JURIDICVAS DARK PREMIUM UTILITIES */
+.jv-fade-in {
+  animation: jvFadeIn 0.35s ease;
+}
+
+.jv-rise-in {
+  animation: jvRiseIn 0.4s ease;
+}
+
+.jv-glass {
+  background: rgba(17, 24, 39, 0.72);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.28);
+}
+
+.jv-premium-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.jv-premium-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.04);
+}
+
+.jv-premium-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(99,102,241,0.9), rgba(124,58,237,0.9));
+  border-radius: 999px;
+}
+
+@keyframes jvFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes jvRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* JURIDICVAS DARK PREMIUM PHASE 2 */
+.jv-premium-btn {
+  border: 1px solid rgba(99,102,241,0.28);
+  background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(124,58,237,0.95));
+  color: #F8FAFC;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  box-shadow: 0 14px 30px rgba(99,102,241,0.22);
+}
+
+.jv-premium-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(99,102,241,0.30);
+}
+
+.jv-premium-btn-secondary {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: #E2E8F0;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.jv-premium-btn-secondary:hover {
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
+.jv-premium-input {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #F8FAFC;
+  border-radius: 16px;
+  padding: 13px 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.jv-premium-input::placeholder {
+  color: #64748B;
+}
+
+.jv-premium-input:focus {
+  border-color: rgba(99,102,241,0.55);
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
+  background: rgba(255,255,255,0.045);
+}
