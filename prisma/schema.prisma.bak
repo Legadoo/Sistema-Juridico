@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  password String
+  role     String  @default("SECRETARY") // "MASTER" ou "SECRETARY"
+  active   Boolean @default(true)
+
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  name       String
+  document   String   @unique // CPF ou CNPJ (somente numeros)
+  phone      String?
+  email      String?
+  accessCode String // codigo do cliente
+  notes      String?
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  processes LegalProcess[]
+}
+
+model LegalProcess {
+  id        String    @id @default(cuid())
+  cnj       String    @unique
+  tribunal  String?
+  vara      String?
+  status    String    @default("ACTIVE") // "ACTIVE" ou "ARCHIVED"
+  startDate DateTime?
+  notes     String?
+  archived  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  updates   ProcessUpdate[]
+  deadlines Deadline[]
+}
+
+model ProcessUpdate {
+  id              String   @id @default(cuid())
+  date            DateTime @default(now())
+  text            String
+  visibleToClient Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  processId String
+  process   LegalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model Deadline {
+  id        String   @id @default(cuid())
+  title     String
+  dueDate   DateTime
+  priority  String   @default("MEDIUM") // "LOW" | "MEDIUM" | "HIGH"
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  processId String
+  process   LegalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model Deadline {
+  id        String   @id @default(cuid())
+  processId String
+  process   LegalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  title     String
+  dueDate   DateTime
+  done      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemConfig {
+  id         String   @id @default("global")
+  maxClients Int      @default(50)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

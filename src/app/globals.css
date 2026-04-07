@@ -1,0 +1,76 @@
+﻿:root{
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --text: #0b1220;
+  --muted: #5b677a;
+  --border: #e6e9f0;
+
+  --primary: #111827;
+  --primaryText: #ffffff;
+
+  --chip: #f2f4f8;
+  --shadow: 0 12px 30px rgba(0,0,0,.08);
+
+  --radius: 16px;
+  --radiusSm: 12px;
+}
+
+html[data-theme="dark"]{
+  --bg: #070a12;
+  --panel: #0b1020;
+  --card: #0e1630;
+  --text: #eaf0ff;
+  --muted: #a7b0c3;
+  --border: #1a2542;
+
+  --primary: #eaf0ff;
+  --primaryText: #070a12;
+
+  --chip: #0b132b;
+  --shadow: 0 16px 45px rgba(0,0,0,.45);
+}
+
+*{ box-sizing: border-box; }
+html, body{ height: 100%; }
+
+body{
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* inputs básicos ficam bonitos sem precisar estilizar tudo na mão */
+input, select, textarea{
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+}
+
+input:focus, select:focus, textarea:focus{
+  border-color: rgba(123, 141, 255, .55);
+  box-shadow: 0 0 0 4px rgba(123, 141, 255, .12);
+}
+
+button{
+  font-family: inherit;
+}
+
+/* helpers */
+.jf-card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.jf-muted{ color: var(--muted); }
+.jf-chip{
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+}

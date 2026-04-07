@@ -1,0 +1,7 @@
+-- CreateTable
+CREATE TABLE "SystemConfig" (
+    "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'global',
+    "maxClients" INTEGER NOT NULL DEFAULT 50,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
