@@ -19,7 +19,7 @@ type MeResponse = {
 type DeadlineItem = {
   id: string;
   title?: string;
-  dueAt?: string;
+  dueDate?: string;
   done?: boolean;
 };
 
@@ -474,7 +474,7 @@ export default function AdminDashboardPage() {
                         {deadline.title || "Prazo"}
                       </div>
                       <div style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>
-                        Vencimento: {formatDate(deadline.dueAt)}
+                        Vencimento: {formatDate(deadline.dueDate)}
                       </div>
                     </div>
 

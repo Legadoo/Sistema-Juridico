@@ -41,7 +41,13 @@ export async function POST(req: Request) {
 
   const processId = (body?.processId ?? "").toString().trim();
   const title = (body?.title ?? "").toString().trim();
-  const dueDateStr = (body?.dueDate ?? "").toString().trim();
+  const dueDateStr = (
+  body?.dueDate ??
+  body?.dueAt ??
+  body?.date ??
+  body?.deadlineAt ??
+  ""
+).toString().trim();
 
   if (!processId || !dueDateStr) {
     return NextResponse.json({ ok: false, message: "Preencha processo e data." }, { status: 400 });

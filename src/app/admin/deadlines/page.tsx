@@ -30,13 +30,17 @@ type ProcessRef = {
   number?: string;
   processNumber?: string;
   archived?: boolean;
+  client?: {
+    name?: string;
+    document?: string;
+  };
 };
 
 type DeadlineRow = {
   id: string;
   title?: string;
   description?: string;
-  dueAt?: string;
+  dueDate?: string;
   done?: boolean;
   createdAt?: string;
   client?: Client;
@@ -94,12 +98,15 @@ function getProcessLabel(process: ProcessRef) {
   return number;
 }
 
-function isLate(dueAt?: string) {
-  if (!dueAt) return false;
-  return new Date(dueAt).getTime() < new Date().setHours(0, 0, 0, 0);
+function isLate(dueDate?: string) {
+  if (!dueDate) return false;
+  return new Date(dueDate).getTime() < new Date().setHours(0, 0, 0, 0);
 }
 
 const fieldStyle: React.CSSProperties = {
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
   width: "100%",
   background: "rgba(255,255,255,0.04)",
   border: "1px solid rgba(255,255,255,0.10)",
@@ -129,7 +136,7 @@ export default function DeadlinesPage() {
   const stats = useMemo(() => {
     const pending = deadlines.filter((d) => !d.done);
     const done = deadlines.filter((d) => d.done);
-    const late = pending.filter((d) => isLate(d.dueAt));
+    const late = pending.filter((d) => isLate(d.dueDate));
 
     return {
       total: deadlines.length,
@@ -226,6 +233,7 @@ export default function DeadlinesPage() {
         processId,
         title,
         description,
+        dueDate: dueAt,
         dueAt,
         date: dueAt,
         deadlineAt: dueAt,
@@ -265,7 +273,7 @@ export default function DeadlinesPage() {
       const response = await fetch("/api/admin/deadlines/done", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ deadlineId: deadline.id }),
+        body: JSON.stringify({ id: deadline.id }),
       }).then(async (r) => ({
         ok: r.ok,
         data: await r.json().catch(() => ({})),
@@ -519,7 +527,7 @@ export default function DeadlinesPage() {
           ) : (
             <div style={{ display: "grid", gap: 14 }}>
               {deadlines.map((deadline) => {
-                const late = !deadline.done && isLate(deadline.dueAt);
+                const late = !deadline.done && isLate(deadline.dueDate);
 
                 return (
                   <div
@@ -548,7 +556,7 @@ export default function DeadlinesPage() {
                         </div>
 
                         <div style={{ color: "#94A3B8", fontSize: 14 }}>
-                          Vencimento: {formatDate(deadline.dueAt)}
+                          Vencimento: {formatDate(deadline.dueDate)}
                         </div>
 
                         {deadline.description ? (
@@ -584,8 +592,12 @@ export default function DeadlinesPage() {
                             {deadline.done ? "Concluído" : late ? "Em atraso" : "Pendente"}
                           </span>
 
-                          {deadline.process ? (
-                            <span
+                          <div style={{ color: "#64748B", fontSize: 13 }}>
+  Cliente: {(deadline.process?.client?.name || "Cliente não informado")}
+</div>
+
+{deadline.process ? (
+  <span
                               style={{
                                 padding: "8px 12px",
                                 borderRadius: 999,
