@@ -91,6 +91,9 @@ export default function UsersPage() {
   const [deleteAction, setDeleteAction] = useState<DeleteAction>(null);
   const [runningDelete, setRunningDelete] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -153,6 +156,21 @@ export default function UsersPage() {
 
     return () => {
       ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    function updateViewport() {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+      setIsTablet(width >= 640 && width < 1024);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
     };
   }, []);
 
@@ -318,12 +336,20 @@ export default function UsersPage() {
           placeItems: "center",
           background: "linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
           color: "#E2E8F0",
+          padding: 24,
+          textAlign: "center",
         }}
       >
         Carregando usuários...
       </div>
     );
   }
+
+  const heroPadding = isMobile ? 20 : isTablet ? 24 : 28;
+  const heroTitleSize = isMobile ? 26 : isTablet ? 30 : 34;
+  const sectionGap = isMobile ? 18 : 24;
+  const statPadding = isMobile ? 18 : 20;
+  const statNumberSize = isMobile ? 28 : 32;
 
   return (
     <AdminShell role={me?.role ?? "SECRETARY"} userName={me?.name ?? "Usuário"}>
@@ -383,9 +409,14 @@ export default function UsersPage() {
                   role: e.target.value as "MASTER" | "SECRETARY",
                 }))
               }
+              style={{
+                colorScheme: "dark",
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: "#F8FAFC",
+              }}
             >
-              <option value="SECRETARY">SECRETARY</option>
-              <option value="MASTER">MASTER</option>
+              <option value="SECRETARY" style={{ background: "#0F172A", color: "#F8FAFC" }}>SECRETARY</option>
+              <option value="MASTER" style={{ background: "#0F172A", color: "#F8FAFC" }}>MASTER</option>
             </select>
           )}
         </div>
@@ -440,9 +471,14 @@ export default function UsersPage() {
                   role: e.target.value as "MASTER" | "SECRETARY",
                 }))
               }
+              style={{
+                colorScheme: "dark",
+                backgroundColor: "rgba(255,255,255,0.03)",
+                color: "#F8FAFC",
+              }}
             >
-              <option value="SECRETARY">SECRETARY</option>
-              <option value="MASTER">MASTER</option>
+              <option value="SECRETARY" style={{ background: "#0F172A", color: "#F8FAFC" }}>SECRETARY</option>
+              <option value="MASTER" style={{ background: "#0F172A", color: "#F8FAFC" }}>MASTER</option>
             </select>
           )}
         </div>
@@ -480,7 +516,7 @@ export default function UsersPage() {
           {deleteAction?.user ? (
             <>
               <strong>{deleteAction.user.name}</strong>
-              <div style={{ color: "#94A3B8", marginTop: 6 }}>
+              <div style={{ color: "#94A3B8", marginTop: 6, wordBreak: "break-word" }}>
                 Email: {deleteAction.user.email}
               </div>
             </>
@@ -488,13 +524,13 @@ export default function UsersPage() {
         </div>
       </PremiumModal>
 
-      <div style={{ display: "grid", gap: 24 }}>
+      <div style={{ display: "grid", gap: sectionGap }}>
         <section
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 28,
-            padding: 28,
+            borderRadius: isMobile ? 24 : 28,
+            padding: heroPadding,
             background:
               "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -526,7 +562,8 @@ export default function UsersPage() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
+                alignItems: isMobile ? "stretch" : "flex-start",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 16,
                 flexWrap: "wrap",
               }}
@@ -535,9 +572,10 @@ export default function UsersPage() {
                 <h1
                   style={{
                     margin: 0,
-                    fontSize: 34,
+                    fontSize: heroTitleSize,
                     fontWeight: 900,
                     letterSpacing: "-0.05em",
+                    lineHeight: 1.05,
                     color: "#F8FAFC",
                   }}
                 >
@@ -548,7 +586,7 @@ export default function UsersPage() {
                   style={{
                     margin: "10px 0 0",
                     color: "#94A3B8",
-                    fontSize: 15,
+                    fontSize: isMobile ? 14 : 15,
                     lineHeight: 1.7,
                     maxWidth: 760,
                   }}
@@ -558,7 +596,7 @@ export default function UsersPage() {
               </div>
 
               {canManage && (
-                <button className="jv-premium-btn" onClick={openCreateModal}>
+                <button className="jv-premium-btn" onClick={openCreateModal} style={{ width: isMobile ? "100%" : "auto" }}>
                   Novo usuário
                 </button>
               )}
@@ -569,33 +607,33 @@ export default function UsersPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
           }}
         >
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Usuários totais</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.total}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Ativos</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.active}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Inativos</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.inactive}
             </div>
           </div>
         </section>
 
-        <section className="jv-glass" style={{ borderRadius: 28, padding: 22 }}>
+        <section className="jv-glass" style={{ borderRadius: isMobile ? 24 : 28, padding: isMobile ? 18 : 22 }}>
           {loading ? (
             <div style={{ color: "#94A3B8" }}>Carregando usuários...</div>
           ) : users.length === 0 ? (
@@ -617,7 +655,7 @@ export default function UsersPage() {
                   key={user.id}
                   style={{
                     borderRadius: 22,
-                    padding: 18,
+                    padding: isMobile ? 16 : 18,
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.05)",
                     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
@@ -629,14 +667,22 @@ export default function UsersPage() {
                       justifyContent: "space-between",
                       gap: 18,
                       flexWrap: "wrap",
+                      flexDirection: isMobile ? "column" : "row",
                     }}
                   >
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 18 }}>
+                    <div style={{ display: "grid", gap: 8, minWidth: 0, flex: 1 }}>
+                      <div
+                        style={{
+                          color: "#F8FAFC",
+                          fontWeight: 800,
+                          fontSize: isMobile ? 17 : 18,
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {user.name}
                       </div>
 
-                      <div style={{ color: "#94A3B8", fontSize: 14 }}>
+                      <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
                         {user.email}
                       </div>
 
@@ -650,6 +696,7 @@ export default function UsersPage() {
                             border: "1px solid rgba(99,102,241,0.18)",
                             fontSize: 12,
                             fontWeight: 800,
+                            wordBreak: "break-word",
                           }}
                         >
                           {user.role}
@@ -666,6 +713,7 @@ export default function UsersPage() {
                               : "1px solid rgba(245,158,11,0.18)",
                             fontSize: 12,
                             fontWeight: 800,
+                            wordBreak: "break-word",
                           }}
                         >
                           {user.active ? "Ativo" : "Inativo"}
@@ -680,6 +728,7 @@ export default function UsersPage() {
                             border: "1px solid rgba(56,189,248,0.16)",
                             fontSize: 12,
                             fontWeight: 800,
+                            wordBreak: "break-word",
                           }}
                         >
                           Criado em {formatDate(user.createdAt)}
@@ -687,14 +736,23 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        alignItems: "flex-start",
+                        width: isMobile ? "100%" : "auto",
+                        justifyContent: isMobile ? "stretch" : "flex-start",
+                      }}
+                    >
                       {canManage && (
                         <>
-                          <button className="jv-premium-btn-secondary" onClick={() => openEditModal(user)}>
+                          <button className="jv-premium-btn-secondary" onClick={() => openEditModal(user)} style={{ width: isMobile ? "100%" : "auto" }}>
                             Editar
                           </button>
 
-                          <button className="jv-premium-btn-secondary" onClick={() => toggleActive(user)}>
+                          <button className="jv-premium-btn-secondary" onClick={() => toggleActive(user)} style={{ width: isMobile ? "100%" : "auto" }}>
                             {user.active ? "Desativar" : "Ativar"}
                           </button>
                         </>
@@ -705,6 +763,7 @@ export default function UsersPage() {
                           className="jv-premium-btn-secondary"
                           onClick={() => setDeleteAction({ user })}
                           style={{
+                            width: isMobile ? "100%" : "auto",
                             borderColor: "rgba(239,68,68,0.22)",
                             color: "#FCA5A5",
                             background: "rgba(239,68,68,0.07)",

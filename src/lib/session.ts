@@ -45,7 +45,7 @@ export async function getSessionUser() {
   if (!session) return null;
 
   if (session.expiresAt.getTime() < Date.now()) {
-    await prisma.session.delete({ where: { tokenHash } });
+    await prisma.session.deleteMany({ where: { tokenHash } });
     return null;
   }
 
@@ -57,10 +57,11 @@ export async function getSessionUser() {
 export async function destroySession() {
   const c = await cookies();
   const token = c.get(COOKIE_NAME)?.value;
-  if (!token) return;
 
-  const tokenHash = hashToken(token);
-  await prisma.session.deleteMany({ where: { tokenHash } });
+  if (token) {
+    const tokenHash = hashToken(token);
+    await prisma.session.deleteMany({ where: { tokenHash } });
+  }
 
   c.set(COOKIE_NAME, "", {
     httpOnly: true,
@@ -68,5 +69,6 @@ export async function destroySession() {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     expires: new Date(0),
+    maxAge: 0,
   });
 }

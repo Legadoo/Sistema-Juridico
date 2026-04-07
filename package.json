@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@tailwindcss/postcss": "^4.2.2",
     "bcryptjs": "^3.0.3",
     "next": "16.1.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -22,6 +24,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.2",
+    "postcss": "^8.5.8",
     "prisma": "^5.22.0",
     "typescript": "^5"
   }

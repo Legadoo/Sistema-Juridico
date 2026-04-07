@@ -52,6 +52,9 @@ export default function SettingsPage() {
   const [maxClients, setMaxClients] = useState("");
   const [activeClients, setActiveClients] = useState(0);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -111,6 +114,21 @@ export default function SettingsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    function updateViewport() {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+      setIsTablet(width >= 640 && width < 1024);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
+
   async function saveSettings() {
     const parsed = Number(maxClients);
 
@@ -154,12 +172,20 @@ export default function SettingsPage() {
           placeItems: "center",
           background: "linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
           color: "#E2E8F0",
+          padding: 24,
+          textAlign: "center",
         }}
       >
         Carregando configurações...
       </div>
     );
   }
+
+  const heroPadding = isMobile ? 20 : isTablet ? 24 : 28;
+  const heroTitleSize = isMobile ? 26 : isTablet ? 30 : 34;
+  const sectionGap = isMobile ? 18 : 24;
+  const statPadding = isMobile ? 18 : 20;
+  const statNumberSize = isMobile ? 28 : 32;
 
   return (
     <AdminShell role={me?.role ?? "SUPERADMIN"} userName={me?.name ?? "Usuário"}>
@@ -170,13 +196,13 @@ export default function SettingsPage() {
         onClose={() => setToast((prev) => ({ ...prev, open: false }))}
       />
 
-      <div style={{ display: "grid", gap: 24 }}>
+      <div style={{ display: "grid", gap: sectionGap }}>
         <section
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 28,
-            padding: 28,
+            borderRadius: isMobile ? 24 : 28,
+            padding: heroPadding,
             background:
               "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -189,8 +215,8 @@ export default function SettingsPage() {
               position: "absolute",
               top: -40,
               right: -10,
-              width: 180,
-              height: 180,
+              width: isMobile ? 120 : 180,
+              height: isMobile ? 120 : 180,
               borderRadius: "50%",
               background: "radial-gradient(circle, rgba(124,58,237,0.28), transparent 70%)",
               filter: "blur(16px)",
@@ -201,8 +227,8 @@ export default function SettingsPage() {
               position: "absolute",
               bottom: -30,
               left: -20,
-              width: 180,
-              height: 180,
+              width: isMobile ? 120 : 180,
+              height: isMobile ? 120 : 180,
               borderRadius: "50%",
               background: "radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%)",
               filter: "blur(14px)",
@@ -229,41 +255,32 @@ export default function SettingsPage() {
               CONFIGURAÇÕES DO SISTEMA
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: 16,
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <h1
-                  style={{
-                    margin: 0,
-                    fontSize: 34,
-                    fontWeight: 900,
-                    letterSpacing: "-0.05em",
-                    color: "#F8FAFC",
-                  }}
-                >
-                  Configurações premium
-                </h1>
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: heroTitleSize,
+                  fontWeight: 900,
+                  letterSpacing: "-0.05em",
+                  lineHeight: 1.05,
+                  color: "#F8FAFC",
+                }}
+              >
+                Configurações premium
+              </h1>
 
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: "#94A3B8",
-                    fontSize: 15,
-                    lineHeight: 1.7,
-                    maxWidth: 760,
-                  }}
-                >
-                  Controle parâmetros globais do JuridicVas com uma experiência mais clara,
-                  robusta e preparada para evolução comercial do produto.
-                </p>
-              </div>
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  color: "#94A3B8",
+                  fontSize: isMobile ? 14 : 15,
+                  lineHeight: 1.7,
+                  maxWidth: 760,
+                }}
+              >
+                Controle parâmetros globais do JuridicVas com uma experiência mais clara,
+                robusta e preparada para evolução comercial do produto.
+              </p>
             </div>
           </div>
         </section>
@@ -271,27 +288,27 @@ export default function SettingsPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
           }}
         >
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Clientes ativos</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {activeClients}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Limite configurado</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {maxClients || "—"}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Vagas restantes</div>
-            <div style={{ color: "#A7F3D0", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#A7F3D0", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {remaining}
             </div>
           </div>
@@ -300,14 +317,14 @@ export default function SettingsPage() {
         <section
           className="jv-glass"
           style={{
-            borderRadius: 28,
-            padding: 22,
+            borderRadius: isMobile ? 24 : 28,
+            padding: isMobile ? 18 : 22,
             display: "grid",
             gap: 18,
           }}
         >
           <div>
-            <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 800 }}>
+            <div style={{ color: "#F8FAFC", fontSize: isMobile ? 20 : 22, fontWeight: 800 }}>
               Limite de clientes ativos
             </div>
             <div style={{ color: "#64748B", fontSize: 13, marginTop: 6, lineHeight: 1.7 }}>
@@ -316,7 +333,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 6, maxWidth: 380 }}>
+          <div style={{ display: "grid", gap: 6, maxWidth: isMobile ? "100%" : 380 }}>
             <label style={{ color: "#CBD5E1", fontSize: 13, fontWeight: 600 }}>
               Máximo de clientes ativos
             </label>
@@ -351,6 +368,7 @@ export default function SettingsPage() {
               className="jv-premium-btn"
               onClick={saveSettings}
               disabled={saving || loading}
+              style={{ width: isMobile ? "100%" : "auto" }}
             >
               {saving ? "Salvando..." : "Salvar configurações"}
             </button>

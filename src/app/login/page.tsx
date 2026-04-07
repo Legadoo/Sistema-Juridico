@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputStyle: React.CSSProperties = {
@@ -21,6 +21,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function updateViewport() {
+      setIsMobile(window.innerWidth < 900);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
+
+  function fillDemo() {
+    setEmail("demoadv@demo.com");
+    setPassword("demo123");
+    setMsg("Credenciais demo preenchidas. Ajuste se necessário.");
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,17 +101,18 @@ export default function LoginPage() {
           margin: "0 auto",
           minHeight: "100vh",
           display: "grid",
-          gridTemplateColumns: "1.1fr 0.9fr",
-          gap: 24,
+          gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr",
+          gap: isMobile ? 18 : 24,
           alignItems: "center",
-          padding: "32px 0",
+          padding: isMobile ? "24px 0" : "32px 0",
         }}
       >
         <section
           style={{
             display: "grid",
-            gap: 22,
+            gap: isMobile ? 18 : 22,
             alignContent: "center",
+            order: isMobile ? 2 : 1,
           }}
         >
           <div
@@ -117,7 +138,7 @@ export default function LoginPage() {
             <h1
               style={{
                 margin: 0,
-                fontSize: 54,
+                fontSize: isMobile ? 34 : 54,
                 lineHeight: 1.04,
                 fontWeight: 900,
                 letterSpacing: "-0.06em",
@@ -132,7 +153,7 @@ export default function LoginPage() {
               style={{
                 margin: 0,
                 color: "#94A3B8",
-                fontSize: 17,
+                fontSize: isMobile ? 15 : 17,
                 lineHeight: 1.9,
                 maxWidth: 720,
               }}
@@ -145,7 +166,7 @@ export default function LoginPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
               gap: 14,
               marginTop: 8,
               maxWidth: 760,
@@ -180,13 +201,14 @@ export default function LoginPage() {
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 32,
-            padding: 28,
+            borderRadius: isMobile ? 28 : 32,
+            padding: isMobile ? 22 : 28,
             background:
               "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
             border: "1px solid rgba(255,255,255,0.06)",
             boxShadow: "0 24px 50px rgba(0,0,0,0.32)",
             backdropFilter: "blur(16px)",
+            order: isMobile ? 1 : 2,
           }}
         >
           <div
@@ -219,7 +241,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: 22 }}>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: isMobile ? 24 : 28,
                   fontWeight: 900,
                   letterSpacing: "-0.04em",
                   color: "#F8FAFC",
@@ -283,14 +305,32 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
-              <button
-                type="submit"
-                className="jv-premium-btn"
-                disabled={loading}
-                style={{ width: "100%", marginTop: 4 }}
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr",
+                }}
               >
-                {loading ? "Entrando..." : "Entrar no JuridicVas"}
-              </button>
+                <button
+                  type="submit"
+                  className="jv-premium-btn"
+                  disabled={loading}
+                  style={{ width: "100%", marginTop: 4 }}
+                >
+                  {loading ? "Entrando..." : "Entrar no JuridicVas"}
+                </button>
+
+                <button
+                  type="button"
+                  className="jv-premium-btn-secondary"
+                  onClick={fillDemo}
+                  disabled={loading}
+                  style={{ width: "100%" }}
+                >
+                  Preencher modo demo
+                </button>
+              </div>
             </form>
 
             <div

@@ -1,4 +1,6 @@
-﻿:root{
+﻿@import "tailwindcss";
+
+:root{
   --bg: #f6f7fb;
   --panel: #ffffff;
   --card: #ffffff;
@@ -179,3 +181,4 @@ button{
   box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
   background: rgba(255,255,255,0.045);
 }
+

@@ -150,6 +150,9 @@ export default function ProcessesPage() {
   const [archiveAction, setArchiveAction] = useState<ArchiveActionState>(null);
   const [runningArchive, setRunningArchive] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -217,6 +220,21 @@ export default function ProcessesPage() {
 
     return () => {
       ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    function updateViewport() {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+      setIsTablet(width >= 640 && width < 1024);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
     };
   }, []);
 
@@ -365,12 +383,20 @@ export default function ProcessesPage() {
           placeItems: "center",
           background: "linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
           color: "#E2E8F0",
+          padding: 24,
+          textAlign: "center",
         }}
       >
         Carregando módulo de processos...
       </div>
     );
   }
+
+  const heroPadding = isMobile ? 20 : isTablet ? 24 : 28;
+  const heroTitleSize = isMobile ? 26 : isTablet ? 30 : 34;
+  const sectionGap = isMobile ? 18 : 24;
+  const statPadding = isMobile ? 18 : 20;
+  const statNumberSize = isMobile ? 28 : 32;
 
   return (
     <AdminShell role={me?.role ?? "SECRETARY"} userName={me?.name ?? "Usuário"}>
@@ -412,10 +438,21 @@ export default function ProcessesPage() {
             className="jv-premium-input"
             value={createForm.clientId}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, clientId: e.target.value }))}
+            style={{
+              colorScheme: "dark",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              color: "#F8FAFC",
+            }}
           >
-            <option value="">Selecione o cliente</option>
+            <option value="" style={{ backgroundColor: "#0F172A", color: "#94A3B8" }}>
+              Selecione o cliente
+            </option>
             {clients.map((client) => (
-              <option key={client.id} value={client.id}>
+              <option
+                key={client.id}
+                value={client.id}
+                style={{ backgroundColor: "#0F172A", color: "#F8FAFC" }}
+              >
                 {client.name}
               </option>
             ))}
@@ -493,10 +530,11 @@ export default function ProcessesPage() {
           <label
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: "flex-start",
               gap: 10,
               color: "#E2E8F0",
               fontSize: 14,
+              lineHeight: 1.5,
             }}
           >
             <input
@@ -508,6 +546,7 @@ export default function ProcessesPage() {
                   visibleToClient: e.target.checked,
                 }))
               }
+              style={{ marginTop: 2 }}
             />
             Exibir esta atualização para o cliente
           </label>
@@ -562,13 +601,13 @@ export default function ProcessesPage() {
         </div>
       </PremiumModal>
 
-      <div style={{ display: "grid", gap: 24 }}>
+      <div style={{ display: "grid", gap: sectionGap }}>
         <section
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 28,
-            padding: 28,
+            borderRadius: isMobile ? 24 : 28,
+            padding: heroPadding,
             background:
               "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -581,8 +620,8 @@ export default function ProcessesPage() {
               position: "absolute",
               top: -40,
               right: -10,
-              width: 180,
-              height: 180,
+              width: isMobile ? 120 : 180,
+              height: isMobile ? 120 : 180,
               borderRadius: "50%",
               background: "radial-gradient(circle, rgba(124,58,237,0.28), transparent 70%)",
               filter: "blur(16px)",
@@ -593,8 +632,8 @@ export default function ProcessesPage() {
               position: "absolute",
               bottom: -30,
               left: -20,
-              width: 180,
-              height: 180,
+              width: isMobile ? 120 : 180,
+              height: isMobile ? 120 : 180,
               borderRadius: "50%",
               background: "radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%)",
               filter: "blur(14px)",
@@ -625,7 +664,8 @@ export default function ProcessesPage() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
+                alignItems: isMobile ? "stretch" : "flex-start",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 16,
                 flexWrap: "wrap",
               }}
@@ -634,9 +674,10 @@ export default function ProcessesPage() {
                 <h1
                   style={{
                     margin: 0,
-                    fontSize: 34,
+                    fontSize: heroTitleSize,
                     fontWeight: 900,
                     letterSpacing: "-0.05em",
+                    lineHeight: 1.05,
                     color: "#F8FAFC",
                   }}
                 >
@@ -647,7 +688,7 @@ export default function ProcessesPage() {
                   style={{
                     margin: "10px 0 0",
                     color: "#94A3B8",
-                    fontSize: 15,
+                    fontSize: isMobile ? 14 : 15,
                     lineHeight: 1.7,
                     maxWidth: 760,
                   }}
@@ -656,7 +697,11 @@ export default function ProcessesPage() {
                 </p>
               </div>
 
-              <button className="jv-premium-btn" onClick={openCreateModal}>
+              <button
+                className="jv-premium-btn"
+                onClick={openCreateModal}
+                style={{ width: isMobile ? "100%" : "auto" }}
+              >
                 Novo processo
               </button>
             </div>
@@ -666,27 +711,27 @@ export default function ProcessesPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
           }}
         >
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Processos ativos</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.total}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Com atualizações</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.withUpdates}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Sem atualizações</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.withoutUpdates}
             </div>
           </div>
@@ -695,15 +740,15 @@ export default function ProcessesPage() {
         <section
           className="jv-glass"
           style={{
-            borderRadius: 28,
-            padding: 22,
+            borderRadius: isMobile ? 24 : 28,
+            padding: isMobile ? 18 : 22,
           }}
         >
           <div style={{ marginBottom: 18 }}>
-            <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 800 }}>
+            <div style={{ color: "#F8FAFC", fontSize: isMobile ? 20 : 22, fontWeight: 800 }}>
               Lista de processos
             </div>
-            <div style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>
+            <div style={{ color: "#64748B", fontSize: 13, marginTop: 4, lineHeight: 1.6 }}>
               Visão operacional dos processos ativos e suas movimentações recentes.
             </div>
           </div>
@@ -732,7 +777,7 @@ export default function ProcessesPage() {
                     key={process.id}
                     style={{
                       borderRadius: 22,
-                      padding: 18,
+                      padding: isMobile ? 16 : 18,
                       background: "rgba(255,255,255,0.03)",
                       border: "1px solid rgba(255,255,255,0.05)",
                       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
@@ -744,18 +789,26 @@ export default function ProcessesPage() {
                         justifyContent: "space-between",
                         gap: 18,
                         flexWrap: "wrap",
+                        flexDirection: isMobile ? "column" : "row",
                       }}
                     >
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 18 }}>
+                      <div style={{ display: "grid", gap: 8, minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            color: "#F8FAFC",
+                            fontWeight: 800,
+                            fontSize: isMobile ? 17 : 18,
+                            wordBreak: "break-word",
+                          }}
+                        >
                           {process.title || "Processo"}
                         </div>
 
-                        <div style={{ color: "#94A3B8", fontSize: 14 }}>
+                        <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
                           {getProcessNumber(process)}
                         </div>
 
-                        <div style={{ color: "#64748B", fontSize: 13 }}>
+                        <div style={{ color: "#64748B", fontSize: 13, lineHeight: 1.6, wordBreak: "break-word" }}>
                           Cliente: {process.client?.name || "Não vinculado"}
                         </div>
 
@@ -769,6 +822,7 @@ export default function ProcessesPage() {
                               border: "1px solid rgba(99,102,241,0.18)",
                               fontSize: 12,
                               fontWeight: 800,
+                              wordBreak: "break-word",
                             }}
                           >
                             {process.updates?.length || 0} atualização(ões)
@@ -783,6 +837,7 @@ export default function ProcessesPage() {
                               border: "1px solid rgba(56,189,248,0.16)",
                               fontSize: 12,
                               fontWeight: 800,
+                              wordBreak: "break-word",
                             }}
                           >
                             Criado em {formatDate(process.createdAt)}
@@ -793,14 +848,21 @@ export default function ProcessesPage() {
                           <div
                             style={{
                               marginTop: 8,
-                              padding: 14,
+                              padding: isMobile ? 12 : 14,
                               borderRadius: 18,
                               background: "rgba(255,255,255,0.025)",
                               border: "1px solid rgba(255,255,255,0.04)",
-                              maxWidth: 780,
+                              maxWidth: "100%",
                             }}
                           >
-                            <div style={{ color: "#E2E8F0", fontSize: 14, lineHeight: 1.7 }}>
+                            <div
+                              style={{
+                                color: "#E2E8F0",
+                                fontSize: 14,
+                                lineHeight: 1.7,
+                                wordBreak: "break-word",
+                              }}
+                            >
                               {getUpdateText(lastUpdate)}
                             </div>
                             <div style={{ color: "#64748B", fontSize: 12, marginTop: 8 }}>
@@ -814,10 +876,20 @@ export default function ProcessesPage() {
                         )}
                       </div>
 
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          alignItems: "flex-start",
+                          width: isMobile ? "100%" : "auto",
+                          justifyContent: isMobile ? "stretch" : "flex-start",
+                        }}
+                      >
                         <button
                           className="jv-premium-btn-secondary"
                           onClick={() => openUpdateModal(process)}
+                          style={{ width: isMobile ? "100%" : "auto" }}
                         >
                           Nova atualização
                         </button>
@@ -825,6 +897,7 @@ export default function ProcessesPage() {
                         <button
                           className="jv-premium-btn-secondary"
                           onClick={() => setArchiveAction({ process })}
+                          style={{ width: isMobile ? "100%" : "auto" }}
                         >
                           Arquivar
                         </button>
@@ -840,3 +913,4 @@ export default function ProcessesPage() {
     </AdminShell>
   );
 }
+

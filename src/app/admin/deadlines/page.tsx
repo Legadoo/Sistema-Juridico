@@ -127,6 +127,9 @@ export default function DeadlinesPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [savingCreate, setSavingCreate] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -202,6 +205,21 @@ export default function DeadlinesPage() {
 
     return () => {
       ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    function updateViewport() {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+      setIsTablet(width >= 640 && width < 1024);
+    }
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
     };
   }, []);
 
@@ -300,12 +318,20 @@ export default function DeadlinesPage() {
           placeItems: "center",
           background: "linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
           color: "#E2E8F0",
+          padding: 24,
+          textAlign: "center",
         }}
       >
         Carregando prazos...
       </div>
     );
   }
+
+  const heroPadding = isMobile ? 20 : isTablet ? 24 : 28;
+  const heroTitleSize = isMobile ? 26 : isTablet ? 30 : 34;
+  const sectionGap = isMobile ? 18 : 24;
+  const statPadding = isMobile ? 18 : 20;
+  const statNumberSize = isMobile ? 28 : 32;
 
   return (
     <AdminShell role={me?.role ?? "SECRETARY"} userName={me?.name ?? "Usuário"}>
@@ -342,7 +368,12 @@ export default function DeadlinesPage() {
             <select
               value={form.processId}
               onChange={(e) => setForm((prev) => ({ ...prev, processId: e.target.value }))}
-              style={fieldStyle}
+              style={{
+                ...fieldStyle,
+                colorScheme: "dark",
+                backgroundColor: "rgba(255,255,255,0.04)",
+                color: "#F8FAFC",
+              }}
             >
               <option value="" style={{ background: "#0F172A", color: "#94A3B8" }}>
                 Selecione o processo
@@ -397,13 +428,13 @@ export default function DeadlinesPage() {
         </div>
       </PremiumModal>
 
-      <div style={{ display: "grid", gap: 24 }}>
+      <div style={{ display: "grid", gap: sectionGap }}>
         <section
           style={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 28,
-            padding: 28,
+            borderRadius: isMobile ? 24 : 28,
+            padding: heroPadding,
             background:
               "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -435,7 +466,8 @@ export default function DeadlinesPage() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
+                alignItems: isMobile ? "stretch" : "flex-start",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 16,
                 flexWrap: "wrap",
               }}
@@ -444,9 +476,10 @@ export default function DeadlinesPage() {
                 <h1
                   style={{
                     margin: 0,
-                    fontSize: 34,
+                    fontSize: heroTitleSize,
                     fontWeight: 900,
                     letterSpacing: "-0.05em",
+                    lineHeight: 1.05,
                     color: "#F8FAFC",
                   }}
                 >
@@ -457,7 +490,7 @@ export default function DeadlinesPage() {
                   style={{
                     margin: "10px 0 0",
                     color: "#94A3B8",
-                    fontSize: 15,
+                    fontSize: isMobile ? 14 : 15,
                     lineHeight: 1.7,
                     maxWidth: 760,
                   }}
@@ -466,7 +499,11 @@ export default function DeadlinesPage() {
                 </p>
               </div>
 
-              <button className="jv-premium-btn" onClick={() => setCreateOpen(true)}>
+              <button
+                className="jv-premium-btn"
+                onClick={() => setCreateOpen(true)}
+                style={{ width: isMobile ? "100%" : "auto" }}
+              >
                 Novo prazo
               </button>
             </div>
@@ -476,40 +513,40 @@ export default function DeadlinesPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
           }}
         >
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Prazos totais</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.total}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Pendentes</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.pending}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Concluídos</div>
-            <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.done}
             </div>
           </div>
 
-          <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
+          <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
             <div style={{ color: "#94A3B8", fontSize: 13 }}>Em atraso</div>
-            <div style={{ color: "#FCA5A5", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+            <div style={{ color: "#FCA5A5", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {stats.late}
             </div>
           </div>
         </section>
 
-        <section className="jv-glass" style={{ borderRadius: 28, padding: 22 }}>
+        <section className="jv-glass" style={{ borderRadius: isMobile ? 24 : 28, padding: isMobile ? 18 : 22 }}>
           {loading ? (
             <div style={{ color: "#94A3B8" }}>Carregando prazos...</div>
           ) : deadlines.length === 0 ? (
@@ -534,7 +571,7 @@ export default function DeadlinesPage() {
                     key={deadline.id}
                     style={{
                       borderRadius: 22,
-                      padding: 18,
+                      padding: isMobile ? 16 : 18,
                       background: late ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.03)",
                       border: late
                         ? "1px solid rgba(239,68,68,0.18)"
@@ -548,10 +585,18 @@ export default function DeadlinesPage() {
                         justifyContent: "space-between",
                         gap: 18,
                         flexWrap: "wrap",
+                        flexDirection: isMobile ? "column" : "row",
                       }}
                     >
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 18 }}>
+                      <div style={{ display: "grid", gap: 8, minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            color: "#F8FAFC",
+                            fontWeight: 800,
+                            fontSize: isMobile ? 17 : 18,
+                            wordBreak: "break-word",
+                          }}
+                        >
                           {deadline.title || "Prazo"}
                         </div>
 
@@ -560,7 +605,14 @@ export default function DeadlinesPage() {
                         </div>
 
                         {deadline.description ? (
-                          <div style={{ color: "#64748B", fontSize: 13, lineHeight: 1.7 }}>
+                          <div
+                            style={{
+                              color: "#64748B",
+                              fontSize: 13,
+                              lineHeight: 1.7,
+                              wordBreak: "break-word",
+                            }}
+                          >
                             {deadline.description}
                           </div>
                         ) : null}
@@ -587,25 +639,38 @@ export default function DeadlinesPage() {
                                 : "1px solid rgba(245,158,11,0.18)",
                               fontSize: 12,
                               fontWeight: 800,
+                              wordBreak: "break-word",
                             }}
                           >
                             {deadline.done ? "Concluído" : late ? "Em atraso" : "Pendente"}
                           </span>
 
-                          <div style={{ color: "#64748B", fontSize: 13 }}>
-  Cliente: {(deadline.process?.client?.name || "Cliente não informado")}
-</div>
+                          <span
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 999,
+                              background: "rgba(99,102,241,0.10)",
+                              color: "#C7D2FE",
+                              border: "1px solid rgba(99,102,241,0.18)",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            Cliente: {deadline.process?.client?.name || "Cliente não informado"}
+                          </span>
 
-{deadline.process ? (
-  <span
+                          {deadline.process ? (
+                            <span
                               style={{
                                 padding: "8px 12px",
                                 borderRadius: 999,
-                                background: "rgba(99,102,241,0.10)",
-                                color: "#C7D2FE",
-                                border: "1px solid rgba(99,102,241,0.18)",
+                                background: "rgba(56,189,248,0.08)",
+                                color: "#BAE6FD",
+                                border: "1px solid rgba(56,189,248,0.16)",
                                 fontSize: 12,
                                 fontWeight: 800,
+                                wordBreak: "break-word",
                               }}
                             >
                               Processo: {getProcessNumber(deadline.process)}
@@ -615,8 +680,21 @@ export default function DeadlinesPage() {
                       </div>
 
                       {!deadline.done && (
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
-                          <button className="jv-premium-btn-secondary" onClick={() => markDone(deadline)}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                            alignItems: "flex-start",
+                            width: isMobile ? "100%" : "auto",
+                            justifyContent: isMobile ? "stretch" : "flex-start",
+                          }}
+                        >
+                          <button
+                            className="jv-premium-btn-secondary"
+                            onClick={() => markDone(deadline)}
+                            style={{ width: isMobile ? "100%" : "auto" }}
+                          >
                             Marcar como concluído
                           </button>
                         </div>

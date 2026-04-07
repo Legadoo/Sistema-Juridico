@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 type TrackResp = {
   ok: boolean;
@@ -102,6 +102,17 @@ export default function AcompanharPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [data, setData] = useState<TrackResp | null>(null);
+
+const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  function update() {
+    setIsMobile(window.innerWidth < 768);
+  }
+  update();
+  window.addEventListener("resize", update);
+  return () => window.removeEventListener("resize", update);
+}, []);
 
   const processCount = useMemo(() => data?.processes?.length ?? 0, [data]);
 
@@ -256,7 +267,7 @@ export default function AcompanharPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(340px, 420px) 1fr",
+            gridTemplateColumns: isMobile ? "1fr" : "minmax(340px, 420px) 1fr",
             gap: 20,
             alignItems: "start",
           }}
@@ -417,7 +428,7 @@ export default function AcompanharPage() {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1.2fr 0.8fr",
+                      gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
                       gap: 16,
                     }}
                   >
@@ -489,7 +500,7 @@ export default function AcompanharPage() {
                         >
                           <div
                             style={{
-                              display: "flex",
+                              display: "flex", flexDirection: isMobile ? "column" : "row",
                               justifyContent: "space-between",
                               alignItems: "flex-start",
                               gap: 16,
@@ -599,3 +610,4 @@ export default function AcompanharPage() {
     </div>
   );
 }
+
