@@ -1,0 +1,53 @@
+const { PrismaClient } = require("@prisma/client");
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const firm = await prisma.lawFirm.upsert({
+    where: { slug: "advocacia-padrao" },
+    update: {},
+    create: {
+      name: "Advocacia Padrão",
+      slug: "advocacia-padrao",
+      active: true,
+    },
+  });
+
+  await prisma.firmConfig.upsert({
+    where: { firmId: firm.id },
+    update: {},
+    create: {
+      firmId: firm.id,
+      maxClients: 50,
+    },
+  });
+
+  const users = await prisma.user.updateMany({
+    where: { firmId: null },
+    data: { firmId: firm.id },
+  });
+
+  const clients = await prisma.client.updateMany({
+    where: { firmId: null },
+    data: { firmId: firm.id },
+  });
+
+  const processes = await prisma.legalProcess.updateMany({
+    where: { firmId: null },
+    data: { firmId: firm.id },
+  });
+
+  console.log("LawFirm padrão:", firm.id, firm.name, firm.slug);
+  console.log("Users atualizados:", users.count);
+  console.log("Clients atualizados:", clients.count);
+  console.log("Processes atualizados:", processes.count);
+}
+
+main()
+  .catch((error) => {
+    console.error("Erro no backfill:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

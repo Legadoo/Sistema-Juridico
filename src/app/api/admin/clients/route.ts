@@ -14,11 +14,21 @@ export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
+  if (!user.firmId) {
+    return NextResponse.json(
+      { ok: false, message: "Usuário sem advocacia vinculada." },
+      { status: 403 }
+    );
+  }
+
   const url = new URL(req.url);
   const archived = url.searchParams.get("archived") === "1";
 
   const clients = await prisma.client.findMany({
-    where: { archived },
+    where: {
+      firmId: user.firmId,
+      archived,
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -26,25 +36,44 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  
-  // ===== Limite de clientes (configurado pelo SUPERADMIN) =====
-  const config = await prisma.systemConfig.upsert({
-    where: { id: "global" },
-    update: {},
-    create: { id: "global", maxClients: 50 },
-  });
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const activeClients = await prisma.client.count({ where: { archived: false } });
-
-  if (activeClients >= config.maxClients) {
+  if (!user.firmId) {
     return NextResponse.json(
-      { ok: false, message: "Limite de clientes ativos atingido. Arquive clientes ou aumente o limite nas Configurações." },
+      { ok: false, message: "Usuário sem advocacia vinculada." },
       { status: 403 }
     );
   }
-  // ===========================================================
-const user = await getSessionUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+
+  // ===== Limite de clientes por advocacia =====
+  const firmConfig = await prisma.firmConfig.upsert({
+    where: { firmId: user.firmId },
+    update: {},
+    create: {
+      firmId: user.firmId,
+      maxClients: 50,
+    },
+  });
+
+  const activeClients = await prisma.client.count({
+    where: {
+      firmId: user.firmId,
+      archived: false,
+    },
+  });
+
+  if (activeClients >= firmConfig.maxClients) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          "Limite de clientes ativos atingido para esta advocacia. Arquive clientes ou aumente o limite nas configurações.",
+      },
+      { status: 403 }
+    );
+  }
+  // ===========================================
 
   const body = await req.json().catch(() => null);
 
@@ -54,7 +83,24 @@ const user = await getSessionUser();
   const email = (body?.email ?? "").toString().trim();
 
   if (!name || !document) {
-    return NextResponse.json({ ok: false, message: "Preencha nome e CPF/CNPJ." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message: "Preencha nome e CPF/CNPJ." },
+      { status: 400 }
+    );
+  }
+
+  const existing = await prisma.client.findFirst({
+    where: {
+      firmId: user.firmId,
+      document,
+    },
+  });
+
+  if (existing) {
+    return NextResponse.json(
+      { ok: false, message: "Já existe um cliente com este CPF/CNPJ nesta advocacia." },
+      { status: 409 }
+    );
   }
 
   const created = await prisma.client.create({
@@ -65,9 +111,9 @@ const user = await getSessionUser();
       email: email || null,
       accessCode: genCode(),
       archived: false,
+      firmId: user.firmId,
     },
   });
 
   return NextResponse.json({ ok: true, client: created });
 }
-

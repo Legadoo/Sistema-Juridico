@@ -1,0 +1,33 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const firmId = "0";
+
+  await prisma.user.updateMany({
+    where: { firmId: null },
+    data: { firmId },
+  });
+
+  await prisma.client.updateMany({
+    where: { firmId: null },
+    data: { firmId },
+  });
+
+  await prisma.legalProcess.updateMany({
+    where: { firmId: null },
+    data: { firmId },
+  });
+
+  console.log("Backfill concluído com sucesso.");
+}
+
+main()
+  .catch((error) => {
+    console.error("Erro no backfill:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
