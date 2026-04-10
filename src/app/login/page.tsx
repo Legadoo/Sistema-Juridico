@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -62,7 +62,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/admin");
+      window.location.href = data?.redirectTo || "/admin";
       router.refresh();
     } catch {
       setMsg("Não foi possível entrar agora.");

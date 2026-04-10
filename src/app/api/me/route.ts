@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser, destroySession } from "@/lib/session";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -21,6 +21,17 @@ export async function GET() {
         active: true,
       },
     });
+
+    if (user.role !== "SUPERADMIN" && (!firm || !firm.active)) {
+      await destroySession();
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Advocacia desativada.",
+        },
+        { status: 401 }
+      );
+    }
   }
 
   return NextResponse.json({

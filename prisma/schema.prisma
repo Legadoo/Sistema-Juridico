@@ -39,8 +39,8 @@ model User {
   role     String  @default("SECRETARY") // "MASTER" ou "SECRETARY"
   active   Boolean @default(true)
 
-  firmId String
-  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: Restrict)
 
   assignedClients   Client[]       @relation("AssignedClients")
   assignedProcesses LegalProcess[] @relation("AssignedProcesses")
