@@ -169,7 +169,7 @@ export default function DeadlinesPage() {
     setMe(normalizedMe);
 
     const [deadlinesResponse, processesResponse] = await Promise.all([
-      fetch("/api/admin/deadlines", { cache: "no-store" })
+      fetch("/api/admin/deadlines?all=1", { cache: "no-store" })
         .then((r) => r.json())
         .catch(() => null),
       fetch("/api/admin/processes", { cache: "no-store" })
@@ -710,3 +710,4 @@ export default function DeadlinesPage() {
     </AdminShell>
   );
 }
+

@@ -1,39 +1,67 @@
-﻿import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
+﻿import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 async function main() {
-  const email = "admin@demo.com";
-  const password = "admin123";
-  const name = "Advogado Master";
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    console.log("Master já existe:", email);
-    return;
-  }
+  const name = "Master";
+  const email = "master@juridicvas.local";
+  const password = "123456";
+  const role = "MASTER";
 
   const hash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hash,
-      role: "MASTER",
+  const firm = await prisma.lawFirm.upsert({
+    where: { slug: "advocacia-padrao" },
+    update: {},
+    create: {
+      name: "Advocacia Padrão",
+      slug: "advocacia-padrao",
       active: true,
     },
   });
 
-  console.log("Master criado!");
-  console.log("Login:", email);
-  console.log("Senha:", password);
+  await prisma.firmConfig.upsert({
+    where: { firmId: firm.id },
+    update: {},
+    create: {
+      firmId: firm.id,
+      maxClients: 50,
+    },
+  });
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {
+      name,
+      password: hash,
+      role,
+      active: true,
+      firmId: firm.id,
+    },
+    create: {
+      name,
+      email,
+      password: hash,
+      role,
+      active: true,
+      firmId: firm.id,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      active: true,
+      firmId: true,
+    },
+  });
+
+  console.log("Master seedado com sucesso:");
+  console.log(user);
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error("Erro ao seedar master:", error);
     process.exit(1);
   })
   .finally(async () => {
