@@ -10,13 +10,16 @@ export async function POST(req: Request) {
 
   const document = onlyDigits((body?.document ?? "").toString());
   const accessCode = (body?.accessCode ?? "").toString().trim();
-  const firmSlug = (body?.firmSlug ?? "").toString().trim().toLowerCase();
 
-  if (!document || !accessCode || !firmSlug) {
+  console.log("TRACK body recebido:", body);
+  console.log("TRACK document normalizado:", document);
+  console.log("TRACK accessCode recebido:", accessCode);
+
+  if (!document || !accessCode) {
     return NextResponse.json(
       {
         ok: false,
-        message: "Informe CPF/CNPJ, código de acesso e a advocacia.",
+        message: "Informe CPF/CNPJ e código de acesso.",
       },
       { status: 400 }
     );
@@ -27,10 +30,6 @@ export async function POST(req: Request) {
       document,
       accessCode,
       archived: false,
-      firm: {
-        slug: firmSlug,
-        active: true,
-      },
     },
     include: {
       processes: {
@@ -56,6 +55,14 @@ export async function POST(req: Request) {
       },
     },
   });
+
+  console.log("TRACK client encontrado:", client ? {
+    id: client.id,
+    name: client.name,
+    document: client.document,
+    accessCode: client.accessCode,
+    archived: client.archived,
+  } : null);
 
   if (!client) {
     return NextResponse.json(

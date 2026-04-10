@@ -133,12 +133,13 @@ model ProcessUpdate {
 }
 
 model Deadline {
-  id        String   @id @default(cuid())
-  title     String
-  dueDate   DateTime
-  priority  String   @default("MEDIUM") // "LOW" | "MEDIUM" | "HIGH"
-  done      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  priority    String   @default("MEDIUM") // "LOW" | "MEDIUM" | "HIGH"
+  done        Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   processId String
   process   LegalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)

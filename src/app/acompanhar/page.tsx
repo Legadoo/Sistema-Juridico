@@ -8,18 +8,18 @@ type TrackResp = {
   client?: {
     name: string;
     document: string;
-  };
-  processes?: Array<{
-    id: string;
-    cnj: string;
-    tribunal?: string | null;
-    vara?: string | null;
-    status: string;
-    updates: Array<{
-      date: string;
-      text: string;
+    processes?: Array<{
+      id: string;
+      cnj: string;
+      tribunal?: string | null;
+      vara?: string | null;
+      status: string;
+      updates: Array<{
+        date: string;
+        text: string;
+      }>;
     }>;
-  }>;
+  };
 };
 
 function onlyDigits(value: string) {
@@ -103,18 +103,18 @@ export default function AcompanharPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [data, setData] = useState<TrackResp | null>(null);
 
-const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-useEffect(() => {
-  function update() {
-    setIsMobile(window.innerWidth < 768);
-  }
-  update();
-  window.addEventListener("resize", update);
-  return () => window.removeEventListener("resize", update);
-}, []);
+  useEffect(() => {
+    function update() {
+      setIsMobile(window.innerWidth < 768);
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
-  const processCount = useMemo(() => data?.processes?.length ?? 0, [data]);
+  const processCount = useMemo(() => data?.client?.processes?.length ?? 0, [data]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -126,7 +126,10 @@ useEffect(() => {
     const res = await fetch("/api/public/track", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ document, code }),
+      body: JSON.stringify({
+        document: onlyDigits(document),
+        accessCode: code.trim(),
+      }),
     })
       .then(async (r) => ({
         ok: r.ok,
@@ -298,7 +301,7 @@ useEffect(() => {
                 </label>
                 <input
                   value={document}
-                  onChange={(e) => setDocument(e.target.value)}
+                  onChange={(e) => setDocument(formatDocument(e.target.value))}
                   placeholder="Digite seu CPF ou CNPJ"
                   style={inputStyle}
                 />
@@ -481,8 +484,8 @@ useEffect(() => {
                 </div>
 
                 <div style={{ display: "grid", gap: 16 }}>
-                  {data.processes?.length ? (
-                    data.processes.map((p) => {
+                  {data.client?.processes?.length ? (
+                    data.client.processes.map((p) => {
                       const tone = getStatusTone(p.status);
 
                       return (
@@ -500,7 +503,8 @@ useEffect(() => {
                         >
                           <div
                             style={{
-                              display: "flex", flexDirection: isMobile ? "column" : "row",
+                              display: "flex",
+                              flexDirection: isMobile ? "column" : "row",
                               justifyContent: "space-between",
                               alignItems: "flex-start",
                               gap: 16,

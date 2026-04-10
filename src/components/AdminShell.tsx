@@ -1,12 +1,13 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type AdminShellProps = {
   userName: string;
   role: string;
+  firmName?: string;
   children: React.ReactNode;
 };
 
@@ -15,6 +16,13 @@ type NavItemProps = {
   label: string;
   pathname: string;
   onNavigate?: () => void;
+};
+
+type MeResponse = {
+  ok?: boolean;
+  firm?: {
+    name?: string;
+  } | null;
 };
 
 function roleLabel(role: string) {
@@ -68,12 +76,39 @@ function NavItem({ href, label, pathname, onNavigate }: NavItemProps) {
 export default function AdminShell({
   userName,
   role,
+  firmName,
   children,
 }: AdminShellProps) {
   const pathname = usePathname();
 
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [resolvedFirmName, setResolvedFirmName] = useState(firmName || "Advocacia");
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadFirm() {
+      try {
+        const response = await fetch("/api/me", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as MeResponse | null;
+
+        if (!ignore && data?.ok) {
+          setResolvedFirmName(data.firm?.name || firmName || "Advocacia");
+        }
+      } catch {
+        if (!ignore) {
+          setResolvedFirmName(firmName || "Advocacia");
+        }
+      }
+    }
+
+    void loadFirm();
+
+    return () => {
+      ignore = true;
+    };
+  }, [firmName]);
 
   async function logout() {
     if (loading) return;
@@ -110,7 +145,7 @@ export default function AdminShell({
     { href: "/admin/users", label: "Usuários" },
   ];
 
-  if (role === "MASTER" || role === "SUPERADMIN") {
+  if (role === "SUPERADMIN") {
     navItems.push({ href: "/admin/settings", label: "Configurações" });
   }
 
@@ -144,8 +179,12 @@ export default function AdminShell({
                     Painel Admin
                   </h1>
 
-                  <p className="mt-3 text-sm text-zinc-400">
-                    {userName} • {roleLabel(role)}
+                  <p className="mt-2 text-sm font-medium text-zinc-200">
+                    {resolvedFirmName}
+                  </p>
+
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {userName} - {roleLabel(role)}
                   </p>
                 </div>
 
@@ -154,7 +193,7 @@ export default function AdminShell({
                   className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 lg:hidden"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  ✕
+                  X
                 </button>
               </div>
             </div>
@@ -182,6 +221,9 @@ export default function AdminShell({
                 <div className="mt-1 text-xs text-zinc-400">
                   {roleLabel(role)}
                 </div>
+                <div className="mt-2 text-xs text-violet-300">
+                  {resolvedFirmName}
+                </div>
               </div>
 
               <button
@@ -206,6 +248,9 @@ export default function AdminShell({
                 <div className="truncate text-sm font-medium text-zinc-200">
                   {userName}
                 </div>
+                <div className="truncate text-xs text-violet-300">
+                  {resolvedFirmName}
+                </div>
               </div>
 
               <button
@@ -229,4 +274,3 @@ export default function AdminShell({
     </div>
   );
 }
-

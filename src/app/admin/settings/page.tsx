@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/AdminShell";
@@ -155,7 +155,7 @@ export default function SettingsPage() {
       }
 
       await load();
-      showToast("Configurações salvas com sucesso.", "success");
+      showToast("Configurações globais salvas com sucesso.", "success");
     } catch {
       showToast("Não foi possível salvar as configurações.", "error");
     } finally {
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                 letterSpacing: "0.04em",
               }}
             >
-              CONFIGURAÇÕES DO SISTEMA
+              CONFIGURAÇÕES GLOBAIS
             </div>
 
             <div>
@@ -266,7 +266,7 @@ export default function SettingsPage() {
                   color: "#F8FAFC",
                 }}
               >
-                Configurações premium
+                Configurações da plataforma
               </h1>
 
               <p
@@ -278,8 +278,7 @@ export default function SettingsPage() {
                   maxWidth: 760,
                 }}
               >
-                Controle parâmetros globais do JuridicVas com uma experiência mais clara,
-                robusta e preparada para evolução comercial do produto.
+                Esta área é exclusiva do Super Admin e controla parâmetros globais do JuridicVas.
               </p>
             </div>
           </div>
@@ -293,21 +292,21 @@ export default function SettingsPage() {
           }}
         >
           <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
-            <div style={{ color: "#94A3B8", fontSize: 13 }}>Clientes ativos</div>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Clientes ativos na plataforma</div>
             <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {activeClients}
             </div>
           </div>
 
           <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
-            <div style={{ color: "#94A3B8", fontSize: 13 }}>Limite configurado</div>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Limite global configurado</div>
             <div style={{ color: "#F8FAFC", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {maxClients || "—"}
             </div>
           </div>
 
           <div className="jv-glass" style={{ borderRadius: 24, padding: statPadding }}>
-            <div style={{ color: "#94A3B8", fontSize: 13 }}>Vagas restantes</div>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Vagas restantes na plataforma</div>
             <div style={{ color: "#A7F3D0", fontSize: statNumberSize, fontWeight: 800, marginTop: 8 }}>
               {remaining}
             </div>
@@ -325,17 +324,16 @@ export default function SettingsPage() {
         >
           <div>
             <div style={{ color: "#F8FAFC", fontSize: isMobile ? 20 : 22, fontWeight: 800 }}>
-              Limite de clientes ativos
+              Limite global de clientes ativos
             </div>
             <div style={{ color: "#64748B", fontSize: 13, marginTop: 6, lineHeight: 1.7 }}>
-              Clientes arquivados não contam. Quando o limite for atingido, o sistema
-              bloqueia a criação de novos clientes ativos.
+              Este número representa a política global da plataforma. Clientes arquivados não contam.
             </div>
           </div>
 
           <div style={{ display: "grid", gap: 6, maxWidth: isMobile ? "100%" : 380 }}>
             <label style={{ color: "#CBD5E1", fontSize: 13, fontWeight: 600 }}>
-              Máximo de clientes ativos
+              Máximo global de clientes ativos
             </label>
             <input
               type="number"
@@ -358,9 +356,7 @@ export default function SettingsPage() {
               fontSize: 14,
             }}
           >
-            Esta é a configuração global atualmente persistida no SystemConfig.
-            Nas próximas fases, esta tela poderá receber branding, preferências do escritório
-            e futuras regras de plano.
+            Este painel é global e exclusivo do Super Admin. Configurações específicas por escritório devem usar o FirmConfig.
           </div>
 
           <div>
@@ -370,7 +366,7 @@ export default function SettingsPage() {
               disabled={saving || loading}
               style={{ width: isMobile ? "100%" : "auto" }}
             >
-              {saving ? "Salvando..." : "Salvar configurações"}
+              {saving ? "Salvando..." : "Salvar configurações globais"}
             </button>
           </div>
         </section>
