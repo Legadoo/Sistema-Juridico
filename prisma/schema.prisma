@@ -8,6 +8,10 @@ datasource db {
 }
 
 model LawFirm {
+  availabilityWindows AvailabilityWindow[]
+  availabilitySlots   AvailabilitySlot[]
+  appointments        Appointment[]
+
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
@@ -32,6 +36,9 @@ model FirmConfig {
 }
 
 model User {
+  availabilityWindows AvailabilityWindow[] @relation("CreatedAvailabilityWindows")
+  createdAppointments Appointment[]        @relation("CreatedAppointments")
+
   id       String  @id @default(cuid())
   name     String
   email    String  @unique
@@ -65,6 +72,8 @@ model Session {
 }
 
 model Client {
+  appointments Appointment[]
+
   id         String   @id @default(cuid())
   name       String
   document   String // CPF ou CNPJ (somente numeros)
@@ -152,4 +161,80 @@ model SystemConfig {
   maxClients Int      @default(50)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  scheduledAt     DateTime
+  durationMinutes Int      @default(60)
+  status          String   @default("AGENDADO") // SCHEDULED | CONFIRMED | CANCELLED | COMPLETED
+  source          String   @default("INTERNAL") // INTERNAL | PUBLIC
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  availabilitySlotId String? @unique
+
+  availabilitySlot AvailabilitySlot? @relation(fields: [availabilitySlotId], references: [id], onDelete: SetNull)
+
+  createdByUserId String
+  createdByUser   User   @relation("CreatedAppointments", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([firmId])
+  @@index([clientId])
+  @@index([createdByUserId])
+  @@index([scheduledAt])
+}
+
+model AvailabilityWindow {
+  id                  String   @id @default(cuid())
+  date                DateTime
+  startTime           String
+  endTime             String
+  slotIntervalMinutes Int
+  isActive            Boolean  @default(true)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdByUser   User   @relation("CreatedAvailabilityWindows", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  slots AvailabilitySlot[]
+
+  @@index([firmId])
+  @@index([date])
+}
+
+model AvailabilitySlot {
+  id        String    @id @default(cuid())
+  startAt   DateTime
+  endAt     DateTime
+  isBooked  Boolean   @default(false)
+  isActive  Boolean   @default(true)
+  bookedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  windowId String
+  window   AvailabilityWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
+
+  appointment Appointment?
+
+  @@unique([windowId, startAt])
+  @@index([firmId])
+  @@index([windowId])
+  @@index([startAt])
 }

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, FormEvent } from "react";
 
 type TrackResp = {
   ok: boolean;
@@ -8,18 +8,24 @@ type TrackResp = {
   client?: {
     name: string;
     document: string;
-    processes?: Array<{
-      id: string;
-      cnj: string;
-      tribunal?: string | null;
-      vara?: string | null;
-      status: string;
-      updates: Array<{
-        date: string;
-        text: string;
-      }>;
-    }>;
   };
+  processes?: Array<{
+    id: string;
+    cnj: string;
+    tribunal?: string | null;
+    vara?: string | null;
+    status: string;
+    updates: Array<{
+      date: string;
+      text: string;
+    }>;
+  }>;
+};
+
+type Slot = {
+  id: string;
+  startAt: string;
+  endAt: string;
 };
 
 function onlyDigits(value: string) {
@@ -45,7 +51,11 @@ function formatDocument(value: string) {
 
 function formatDateTime(value: string) {
   try {
-    return new Date(value).toLocaleString("pt-BR");
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date(value));
   } catch {
     return value;
   }
@@ -96,12 +106,28 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+const textareaStyle: React.CSSProperties = {
+  width: "100%",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.10)",
+  color: "#F8FAFC",
+  borderRadius: 16,
+  padding: "14px 16px",
+  outline: "none",
+  boxSizing: "border-box",
+  resize: "vertical",
+};
+
 export default function AcompanharPage() {
   const [document, setDocument] = useState("");
-  const [code, setCode] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [data, setData] = useState<TrackResp | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [slotId, setSlotId] = useState("");
+  const [bookingNotes, setBookingNotes] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -114,21 +140,50 @@ export default function AcompanharPage() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const processCount = useMemo(() => data?.client?.processes?.length ?? 0, [data]);
+  const processCount = useMemo(() => data?.processes?.length ?? 0, [data]);
+
+  async function carregarSlots(doc: string, codeValue: string) {
+    const res = await fetch("/api/public/appointments/slots", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        document: onlyDigits(doc),
+        accessCode: codeValue,
+      }),
+    })
+      .then(async (r) => ({
+        ok: r.ok,
+        d: await r.json().catch(() => null),
+      }))
+      .catch(() => null);
+
+    if (!res || !res.ok || !res.d?.ok) {
+      setSlots([]);
+      return;
+    }
+
+    setSlots(res.d.slots || []);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     setMsg(null);
     setData(null);
+    setSlots([]);
+    setSlotId("");
     setLoading(true);
+
+    const cleanDocument = onlyDigits(document);
+    const cleanAccessCode = accessCode.trim();
 
     const res = await fetch("/api/public/track", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        document: onlyDigits(document),
-        accessCode: code.trim(),
+        document: cleanDocument,
+        code: cleanAccessCode,
+        accessCode: cleanAccessCode,
       }),
     })
       .then(async (r) => ({
@@ -145,6 +200,47 @@ export default function AcompanharPage() {
     }
 
     setData(res.d);
+    await carregarSlots(cleanDocument, cleanAccessCode);
+  }
+
+  async function reservarHorario(e: FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+
+    if (!slotId) {
+      setMsg("Selecione um horário.");
+      return;
+    }
+
+    setBookingLoading(true);
+
+    const res = await fetch("/api/public/appointments/book", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        document: onlyDigits(document),
+        accessCode: accessCode.trim(),
+        slotId,
+        notes: bookingNotes,
+      }),
+    })
+      .then(async (r) => ({
+        ok: r.ok,
+        d: await r.json().catch(() => null),
+      }))
+      .catch(() => null);
+
+    setBookingLoading(false);
+
+    if (!res || !res.ok || !res.d?.ok) {
+      setMsg(res?.d?.message || "Não foi possível reservar o horário.");
+      return;
+    }
+
+    setMsg("Agendamento realizado com sucesso.");
+    setSlotId("");
+    setBookingNotes("");
+    await carregarSlots(onlyDigits(document), accessCode.trim());
   }
 
   return (
@@ -312,8 +408,8 @@ export default function AcompanharPage() {
                   Código de acesso
                 </label>
                 <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
                   placeholder="Código informado pelo escritório"
                   style={inputStyle}
                 />
@@ -412,7 +508,7 @@ export default function AcompanharPage() {
                     }}
                   >
                     Após informar seus dados, você verá aqui os processos liberados,
-                    o status atual e as últimas atualizações visíveis.
+                    o status atual, as últimas atualizações e os horários disponíveis.
                   </div>
                 </div>
               </div>
@@ -484,8 +580,8 @@ export default function AcompanharPage() {
                 </div>
 
                 <div style={{ display: "grid", gap: 16 }}>
-                  {data.client?.processes?.length ? (
-                    data.client.processes.map((p) => {
+                  {data.processes?.length ? (
+                    data.processes.map((p) => {
                       const tone = getStatusTone(p.status);
 
                       return (
@@ -535,6 +631,101 @@ export default function AcompanharPage() {
                             >
                               {p.status}
                             </span>
+                          </div>
+
+                          <div style={{ marginTop: 18 }}>
+                            <div style={{ color: "#F8FAFC", fontSize: 15, fontWeight: 800, marginBottom: 10 }}>
+                              Horários disponíveis para agendamento
+                            </div>
+
+                            {slots.length > 0 ? (
+                              <form onSubmit={reservarHorario} style={{ display: "grid", gap: 12 }}>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(230px, 1fr))",
+                                    gap: 10,
+                                  }}
+                                >
+                                  {slots.map((slot) => {
+                                    const selected = slotId === slot.id;
+
+                                    return (
+                                      <button
+                                        key={slot.id}
+                                        type="button"
+                                        onClick={() => setSlotId(slot.id)}
+                                        style={{
+                                          textAlign: "left",
+                                          padding: 14,
+                                          borderRadius: 16,
+                                          border: selected
+                                            ? "1px solid rgba(99,102,241,0.55)"
+                                            : "1px solid rgba(255,255,255,0.08)",
+                                          background: selected
+                                            ? "linear-gradient(135deg, rgba(99,102,241,0.20), rgba(56,189,248,0.14))"
+                                            : "rgba(255,255,255,0.03)",
+                                          color: "#F8FAFC",
+                                          cursor: "pointer",
+                                          boxShadow: selected
+                                            ? "0 10px 24px rgba(79,70,229,0.22)"
+                                            : "none",
+                                          transition: "all 0.18s ease",
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            fontSize: 13,
+                                            color: selected ? "#C7D2FE" : "#94A3B8",
+                                            fontWeight: 700,
+                                            marginBottom: 6,
+                                          }}
+                                        >
+                                          Horário disponível
+                                        </div>
+                                        <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.5 }}>
+                                          {formatDateTime(slot.startAt)}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
+                                          até {formatDateTime(slot.endAt)}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <textarea
+                                  value={bookingNotes}
+                                  onChange={(e) => setBookingNotes(e.target.value)}
+                                  placeholder="Observações para o atendimento"
+                                  rows={3}
+                                  style={textareaStyle}
+                                />
+
+                                <button
+                                  type="submit"
+                                  className="jv-premium-btn"
+                                  disabled={bookingLoading || !slotId}
+                                  style={{ width: "fit-content" }}
+                                >
+                                  {bookingLoading ? "Reservando..." : "Reservar horário"}
+                                </button>
+                              </form>
+                            ) : (
+                              <div
+                                style={{
+                                  marginTop: 6,
+                                  padding: 14,
+                                  borderRadius: 18,
+                                  background: "rgba(255,255,255,0.03)",
+                                  border: "1px solid rgba(255,255,255,0.05)",
+                                  color: "#94A3B8",
+                                  fontSize: 14,
+                                }}
+                              >
+                                Não há horários disponíveis no momento.
+                              </div>
+                            )}
                           </div>
 
                           <div style={{ marginTop: 20 }}>
@@ -614,4 +805,3 @@ export default function AcompanharPage() {
     </div>
   );
 }
-
