@@ -213,7 +213,7 @@ export default function AdminShell({
             <div className="border-t border-white/10 p-4">
               <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  SessÃƒÂ£o ativa
+                  Sessão ativa
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}

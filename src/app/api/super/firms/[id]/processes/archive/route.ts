@@ -51,7 +51,7 @@ export async function POST(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json({ ok: true, process: updated });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, message: "Não foi possível arquivar o processo." },
       { status: 500 }

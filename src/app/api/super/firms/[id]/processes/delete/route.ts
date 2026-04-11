@@ -38,7 +38,7 @@ export async function POST(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, message: "Não foi possível excluir o processo." },
       { status: 500 }

@@ -49,7 +49,7 @@ export async function POST(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json({ ok: true, client: updated });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, message: "Não foi possível arquivar o cliente." },
       { status: 500 }

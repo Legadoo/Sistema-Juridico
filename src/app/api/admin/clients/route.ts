@@ -1,119 +1,56 @@
-﻿import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import {
+  listActiveClientsByFirm,
+  createClientForFirm,
+} from "@/services/client.service";
 
-function onlyDigits(s: string) {
-  return (s || "").replace(/\D/g, "");
-}
+export async function GET() {
+  try {
+    const user = await getSessionUser();
 
-function genCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+    if (!user || !user.firmId) {
+      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+    }
 
-export async function GET(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const clients = await listActiveClientsByFirm(user.firmId);
 
-  if (!user.firmId) {
+    return NextResponse.json({ clients });
+  } catch (error) {
+    console.error("GET /api/admin/clients error:", error);
     return NextResponse.json(
-      { ok: false, message: "Usuário sem advocacia vinculada." },
-      { status: 403 }
+      { error: "Erro ao listar clientes." },
+      { status: 500 }
     );
   }
-
-  const url = new URL(req.url);
-  const archived = url.searchParams.get("archived") === "1";
-
-  const clients = await prisma.client.findMany({
-    where: {
-      firmId: user.firmId,
-      archived,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json({ ok: true, clients });
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  try {
+    const user = await getSessionUser();
 
-  if (!user.firmId) {
-    return NextResponse.json(
-      { ok: false, message: "Usuário sem advocacia vinculada." },
-      { status: 403 }
-    );
-  }
+    if (!user || !user.firmId) {
+      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+    }
 
-  // ===== Limite de clientes por advocacia =====
-  const firmConfig = await prisma.firmConfig.upsert({
-    where: { firmId: user.firmId },
-    update: {},
-    create: {
-      firmId: user.firmId,
-      maxClients: 50,
-    },
-  });
+    const body = await req.json();
 
-  const activeClients = await prisma.client.count({
-    where: {
-      firmId: user.firmId,
-      archived: false,
-    },
-  });
-
-  if (activeClients >= firmConfig.maxClients) {
-    return NextResponse.json(
+    const client = await createClientForFirm(
       {
-        ok: false,
-        message:
-          "Limite de clientes ativos atingido para esta advocacia. Arquive clientes ou aumente o limite nas configurações.",
+        name: body.name,
+        document: body.document,
+        email: body.email,
+        phone: body.phone,
+        accessCode: body.accessCode,
       },
-      { status: 403 }
+      user.firmId
     );
+
+    return NextResponse.json({ client });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao criar cliente.";
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
-  // ===========================================
-
-  const body = await req.json().catch(() => null);
-
-  const name = (body?.name ?? "").toString().trim();
-  const document = onlyDigits((body?.document ?? "").toString());
-  const phone = (body?.phone ?? "").toString().trim();
-  const email = (body?.email ?? "").toString().trim();
-
-  if (!name || !document) {
-    return NextResponse.json(
-      { ok: false, message: "Preencha nome e CPF/CNPJ." },
-      { status: 400 }
-    );
-  }
-
-  const existing = await prisma.client.findFirst({
-    where: {
-      firmId: user.firmId,
-      document,
-    },
-  });
-
-  if (existing) {
-    return NextResponse.json(
-      { ok: false, message: "Já existe um cliente com este CPF/CNPJ nesta advocacia." },
-      { status: 409 }
-    );
-  }
-
-  const created = await prisma.client.create({
-    data: {
-      name,
-      document,
-      phone: phone || null,
-      email: email || null,
-      accessCode: genCode(),
-      archived: false,
-      firmId: user.firmId,
-    },
-  });
-
-  return NextResponse.json({ ok: true, client: created });
 }
