@@ -127,14 +127,14 @@ export async function updateClientForFirm(
       id,
     },
     data: {
-      name: typeof data.name === "string" ? data.name : existing.name,
+      name: typeof data.name === "string" && data.name.trim() ? data.name.trim() : existing.name,
       document: normalizedDocument,
       email: data.email !== undefined ? data.email : existing.email,
       phone: data.phone !== undefined ? data.phone : existing.phone,
       accessCode:
-  typeof data.accessCode === "string" && data.accessCode.trim()
-    ? data.accessCode.trim()
-    : existing.accessCode,
+        typeof data.accessCode === "string" && data.accessCode.trim()
+          ? data.accessCode.trim()
+          : existing.accessCode,
     },
   });
 }

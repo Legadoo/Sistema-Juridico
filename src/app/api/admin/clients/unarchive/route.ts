@@ -1,20 +1,48 @@
-﻿import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { unarchiveClientForFirm } from "@/services/client.service";
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  try {
+    const user = await getSessionUser();
 
-  const body = await req.json().catch(() => null);
-  const clientId = (body?.clientId ?? "").toString().trim();
+    if (!user || !user.firmId) {
+      return NextResponse.json(
+        { ok: false, message: "Não autorizado." },
+        { status: 401 }
+      );
+    }
 
-  if (!clientId) return NextResponse.json({ ok: false, message: "clientId obrigatório." }, { status: 400 });
+    if (user.role !== "MASTER" && user.role !== "SECRETARY") {
+      return NextResponse.json(
+        { ok: false, message: "Sem permissão para desarquivar cliente." },
+        { status: 403 }
+      );
+    }
 
-  await prisma.client.update({
-    where: { id: clientId },
-    data: { archived: false },
-  });
+    const body = await req.json().catch(() => null);
+    const clientId = (body?.clientId ?? "").toString().trim();
 
-  return NextResponse.json({ ok: true });
+    if (!clientId) {
+      return NextResponse.json(
+        { ok: false, message: "clientId obrigatório." },
+        { status: 400 }
+      );
+    }
+
+    await unarchiveClientForFirm(clientId, user.firmId);
+
+    return NextResponse.json({
+      ok: true,
+      message: "Cliente desarquivado com sucesso.",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao desarquivar cliente.";
+
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 400 }
+    );
+  }
 }

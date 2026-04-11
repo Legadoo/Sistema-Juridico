@@ -10,16 +10,23 @@ export async function GET() {
     const user = await getSessionUser();
 
     if (!user || !user.firmId) {
-      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, message: "Não autorizado." },
+        { status: 401 }
+      );
     }
 
     const clients = await listActiveClientsByFirm(user.firmId);
 
-    return NextResponse.json({ clients });
+    return NextResponse.json({
+      ok: true,
+      clients,
+    });
   } catch (error) {
     console.error("GET /api/admin/clients error:", error);
+
     return NextResponse.json(
-      { error: "Erro ao listar clientes." },
+      { ok: false, message: "Erro ao listar clientes." },
       { status: 500 }
     );
   }
@@ -30,7 +37,10 @@ export async function POST(req: Request) {
     const user = await getSessionUser();
 
     if (!user || !user.firmId) {
-      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, message: "Não autorizado." },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
@@ -46,11 +56,18 @@ export async function POST(req: Request) {
       user.firmId
     );
 
-    return NextResponse.json({ client });
+    return NextResponse.json({
+      ok: true,
+      client,
+      message: "Cliente criado com sucesso.",
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Erro ao criar cliente.";
 
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 400 }
+    );
   }
 }
