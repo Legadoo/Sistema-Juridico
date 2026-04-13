@@ -27,7 +27,7 @@ type MeResponse = {
 
 function roleLabel(role: string) {
   if (role === "MASTER") return "Advogado";
-  if (role === "SECRETARY") return "EstagiÃƒÂ¡rio";
+  if (role === "SECRETARY") return "EstagiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio";
   if (role === "SUPERADMIN") return "Super Admin";
   return role;
 }
@@ -142,11 +142,12 @@ export default function AdminShell({
     { href: "/admin/processes", label: "Processos" },
     { href: "/admin/processes/archived", label: "Processos arquivados" },
     { href: "/admin/deadlines", label: "Prazos" }, { href: "/admin/appointments", label: "Agendamentos" }, { href: "/admin/availability", label: "Abertura de agenda" },
-    { href: "/admin/users", label: "Usuários" },
+    { href: "/admin/users", label: "UsuÃƒÂ¡rios" },
+    { href: "/admin/charges", label: "Cobranças" },
   ];
 
   if (role === "SUPERADMIN") {
-    navItems.push({ href: "/admin/settings", label: "Configurações" });
+    navItems.push({ href: "/admin/settings", label: "ConfiguraÃƒÂ§ÃƒÂµes" });
   }
 
   return (
@@ -213,7 +214,7 @@ export default function AdminShell({
             <div className="border-t border-white/10 p-4">
               <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  Sessão ativa
+                  SessÃƒÂ£o ativa
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}
@@ -259,7 +260,7 @@ export default function AdminShell({
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-white"
                 onClick={() => setMobileMenuOpen(true)}
               >
-                Ã¢ËœÂ°
+                ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â°
               </button>
             </div>
           </header>

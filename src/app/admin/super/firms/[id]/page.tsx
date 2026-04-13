@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import SuperAdminShell from "@/components/SuperAdminShell";
 import { fetchMeOrRedirect } from "@/lib/superadmin/clientGuard";
+import SuperFirmBillingCard from "@/components/superadmin/SuperFirmBillingCard";
 
 type FirmDetails = {
   id: string;
@@ -78,7 +79,9 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
   }, [params]);
 
   async function loadUsers(currentFirmId: string) {
-    const usersRes = await fetch(`/api/super/firms/${currentFirmId}/users`, { cache: "no-store" });
+    const usersRes = await fetch(`/api/super/firms/${currentFirmId}/users`, {
+      cache: "no-store",
+    });
 
     if (usersRes.status === 401) {
       window.location.href = "/login";
@@ -92,7 +95,9 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
     } else {
       const usersJson = await usersRes.json().catch(() => null);
       setUsers([]);
-      setUsersError(usersJson?.message ?? "Não foi possível carregar os usuários desta advocacia.");
+      setUsersError(
+        usersJson?.message ?? "Não foi possível carregar os usuários desta advocacia.",
+      );
     }
   }
 
@@ -102,13 +107,15 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
     let ignore = false;
 
     async function load() {
-      const me = await fetchMeOrRedirect((value) => {
+      const meResult = await fetchMeOrRedirect((value) => {
         if (!ignore) setMe(value);
       });
 
-      if (!me) return;
+      if (!meResult) return;
 
-      const firmRes = await fetch(`/api/super/firms/${firmId}`, { cache: "no-store" });
+      const firmRes = await fetch(`/api/super/firms/${firmId}`, {
+        cache: "no-store",
+      });
 
       if (firmRes.status === 401) {
         window.location.href = "/login";
@@ -174,7 +181,7 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
               active: data.firm.active,
               maxClients: data.firm.maxClients,
             }
-          : prev
+          : prev,
       );
 
       setMessage("Advocacia atualizada com sucesso.");
@@ -265,7 +272,7 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
       }
 
       setUsers((prev) =>
-        prev.map((user) => (user.id === editingTargetId ? data.user : user))
+        prev.map((user) => (user.id === editingTargetId ? data.user : user)),
       );
 
       cancelEditUser();
@@ -297,7 +304,7 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
     }
 
     setUsers((prev) =>
-      prev.map((item) => (item.id === user.id ? data.user : item))
+      prev.map((item) => (item.id === user.id ? data.user : item)),
     );
 
     setMessage(`Usuário ${data.user.active ? "ativado" : "desativado"} com sucesso.`);
@@ -652,10 +659,12 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
                     gap: 12,
                     padding: 16,
                     borderRadius: 16,
-                    background: editingTargetId === user.id ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.03)",
-                    border: editingTargetId === user.id
-                      ? "1px solid rgba(99,102,241,0.25)"
-                      : "1px solid rgba(255,255,255,0.05)",
+                    background:
+                      editingTargetId === user.id ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.03)",
+                    border:
+                      editingTargetId === user.id
+                        ? "1px solid rgba(99,102,241,0.25)"
+                        : "1px solid rgba(255,255,255,0.05)",
                   }}
                 >
                   <div
@@ -907,6 +916,12 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
             </div>
           </div>
         </section>
+
+        {firmId && (
+          <div className="mt-6">
+            <SuperFirmBillingCard firmId={firmId} />
+          </div>
+        )}
       </div>
     </SuperAdminShell>
   );

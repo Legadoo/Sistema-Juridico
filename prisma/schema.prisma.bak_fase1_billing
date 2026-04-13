@@ -19,12 +19,10 @@ model LawFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                User[]
-  clients              Client[]
-  processes            LegalProcess[]
-  config               FirmConfig?
-  paymentGatewayConfig PaymentGatewayConfig?
-  charges              Charge[]
+  users     User[]
+  clients   Client[]
+  processes LegalProcess[]
+  config    FirmConfig?
 }
 
 model FirmConfig {
@@ -56,9 +54,8 @@ model User {
 
   sessions Session[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  createdCharges Charge[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([firmId])
 }
@@ -95,7 +92,6 @@ model Client {
   assignedLawyer   User?   @relation("AssignedClients", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
 
   processes LegalProcess[]
-  charges   Charge[]
 
   @@unique([firmId, document])
   @@index([firmId])
@@ -125,7 +121,6 @@ model LegalProcess {
 
   updates   ProcessUpdate[]
   deadlines Deadline[]
-  charges   Charge[]
 
   @@unique([firmId, cnj])
   @@index([firmId])
@@ -242,62 +237,4 @@ model AvailabilitySlot {
   @@index([firmId])
   @@index([windowId])
   @@index([startAt])
-}
-
-model PaymentGatewayConfig {
-  id                  String   @id @default(cuid())
-  firmId              String   @unique
-  provider            String
-  accessTokenEnc      String
-  publicKeyEnc        String?
-  isActive            Boolean  @default(false)
-  enabledBySuperadmin Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  firm LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
-
-  @@index([firmId])
-}
-
-model Charge {
-  id              String  @id @default(cuid())
-  firmId          String
-  clientId        String
-  processId       String?
-  createdByUserId String
-
-  provider             String
-  providerPreferenceId String?
-  providerPaymentId    String?
-  externalReference    String  @unique
-
-  amount  Decimal
-  message String?
-  status  String  @default("PENDING")
-
-  paymentUrl       String?
-  initPoint        String?
-  sandboxInitPoint String?
-
-  emailTarget String?
-  phoneTarget String?
-
-  emailSentAt        DateTime?
-  whatsappPreparedAt DateTime?
-  paidAt             DateTime?
-  lastWebhookAt      DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  firm          LawFirm       @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  process       LegalProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
-  createdByUser User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-
-  @@index([firmId, status])
-  @@index([clientId])
-  @@index([processId])
-  @@index([createdByUserId])
 }
