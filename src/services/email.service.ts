@@ -1,73 +1,114 @@
 import nodemailer from "nodemailer";
 
-function getTransport() {
-  const host = process.env.SMTP_HOST?.trim();
-  const port = Number(process.env.SMTP_PORT || "587");
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
+type AppointmentEmailInput = {
+  recipients: string[];
+  firmName: string;
+  clientName: string;
+  scheduledAt: Date;
+  durationMinutes: number;
+  createdByName: string;
+  notes?: string | null;
+};
 
-  if (!host || !user || !pass) {
-    throw new Error("SMTP não configurado no .env.");
+type AppointmentCancelledEmailInput = {
+  recipients: string[];
+  firmName: string;
+  clientName: string;
+  scheduledAt: Date;
+  cancelledByName: string;
+  cancelReason: string;
+};
+
+let transporterPromise: Promise<nodemailer.Transporter> | null = null;
+
+async function getTransporter() {
+  if (!transporterPromise) {
+    transporterPromise = Promise.resolve(
+      nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: String(process.env.SMTP_SECURE || "false") === "true",
+        auth:
+          process.env.SMTP_USER && process.env.SMTP_PASS
+            ? {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+              }
+            : undefined,
+      })
+    );
   }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  });
+  return transporterPromise;
 }
 
-function getFromAddress() {
-  return process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "no-reply@juridicvas.local";
+function formatDate(dt: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(dt);
 }
 
-export async function sendChargeEmail(params: {
-  to: string;
-  clientName?: string | null;
-  amount: string;
-  message?: string | null;
-  paymentUrl: string;
-}) {
-  const transporter = getTransport();
+export async function sendAppointmentNotificationToFirmMasters(
+  input: AppointmentEmailInput
+) {
+  const recipients = input.recipients.filter(Boolean);
 
-  const subject = "Sua cobrança foi gerada";
-  const greeting = params.clientName ? `Olá, ${params.clientName}.` : "Olá.";
-  const bodyText = [
-    greeting,
-    "",
-    `Sua cobrança no valor de ${params.amount} foi gerada.`,
-    params.message ? params.message : null,
-    "",
-    "Link para pagamento:",
-    params.paymentUrl,
+  if (recipients.length === 0) {
+    return { ok: true, skipped: true };
+  }
+
+  const transporter = await getTransporter();
+
+  const subject = "Novo agendamento criado — JuridicVas";
+  const text = [
+    `Advocacia: ${input.firmName}`,
+    `Cliente: ${input.clientName}`,
+    `Data/Hora: ${formatDate(input.scheduledAt)}`,
+    `Duração: ${input.durationMinutes} minuto(s)`,
+    `Criado por: ${input.createdByName}`,
+    input.notes ? `Observações: ${input.notes}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-      <p>${greeting}</p>
-      <p>Sua cobrança no valor de <strong>${params.amount}</strong> foi gerada.</p>
-      ${params.message ? `<p>${params.message}</p>` : ""}
-      <p>
-        <a href="${params.paymentUrl}" style="display:inline-block;padding:12px 18px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">
-          Abrir cobrança
-        </a>
-      </p>
-      <p>Ou copie o link abaixo:</p>
-      <p style="word-break:break-all">${params.paymentUrl}</p>
-    </div>
-  `;
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || "JuridicVas <no-reply@localhost>",
+    to: recipients.join(", "),
+    subject,
+    text,
+  });
+
+  return { ok: true };
+}
+
+export async function sendAppointmentCancelledNotification(
+  input: AppointmentCancelledEmailInput
+) {
+  const recipients = input.recipients.filter(Boolean);
+
+  if (recipients.length === 0) {
+    return { ok: true, skipped: true };
+  }
+
+  const transporter = await getTransporter();
+
+  const subject = "Agendamento cancelado — JuridicVas";
+  const text = [
+    `Advocacia: ${input.firmName}`,
+    `Cliente: ${input.clientName}`,
+    `Data/Hora do agendamento: ${formatDate(input.scheduledAt)}`,
+    `Cancelado por: ${input.cancelledByName}`,
+    `Motivo do cancelamento: ${input.cancelReason}`,
+  ].join("\n");
 
   await transporter.sendMail({
-    from: getFromAddress(),
-    to: params.to,
+    from: process.env.SMTP_FROM || "JuridicVas <no-reply@localhost>",
+    to: recipients.join(", "),
     subject,
-    text: bodyText,
-    html,
+    text,
   });
+
+  return { ok: true };
 }

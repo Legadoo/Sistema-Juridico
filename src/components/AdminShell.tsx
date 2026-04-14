@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -142,7 +142,7 @@ export default function AdminShell({
     { href: "/admin/processes", label: "Processos" },
     { href: "/admin/processes/archived", label: "Processos arquivados" },
     { href: "/admin/deadlines", label: "Prazos" }, { href: "/admin/appointments", label: "Agendamentos" }, { href: "/admin/availability", label: "Abertura de agenda" },
-    { href: "/admin/users", label: "UsuÃƒÂ¡rios" },
+    { href: "/admin/users", label: "Usuários" },
     { href: "/admin/charges", label: "Cobranças" },
   ];
 

@@ -6,7 +6,7 @@ import {
   parseMercadoPagoWebhook,
   validateMercadoPagoCredentials,
 } from "@/services/mercado-pago.service";
-import { sendChargeEmail } from "@/services/email.service";
+import { sendChargeEmail } from "@/services/charge-email.service";
 import { Prisma } from "@prisma/client";
 
 const PAYMENT_PROVIDER = "MERCADO_PAGO";
@@ -127,7 +127,7 @@ export async function updateGatewayStatusForFirmBySuperadmin(params: {
   });
 
   if (!existing) {
-    throw new Error("Configuração de gateway não encontrada para esta firma.");
+    throw new Error("Sem acesso - contate o suporte");
   }
 
   return prisma.paymentGatewayConfig.update({
@@ -148,7 +148,7 @@ export async function createChargeForFirm(params: {
   message?: string | null;
 }) {
   if (!Number.isFinite(params.amount) || params.amount <= 0) {
-    throw new Error("Valor da cobrança inválido.");
+    throw new Error("Valor da cobrança invalido.");
   }
 
   const [client, actor] = await Promise.all([
@@ -172,7 +172,7 @@ export async function createChargeForFirm(params: {
   }
 
   if (!actor) {
-    throw new Error("Usuário inválido para criar cobrança.");
+    throw new Error("Usuário invalido para criar a cobrança.");
   }
 
   if (params.processId) {
@@ -351,11 +351,11 @@ export async function cancelChargeForFirm(params: {
   });
 
   if (!charge) {
-    throw new Error("Cobrança não encontrada.");
+    throw new Error("Cobrança não encontrada encontrada.");
   }
 
   if (charge.status === CHARGE_STATUS.PAID) {
-    throw new Error("Não é possível cancelar uma cobrança já paga.");
+    throw new Error("Não foi possível cancelar uma cobrança que foi paga.");
   }
 
   if (charge.status === CHARGE_STATUS.CANCELLED) {
