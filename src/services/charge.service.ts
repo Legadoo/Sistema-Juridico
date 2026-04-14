@@ -6,6 +6,7 @@ import {
   parseMercadoPagoWebhook,
   validateMercadoPagoCredentials,
 } from "@/services/mercado-pago.service";
+import { sendChargeEmail } from "@/services/email.service";
 import { Prisma } from "@prisma/client";
 
 const PAYMENT_PROVIDER = "MERCADO_PAGO";
@@ -23,12 +24,19 @@ function normalizePhone(phone?: string | null) {
 }
 
 function chargeTitle(clientName: string) {
-  return `CobranÃ§a JurÃ­dica - ${clientName}`;
+  return `Cobrança Jurídica - ${clientName}`;
 }
 
 function chargeMessageOrDefault(message?: string | null) {
   const value = message?.trim();
-  return value || "CobranÃ§a gerada pela plataforma.";
+  return value || "Cobrança gerada pela plataforma.";
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
 }
 
 async function getActiveGatewayCredentials(firmId: string) {
@@ -37,9 +45,7 @@ async function getActiveGatewayCredentials(firmId: string) {
   });
 
   if (!config || !config.isActive || !config.enabledBySuperadmin) {
-    throw new Error(
-      "O mÃ³dulo de cobranÃ§as nÃ£o estÃ¡ habilitado para esta advocacia.",
-    );
+    throw new Error("Cobrança ainda indisponível - Contate o suporte para saber mais");
   }
 
   return {
@@ -121,7 +127,7 @@ export async function updateGatewayStatusForFirmBySuperadmin(params: {
   });
 
   if (!existing) {
-    throw new Error("ConfiguraÃ§Ã£o de gateway nÃ£o encontrada para esta firma.");
+    throw new Error("Configuração de gateway não encontrada para esta firma.");
   }
 
   return prisma.paymentGatewayConfig.update({
@@ -142,7 +148,7 @@ export async function createChargeForFirm(params: {
   message?: string | null;
 }) {
   if (!Number.isFinite(params.amount) || params.amount <= 0) {
-    throw new Error("Valor da cobranÃ§a invÃ¡lido.");
+    throw new Error("Valor da cobrança inválido.");
   }
 
   const [client, actor] = await Promise.all([
@@ -162,11 +168,11 @@ export async function createChargeForFirm(params: {
   ]);
 
   if (!client) {
-    throw new Error("Cliente nÃ£o encontrado para esta advocacia.");
+    throw new Error("Cliente não encontrado para esta advocacia.");
   }
 
   if (!actor) {
-    throw new Error("UsuÃ¡rio invÃ¡lido para criar cobranÃ§a.");
+    throw new Error("Usuário inválido para criar cobrança.");
   }
 
   if (params.processId) {
@@ -179,7 +185,7 @@ export async function createChargeForFirm(params: {
     });
 
     if (!process) {
-      throw new Error("Processo invÃ¡lido para esta advocacia.");
+      throw new Error("Processo inválido para esta advocacia.");
     }
   }
 
@@ -195,7 +201,7 @@ export async function createChargeForFirm(params: {
   });
 
   if (!preference.paymentUrl) {
-    throw new Error("O Mercado Pago nÃ£o retornou uma URL de pagamento.");
+    throw new Error("O Mercado Pago não retornou uma URL de pagamento.");
   }
 
   const created = await prisma.charge.create({
@@ -241,6 +247,27 @@ export async function createChargeForFirm(params: {
       },
     },
   });
+
+  if (created.emailTarget && created.paymentUrl) {
+    try {
+      await sendChargeEmail({
+        to: created.emailTarget,
+        clientName: created.client?.name ?? null,
+        amount: formatCurrency(params.amount),
+        message: created.message ?? null,
+        paymentUrl: created.paymentUrl,
+      });
+
+      await prisma.charge.update({
+        where: { id: created.id },
+        data: {
+          emailSentAt: new Date(),
+        },
+      });
+    } catch (error) {
+      console.error("sendChargeEmail error:", error);
+    }
+  }
 
   return created;
 }
@@ -308,6 +335,38 @@ export async function getChargeByIdForFirm(params: {
           email: true,
         },
       },
+    },
+  });
+}
+
+export async function cancelChargeForFirm(params: {
+  firmId: string;
+  chargeId: string;
+}) {
+  const charge = await prisma.charge.findFirst({
+    where: {
+      id: params.chargeId,
+      firmId: params.firmId,
+    },
+  });
+
+  if (!charge) {
+    throw new Error("Cobrança não encontrada.");
+  }
+
+  if (charge.status === CHARGE_STATUS.PAID) {
+    throw new Error("Não é possível cancelar uma cobrança já paga.");
+  }
+
+  if (charge.status === CHARGE_STATUS.CANCELLED) {
+    return charge;
+  }
+
+  return prisma.charge.update({
+    where: { id: charge.id },
+    data: {
+      status: CHARGE_STATUS.CANCELLED,
+      lastWebhookAt: new Date(),
     },
   });
 }

@@ -45,6 +45,7 @@ type ChargeItem = {
   paymentUrl?: string | null;
   emailTarget?: string | null;
   phoneTarget?: string | null;
+  emailSentAt?: string | null;
   createdAt: string;
   client?: {
     id: string;
@@ -103,6 +104,7 @@ export default function ChargesPage() {
   const [charges, setCharges] = useState<ChargeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   const [clientId, setClientId] = useState("");
   const [processId, setProcessId] = useState("");
@@ -262,7 +264,7 @@ export default function ChargesPage() {
         throw new Error(json?.message || "Falha ao criar cobrança.");
       }
 
-      setFeedback(json?.message || "Cobrança criada com sucesso.");
+      setFeedback("Cobrança criada com sucesso. Se o cliente tiver e-mail cadastrado, a cobrança foi encaminhada automaticamente.");
       setClientId("");
       setProcessId("");
       setAmount("");
@@ -276,15 +278,43 @@ export default function ChargesPage() {
     }
   }
 
+  async function handleCancelCharge(chargeId: string) {
+    const confirmed = window.confirm("Deseja realmente cancelar esta cobrança?");
+    if (!confirmed) return;
+
+    try {
+      setCancelingId(chargeId);
+      setError(null);
+      setFeedback(null);
+
+      const response = await fetch(`/api/admin/charges/${chargeId}/cancel`, {
+        method: "POST",
+      });
+
+      const json = await response.json();
+
+      if (!json?.ok) {
+        throw new Error(json?.message || "Falha ao cancelar cobrança.");
+      }
+
+      setFeedback(json?.message || "Cobrança cancelada com sucesso.");
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao cancelar cobrança.");
+    } finally {
+      setCancelingId(null);
+    }
+  }
+
   function buildWhatsAppLink(charge: ChargeItem) {
     const phone = (charge.phoneTarget || "").replace(/\D/g, "");
-    if (!phone) return null;
+    if (!phone || !charge.paymentUrl || charge.status === "CANCELLED") return null;
 
     const text = [
       `Olá${charge.client?.name ? `, ${charge.client.name}` : ""}.`,
       `Segue sua cobrança no valor de ${formatCurrency(charge.amount)}.`,
       charge.message ? `${charge.message}` : null,
-      charge.paymentUrl ? `Link para pagamento: ${charge.paymentUrl}` : null,
+      `Link para pagamento: ${charge.paymentUrl}`,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -318,7 +348,7 @@ export default function ChargesPage() {
               Cobranças
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-zinc-300">
-              Gere cobranças para seus clientes com o Mercado Pago sem sair do JuridicVas.
+              Gere cobranças para seus clientes, envie por e-mail e compartilhe por WhatsApp.
             </p>
           </div>
         </section>
@@ -431,7 +461,7 @@ export default function ChargesPage() {
                 disabled={submitting}
                 className="w-full rounded-2xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Enviando..." : "Enviar cobrança"}
+                {submitting ? "Enviando..." : "Criar e enviar cobrança"}
               </button>
             </div>
           </form>
@@ -497,6 +527,12 @@ export default function ChargesPage() {
                             </div>
                           ) : null}
 
+                          {charge.emailSentAt ? (
+                            <div className="text-sm text-emerald-300">
+                              E-mail enviado
+                            </div>
+                          ) : null}
+
                           {charge.phoneTarget ? (
                             <div className="text-sm text-zinc-400">
                               Telefone: {charge.phoneTarget}
@@ -511,7 +547,7 @@ export default function ChargesPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2 lg:justify-end">
-                          {charge.paymentUrl ? (
+                          {charge.paymentUrl && charge.status !== "CANCELLED" ? (
                             <>
                               <button
                                 type="button"
@@ -541,6 +577,17 @@ export default function ChargesPage() {
                             >
                               Enviar por WhatsApp
                             </a>
+                          ) : null}
+
+                          {charge.status !== "PAID" && charge.status !== "CANCELLED" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelCharge(charge.id)}
+                              disabled={cancelingId === charge.id}
+                              className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {cancelingId === charge.id ? "Cancelando..." : "Cancelar cobrança"}
+                            </button>
                           ) : null}
                         </div>
                       </div>
