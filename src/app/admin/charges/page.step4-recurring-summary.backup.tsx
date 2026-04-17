@@ -141,51 +141,6 @@ export default function ChargesPage() {
     return processes.filter((p) => !p.clientId || p.clientId === clientId);
   }, [processes, clientId]);
 
-  const recurringPreview = useMemo(() => {
-    const total = Number(amount.replace(",", "."));
-    const totalInstallments = Number(installments);
-    const interest = Number(interestPercent.replace(",", "."));
-    const interestStart = Number(interestStartsAtInstallment);
-
-    if (!isRecurring || !Number.isFinite(total) || total <= 0 || !Number.isFinite(totalInstallments) || totalInstallments < 2) {
-      return null;
-    }
-
-    const totalCents = Math.round(total * 100);
-    const baseCents = Math.floor(totalCents / totalInstallments);
-    const remainder = totalCents - baseCents * totalInstallments;
-
-    const firstInstallmentValue = baseCents / 100;
-    const lastBaseInstallmentValue =
-      (baseCents + remainder) / 100;
-
-    let installmentWithInterest = firstInstallmentValue;
-
-    if (hasInterest && Number.isFinite(interest) && interest > 0) {
-      installmentWithInterest = Number(
-        (firstInstallmentValue * (1 + interest / 100)).toFixed(2)
-      );
-    }
-
-    return {
-      total,
-      totalInstallments,
-      firstInstallmentValue,
-      lastBaseInstallmentValue,
-      installmentWithInterest,
-      interestStart: Number.isFinite(interestStart) && interestStart > 0 ? interestStart : null,
-      hasInterest: hasInterest && Number.isFinite(interest) && interest > 0,
-      interest,
-    };
-  }, [
-    amount,
-    installments,
-    isRecurring,
-    hasInterest,
-    interestPercent,
-    interestStartsAtInstallment,
-  ]);
-
   const filteredCharges = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -730,50 +685,6 @@ export default function ChargesPage() {
                             required={hasInterest}
                           />
                         </div>
-                      </div>
-                    ) : null}
-
-                    {recurringPreview ? (
-                      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
-                        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-                          Resumo da recorrência
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Valor total
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.total)}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Parcela inicial
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.firstInstallmentValue)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 text-sm text-zinc-300">
-                          {recurringPreview.totalInstallments} parcela(s) no total.
-                          {recurringPreview.lastBaseInstallmentValue !== recurringPreview.firstInstallmentValue ? (
-                            <> A última parcela pode ajustar centavos automaticamente.</>
-                          ) : null}
-                        </div>
-
-                        {recurringPreview.hasInterest ? (
-                          <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                            Parcela com juros: <strong>{formatCurrency(recurringPreview.installmentWithInterest)}</strong>
-                            {recurringPreview.interestStart ? (
-                              <> a partir da parcela {recurringPreview.interestStart}.</>
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     ) : null}
                   </div>

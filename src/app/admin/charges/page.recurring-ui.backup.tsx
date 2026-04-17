@@ -118,13 +118,6 @@ export default function ChargesPage() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
 
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [installments, setInstallments] = useState("2");
-  const [chargeDay, setChargeDay] = useState("10");
-  const [hasInterest, setHasInterest] = useState(false);
-  const [interestPercent, setInterestPercent] = useState("");
-  const [interestStartsAtInstallment, setInterestStartsAtInstallment] = useState("2");
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
@@ -140,51 +133,6 @@ export default function ChargesPage() {
     if (!clientId) return processes;
     return processes.filter((p) => !p.clientId || p.clientId === clientId);
   }, [processes, clientId]);
-
-  const recurringPreview = useMemo(() => {
-    const total = Number(amount.replace(",", "."));
-    const totalInstallments = Number(installments);
-    const interest = Number(interestPercent.replace(",", "."));
-    const interestStart = Number(interestStartsAtInstallment);
-
-    if (!isRecurring || !Number.isFinite(total) || total <= 0 || !Number.isFinite(totalInstallments) || totalInstallments < 2) {
-      return null;
-    }
-
-    const totalCents = Math.round(total * 100);
-    const baseCents = Math.floor(totalCents / totalInstallments);
-    const remainder = totalCents - baseCents * totalInstallments;
-
-    const firstInstallmentValue = baseCents / 100;
-    const lastBaseInstallmentValue =
-      (baseCents + remainder) / 100;
-
-    let installmentWithInterest = firstInstallmentValue;
-
-    if (hasInterest && Number.isFinite(interest) && interest > 0) {
-      installmentWithInterest = Number(
-        (firstInstallmentValue * (1 + interest / 100)).toFixed(2)
-      );
-    }
-
-    return {
-      total,
-      totalInstallments,
-      firstInstallmentValue,
-      lastBaseInstallmentValue,
-      installmentWithInterest,
-      interestStart: Number.isFinite(interestStart) && interestStart > 0 ? interestStart : null,
-      hasInterest: hasInterest && Number.isFinite(interest) && interest > 0,
-      interest,
-    };
-  }, [
-    amount,
-    installments,
-    isRecurring,
-    hasInterest,
-    interestPercent,
-    interestStartsAtInstallment,
-  ]);
 
   const filteredCharges = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -354,85 +302,34 @@ export default function ChargesPage() {
 
       const numericAmount = Number(amount.replace(",", "."));
 
-      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-        throw new Error("Informe um valor válido para a cobrança.");
-      }
-
-      let response: Response;
-
-      if (isRecurring) {
-        response = await fetch("/api/admin/charges/recurring", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            clientId,
-            description:
-              message.trim() ||
-              `Cobrança recorrente para ${selectedClient?.name || "cliente"}`,
-            baseAmount: numericAmount,
-            installments: Number(installments),
-            chargeDay: Number(chargeDay),
-            hasInterest,
-            interestPercent:
-              hasInterest && interestPercent.trim()
-                ? Number(interestPercent.replace(",", "."))
-                : null,
-            interestStartsAtInstallment:
-              hasInterest && interestStartsAtInstallment.trim()
-                ? Number(interestStartsAtInstallment)
-                : null,
-          }),
-        });
-      } else {
-        response = await fetch("/api/admin/charges", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            clientId,
-            processId: processId || null,
-            amount: numericAmount,
-            message: message.trim() || null,
-          }),
-        });
-      }
+      const response = await fetch("/api/admin/charges", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          clientId,
+          processId: processId || null,
+          amount: numericAmount,
+          message: message.trim() || null,
+        }),
+      });
 
       const json = await response.json();
 
       if (!json?.ok) {
-        throw new Error(
-          json?.message ||
-            (isRecurring
-              ? "Falha ao criar cobrança recorrente."
-              : "Falha ao criar cobrança."),
-        );
+        throw new Error(json?.message || "Falha ao criar cobrança.");
       }
 
-      setFeedback(
-        isRecurring
-          ? "Cobrança recorrente criada com sucesso."
-          : "Cobrança criada com sucesso. Se o cliente tiver e-mail cadastrado, a cobrança foi encaminhada automaticamente.",
-      );
-
+      setFeedback("Cobrança criada com sucesso. Se o cliente tiver e-mail cadastrado, a cobrança foi encaminhada automaticamente.");
       setClientId("");
       setProcessId("");
       setAmount("");
       setMessage("");
-      setIsRecurring(false);
-      setInstallments("2");
-      setChargeDay("10");
-      setHasInterest(false);
-      setInterestPercent("");
-      setInterestStartsAtInstallment("2");
 
       await loadData();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Falha ao criar cobrança.",
-      );
+      setError(err instanceof Error ? err.message : "Falha ao criar cobrança.");
     } finally {
       setSubmitting(false);
     }
@@ -628,7 +525,7 @@ export default function ChargesPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-zinc-200">
-                  Valor total da cobrança
+                  Valor da cobrança
                 </label>
                 <input
                   value={amount}
@@ -652,140 +549,12 @@ export default function ChargesPage() {
                 />
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
-                <label className="flex items-center gap-3 text-sm font-medium text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                  />
-                  Gerar pagamento recorrente
-                </label>
-
-                {isRecurring ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-zinc-200">
-                          Quantidade de parcelas
-                        </label>
-                        <input
-                          value={installments}
-                          onChange={(e) => setInstallments(e.target.value)}
-                          className={fieldClassName}
-                          style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          required={isRecurring}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-zinc-200">
-                          Dia da cobrança mensal
-                        </label>
-                        <input
-                          value={chargeDay}
-                          onChange={(e) => setChargeDay(e.target.value)}
-                          className={fieldClassName}
-                          style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          required={isRecurring}
-                        />
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-3 text-sm font-medium text-zinc-200">
-                      <input
-                        type="checkbox"
-                        checked={hasInterest}
-                        onChange={(e) => setHasInterest(e.target.checked)}
-                      />
-                      Aplicar juros
-                    </label>
-
-                    {hasInterest ? (
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Percentual de juros
-                          </label>
-                          <input
-                            value={interestPercent}
-                            onChange={(e) => setInterestPercent(e.target.value)}
-                            placeholder="Ex.: 10"
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                            required={hasInterest}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Juros a partir da parcela
-                          </label>
-                          <input
-                            value={interestStartsAtInstallment}
-                            onChange={(e) => setInterestStartsAtInstallment(e.target.value)}
-                            placeholder="Ex.: 3"
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                            required={hasInterest}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {recurringPreview ? (
-                      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
-                        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-                          Resumo da recorrência
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Valor total
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.total)}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Parcela inicial
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.firstInstallmentValue)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 text-sm text-zinc-300">
-                          {recurringPreview.totalInstallments} parcela(s) no total.
-                          {recurringPreview.lastBaseInstallmentValue !== recurringPreview.firstInstallmentValue ? (
-                            <> A última parcela pode ajustar centavos automaticamente.</>
-                          ) : null}
-                        </div>
-
-                        {recurringPreview.hasInterest ? (
-                          <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                            Parcela com juros: <strong>{formatCurrency(recurringPreview.installmentWithInterest)}</strong>
-                            {recurringPreview.interestStart ? (
-                              <> a partir da parcela {recurringPreview.interestStart}.</>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
               <button
                 type="submit"
                 disabled={submitting}
                 className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3 text-sm font-semibold text-white transition hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Enviando..." : isRecurring ? "Criar cobrança recorrente" : "Criar e enviar cobrança"}
+                {submitting ? "Enviando..." : "Criar e enviar cobrança"}
               </button>
             </div>
           </form>

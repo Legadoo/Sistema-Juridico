@@ -25,6 +25,7 @@ model LawFirm {
   config               FirmConfig?
   paymentGatewayConfig PaymentGatewayConfig?
   charges              Charge[]
+  recurringCharges     RecurringCharge[]     @relation("FirmRecurringCharges")
 }
 
 model FirmConfig {
@@ -56,9 +57,10 @@ model User {
 
   sessions Session[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  createdCharges Charge[]
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  createdCharges          Charge[]
+  createdRecurringCharges RecurringCharge[] @relation("UserCreatedRecurringCharges")
 
   @@index([firmId])
 }
@@ -94,8 +96,9 @@ model Client {
   assignedLawyerId String?
   assignedLawyer   User?   @relation("AssignedClients", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
 
-  processes LegalProcess[]
-  charges   Charge[]
+  processes              LegalProcess[]
+  charges                Charge[]
+  clientRecurringCharges RecurringCharge[] @relation("ClientRecurringCharges")
 
   @@unique([firmId, document])
   @@index([firmId])
@@ -300,4 +303,51 @@ model Charge {
   @@index([clientId])
   @@index([processId])
   @@index([createdByUserId])
+}
+
+model RecurringCharge {
+  id                          String   @id @default(cuid())
+  firmId                      String
+  clientId                    String
+  createdByUserId             String
+  description                 String
+  baseAmount                  Float
+  installments                Int
+  currentInstallment          Int      @default(0)
+  chargeDay                   Int
+  hasInterest                 Boolean  @default(false)
+  interestPercent             Float?
+  interestStartsAtInstallment Int?
+  status                      String   @default("ACTIVE")
+  nextChargeDate              DateTime
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  firm                  LawFirm                      @relation("FirmRecurringCharges", fields: [firmId], references: [id], onDelete: Cascade)
+  client                Client                       @relation("ClientRecurringCharges", fields: [clientId], references: [id], onDelete: Cascade)
+  createdByUser         User                         @relation("UserCreatedRecurringCharges", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  installmentsGenerated RecurringChargeInstallment[]
+
+  @@index([firmId, status])
+  @@index([clientId])
+}
+
+model RecurringChargeInstallment {
+  id                   String    @id @default(cuid())
+  recurringChargeId    String
+  installmentNumber    Int
+  amount               Float
+  dueDate              DateTime
+  status               String    @default("PENDING")
+  mercadoPagoPaymentId String?
+  mercadoPagoInitPoint String?
+  emailSentAt          DateTime?
+  paidAt               DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  recurringCharge RecurringCharge @relation(fields: [recurringChargeId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringChargeId, installmentNumber])
+  @@index([status, dueDate])
 }

@@ -423,34 +423,15 @@ export async function processMercadoPagoWebhook(body: unknown) {
         typeof payment?.status === "string" ? payment.status : null;
 
       if (paymentStatus === "approved") {
-        const paidAt = new Date();
-
         await prisma.charge.update({
           where: { id: charge.id },
           data: {
             status: CHARGE_STATUS.PAID,
             providerPaymentId: String(payment.id),
-            paidAt,
-            lastWebhookAt: paidAt,
+            paidAt: new Date(),
+            lastWebhookAt: new Date(),
           },
         });
-
-        const recurringInstallment =
-          await prisma.recurringChargeInstallment.findUnique({
-            where: {
-              id: charge.externalReference,
-            },
-          });
-
-        if (recurringInstallment) {
-          await prisma.recurringChargeInstallment.update({
-            where: { id: recurringInstallment.id },
-            data: {
-              status: "PAID",
-              paidAt,
-            },
-          });
-        }
       } else {
         await prisma.charge.update({
           where: { id: charge.id },
