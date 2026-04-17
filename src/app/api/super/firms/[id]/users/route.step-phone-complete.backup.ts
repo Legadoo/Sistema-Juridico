@@ -32,7 +32,6 @@ export async function GET(_: Request, context: RouteContext) {
         id: true,
         name: true,
         email: true,
-        phone: true,
         role: true,
         active: true,
         createdAt: true,
@@ -72,7 +71,6 @@ export async function POST(req: Request, context: RouteContext) {
     const name = (body?.name ?? "").toString().trim();
     const email = (body?.email ?? "").toString().trim().toLowerCase();
     const password = (body?.password ?? "").toString();
-    const phone = (body?.phone ?? "").toString().trim() || null;
     const role = (body?.role ?? "SECRETARY").toString().trim().toUpperCase();
 
     if (!name || !email || !password) {
@@ -120,7 +118,6 @@ export async function POST(req: Request, context: RouteContext) {
         name,
         email,
         password: hash,
-        phone,
         role,
         active: true,
         firmId: id,
@@ -129,7 +126,6 @@ export async function POST(req: Request, context: RouteContext) {
         id: true,
         name: true,
         email: true,
-        phone: true,
         role: true,
         active: true,
         createdAt: true,

@@ -105,6 +105,7 @@ export async function processDueRecurringChargesForFirm(firmId: string) {
         },
       },
       client: true,
+      createdByUser: true,
     },
     orderBy: {
       nextChargeDate: "asc",
@@ -195,6 +196,7 @@ export async function processDueRecurringChargesForFirm(firmId: string) {
         providerPreferenceId: preference.providerPreferenceId,
         externalReference: createdInstallment.id,
         amount: new Prisma.Decimal(amount),
+        dueDate: dueDate,
         message: `${recurring.description} - Parcela ${nextInstallmentNumber}/${recurring.installments}`,
         status: "PENDING",
         paymentUrl,
@@ -211,7 +213,10 @@ export async function processDueRecurringChargesForFirm(firmId: string) {
           to: recurring.client.email,
           clientName: recurring.client.name ?? null,
           amount: formatCurrency(amount),
-          message: `${recurring.description} - Parcela ${nextInstallmentNumber}/${recurring.installments}`,
+          dueDate: dueDate,
+          lawyerName: recurring.createdByUser?.name ?? null,
+          lawyerEmail: recurring.createdByUser?.email ?? null,
+          lawyerPhone: recurring.createdByUser?.phone ?? null,
           paymentUrl,
         });
 

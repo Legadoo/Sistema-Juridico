@@ -232,7 +232,6 @@ export async function createChargeForFirm(params: {
           id: true,
           name: true,
           email: true,
-          phone: true,
         },
       },
       process: {
@@ -290,7 +289,6 @@ export async function listChargesForFirm(params: { firmId: string }) {
           id: true,
           name: true,
           email: true,
-          phone: true,
         },
       },
       process: {
@@ -329,7 +327,6 @@ export async function getChargeByIdForFirm(params: {
           id: true,
           name: true,
           email: true,
-          phone: true,
         },
       },
       process: {

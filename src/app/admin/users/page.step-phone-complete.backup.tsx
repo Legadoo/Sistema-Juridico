@@ -26,6 +26,7 @@ type UserRow = {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: UserRole;
   active: boolean;
   createdAt?: string;
@@ -40,6 +41,7 @@ type ToastState = {
 type FormState = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   role: "MASTER" | "SECRETARY";
 };
@@ -51,6 +53,7 @@ type DeleteAction = {
 const emptyForm: FormState = {
   name: "",
   email: "",
+  phone: "",
   password: "",
   role: "SECRETARY",
 };
@@ -184,6 +187,7 @@ export default function UsersPage() {
     setEditForm({
       name: user.name,
       email: user.email,
+      phone: user.phone || "",
       password: "",
       role: user.role === "MASTER" ? "MASTER" : "SECRETARY",
     });
@@ -206,6 +210,7 @@ export default function UsersPage() {
           name: createForm.name.trim(),
           email: createForm.email.trim(),
           password: createForm.password,
+          phone: createForm.phone.trim() || null,
           role: createForm.role,
         }),
       }).then(async (r) => ({
@@ -237,6 +242,7 @@ export default function UsersPage() {
       name: editForm.name.trim(),
       email: editForm.email.trim(),
       password: editForm.password,
+      phone: editForm.phone.trim() || null,
     };
 
     if (isSuper) {
@@ -393,6 +399,12 @@ export default function UsersPage() {
           />
           <input
             className="jv-premium-input"
+            placeholder="Telefone"
+            value={createForm.phone}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, phone: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
             placeholder="Senha"
             type="password"
             value={createForm.password}
@@ -452,6 +464,12 @@ export default function UsersPage() {
             placeholder="Email"
             value={editForm.email}
             onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Telefone"
+            value={editForm.phone}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
           />
           <input
             className="jv-premium-input"
@@ -686,8 +704,9 @@ export default function UsersPage() {
                         {user.email}
                       </div>
 
-
-
+                      <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
+                        {user.phone || "Telefone não informado"}
+                      </div>
 
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
                         <span

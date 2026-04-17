@@ -44,7 +44,6 @@ export async function POST(req: Request) {
   if (email) data.email = email;
   if (password) data.password = await bcrypt.hash(password, 10);
   data.phone = phone || null;
-  data.phone = phone || null;
 
   // Role: SOMENTE SUPERADMIN pode trocar
   if (roleRaw) {

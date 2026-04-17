@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/AdminShell";
@@ -685,9 +685,6 @@ export default function UsersPage() {
                       <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
                         {user.email}
                       </div>
-
-
-
 
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
                         <span

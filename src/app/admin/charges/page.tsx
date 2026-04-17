@@ -40,6 +40,7 @@ type ProcessItem = {
 type ChargeItem = {
   id: string;
   amount: string | number;
+  dueDate?: string | null;
   message?: string | null;
   status: string;
   paymentUrl?: string | null;
@@ -47,6 +48,12 @@ type ChargeItem = {
   phoneTarget?: string | null;
   emailSentAt?: string | null;
   createdAt: string;
+  createdByUser?: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   client?: {
     id: string;
     name: string;
@@ -470,14 +477,29 @@ export default function ChargesPage() {
     const phone = (charge.phoneTarget || "").replace(/\D/g, "");
     if (!phone || !charge.paymentUrl || charge.status === "CANCELLED") return null;
 
+    const dueDate = charge.dueDate
+      ? new Date(charge.dueDate).toLocaleDateString("pt-BR")
+      : "Não informado";
+
+    const lawyerName = charge.createdByUser?.name || "Seu advogado";
+    const lawyerEmail = charge.createdByUser?.email || "Não informado";
+    const lawyerPhone = charge.createdByUser?.phone || "Não informado";
+    const clientName = charge.client?.name || "cliente";
+
     const text = [
-      `Olá ${charge.client?.name ? `, ${charge.client.name}` : ""}.`,
-      `Segue sua cobrança no valor de ${formatCurrency(charge.amount)}.`,
-      charge.message ? `${charge.message}` : null,
-      `Link para pagamento: ${charge.paymentUrl}`,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+      `Olá, ${clientName}`,
+      "",
+      `${lawyerName} gerou uma cobrança para você no valor de ${formatCurrency(charge.amount)}, com vencimento em ${dueDate}.`,
+      "",
+      "Para efetuar o pagamento e visualizar mais informações da cobrança, clique no link:",
+      charge.paymentUrl,
+      "",
+      "Se você não reconhece essa cobrança, ou tem alguma dúvida sobre o pagamento, entre em contato com o seu fornecedor:",
+      `Telefone: ${lawyerPhone}`,
+      `Email: ${lawyerEmail}`,
+      "",
+      "Caso você já tenha efetuado o pagamento nas últimas 48 horas, favor desconsiderar esta mensagem.",
+    ].join("\n");
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   }

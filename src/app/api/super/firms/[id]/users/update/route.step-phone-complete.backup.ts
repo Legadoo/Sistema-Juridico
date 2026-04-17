@@ -18,7 +18,6 @@ export async function POST(req: Request, context: RouteContext) {
     const name = (body?.name ?? "").toString().trim();
     const email = (body?.email ?? "").toString().trim().toLowerCase();
     const password = (body?.password ?? "").toString();
-    const phone = (body?.phone ?? "").toString().trim();
     const role = (body?.role ?? "").toString().trim().toUpperCase();
 
     if (!userId) {
@@ -36,7 +35,6 @@ export async function POST(req: Request, context: RouteContext) {
       select: {
         id: true,
         email: true,
-        phone: true,
         role: true,
         firmId: true,
       },
@@ -79,8 +77,6 @@ export async function POST(req: Request, context: RouteContext) {
       data.password = await bcrypt.hash(password, 10);
     }
 
-    data.phone = phone || null;
-
     if (role) {
       if (!["MASTER", "SECRETARY"].includes(role)) {
         return NextResponse.json(
@@ -99,7 +95,6 @@ export async function POST(req: Request, context: RouteContext) {
         id: true,
         name: true,
         email: true,
-        phone: true,
         role: true,
         active: true,
         createdAt: true,

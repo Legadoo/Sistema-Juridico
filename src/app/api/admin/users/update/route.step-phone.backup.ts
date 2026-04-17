@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
@@ -12,7 +12,6 @@ export async function POST(req: Request) {
   const name = (body?.name ?? "").toString().trim();
   const email = (body?.email ?? "").toString().trim().toLowerCase();
   const password = (body?.password ?? "").toString();
-  const phone = (body?.phone ?? "").toString().trim();
   const roleRaw = (body?.role ?? "").toString().trim().toUpperCase(); // opcional
 
   if (!userId) return NextResponse.json({ ok: false, message: "userId obrigatório." }, { status: 400 });
@@ -43,8 +42,6 @@ export async function POST(req: Request) {
   if (name) data.name = name;
   if (email) data.email = email;
   if (password) data.password = await bcrypt.hash(password, 10);
-  data.phone = phone || null;
-  data.phone = phone || null;
 
   // Role: SOMENTE SUPERADMIN pode trocar
   if (roleRaw) {
@@ -67,7 +64,7 @@ export async function POST(req: Request) {
   const updated = await prisma.user.update({
     where: { id: userId },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, active: true },
+    select: { id: true, name: true, email: true, role: true, active: true },
   });
 
   return NextResponse.json({ ok: true, user: updated });

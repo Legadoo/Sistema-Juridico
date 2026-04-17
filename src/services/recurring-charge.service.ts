@@ -129,16 +129,29 @@ export function buildRecurringInstallmentsPreview(input: {
 }
 
 export async function createRecurringCharge(input: CreateRecurringChargeInput) {
-  const client = await prisma.client.findFirst({
+  const [client, actor] = await Promise.all([
+    prisma.client.findFirst({
     where: {
       id: input.clientId,
       firmId: input.firmId,
       archived: false,
     },
-  });
+    }),
+    prisma.user.findFirst({
+      where: {
+        id: input.createdByUserId,
+        firmId: input.firmId,
+        active: true,
+      },
+    }),
+  ]);
 
   if (!client) {
     throw new Error("CLIENT_NOT_FOUND");
+  }
+
+  if (!actor) {
+    throw new Error("ACTOR_NOT_FOUND");
   }
 
   if (input.installments < 2) {
@@ -236,6 +249,7 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
       providerPreferenceId: preference.providerPreferenceId,
       externalReference: firstInstallment.id,
       amount: new Prisma.Decimal(firstAmount),
+      dueDate: firstChargeDate,
       message: `${input.description} - Parcela 1/${input.installments}`,
       status: "PENDING",
       paymentUrl,
@@ -252,7 +266,10 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
         to: client.email,
         clientName: client.name ?? null,
         amount: formatCurrency(firstAmount),
-        message: `${input.description} - Parcela 1/${input.installments}`,
+        dueDate: firstChargeDate,
+        lawyerName: actor.name ?? null,
+        lawyerEmail: actor.email ?? null,
+        lawyerPhone: actor.phone ?? null,
         paymentUrl,
       });
 

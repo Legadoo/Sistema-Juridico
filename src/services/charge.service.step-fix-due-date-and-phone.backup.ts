@@ -145,6 +145,7 @@ export async function createChargeForFirm(params: {
   clientId: string;
   processId?: string | null;
   amount: number;
+  dueDate?: Date | string | null;
   message?: string | null;
 }) {
   if (!Number.isFinite(params.amount) || params.amount <= 0) {
@@ -214,6 +215,7 @@ export async function createChargeForFirm(params: {
       providerPreferenceId: preference.providerPreferenceId,
       externalReference,
       amount: new Prisma.Decimal(params.amount),
+      dueDate: params.dueDate ? new Date(params.dueDate) : null,
       message: params.message ?? null,
       status: CHARGE_STATUS.PENDING,
       paymentUrl: preference.paymentUrl,
@@ -243,6 +245,7 @@ export async function createChargeForFirm(params: {
           id: true,
           name: true,
           email: true,
+          phone: true,
         },
       },
     },
@@ -254,7 +257,10 @@ export async function createChargeForFirm(params: {
         to: created.emailTarget,
         clientName: created.client?.name ?? null,
         amount: formatCurrency(params.amount),
-        message: created.message ?? null,
+        dueDate: created.dueDate ?? null,
+        lawyerName: created.createdByUser?.name ?? null,
+        lawyerEmail: created.createdByUser?.email ?? null,
+        lawyerPhone: created.createdByUser?.phone ?? null,
         paymentUrl: created.paymentUrl,
       });
 
@@ -296,6 +302,7 @@ export async function listChargesForFirm(params: { firmId: string }) {
           id: true,
           name: true,
           email: true,
+          phone: true,
         },
       },
     },
@@ -333,6 +340,7 @@ export async function getChargeByIdForFirm(params: {
           id: true,
           name: true,
           email: true,
+          phone: true,
         },
       },
     },
@@ -423,15 +431,34 @@ export async function processMercadoPagoWebhook(body: unknown) {
         typeof payment?.status === "string" ? payment.status : null;
 
       if (paymentStatus === "approved") {
+        const paidAt = new Date();
+
         await prisma.charge.update({
           where: { id: charge.id },
           data: {
             status: CHARGE_STATUS.PAID,
             providerPaymentId: String(payment.id),
-            paidAt: new Date(),
-            lastWebhookAt: new Date(),
+            paidAt,
+            lastWebhookAt: paidAt,
           },
         });
+
+        const recurringInstallment =
+          await prisma.recurringChargeInstallment.findUnique({
+            where: {
+              id: charge.externalReference,
+            },
+          });
+
+        if (recurringInstallment) {
+          await prisma.recurringChargeInstallment.update({
+            where: { id: recurringInstallment.id },
+            data: {
+              status: "PAID",
+              paidAt,
+            },
+          });
+        }
       } else {
         await prisma.charge.update({
           where: { id: charge.id },
