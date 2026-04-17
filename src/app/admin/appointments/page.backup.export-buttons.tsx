@@ -480,60 +480,20 @@ export default function AppointmentsPage() {
               </div>
             ) : null}
 
-            <div
+            <button
+              type="submit"
               style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
+                padding: "12px 16px",
+                borderRadius: 12,
+                border: "1px solid #4f46e5",
+                background: "#4f46e5",
+                color: "white",
+                fontWeight: 900,
+                cursor: "pointer",
               }}
             >
-              <button
-                type="submit"
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  border: "1px solid #4f46e5",
-                  background: "#4f46e5",
-                  color: "white",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Criar agendamento
-              </button>
-
-              <button
-                type="button"
-                onClick={() => window.open("/api/admin/appointments/export?format=csv", "_blank")}
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  border: "1px solid #3f3f46",
-                  background: "#09090b",
-                  color: "white",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                Exportar CSV
-              </button>
-
-              <button
-                type="button"
-                onClick={() => window.open("/api/admin/appointments/export?format=xlsx", "_blank")}
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  border: "1px solid #3f3f46",
-                  background: "#09090b",
-                  color: "white",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                Exportar Excel
-              </button>
-            </div>
+              Criar agendamento
+            </button>
           </form>
         </section>
 

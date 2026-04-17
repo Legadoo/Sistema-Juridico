@@ -260,7 +260,7 @@ export default function AdminShell({
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-white"
                 onClick={() => setMobileMenuOpen(true)}
               >
-                ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â°
+                ☰
               </button>
             </div>
           </header>
