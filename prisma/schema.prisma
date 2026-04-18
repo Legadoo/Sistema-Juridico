@@ -353,3 +353,94 @@ model RecurringChargeInstallment {
   @@unique([recurringChargeId, installmentNumber])
   @@index([status, dueDate])
 }
+
+model LandingPageConfig {
+  id                      String   @id @default("global-public-site")
+  brandName               String   @default("JURIDICVAS")
+  heroTitle               String   @default("Gestão jurídica premium para escritórios que querem crescer com organização.")
+  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessível.")
+  heroPrimaryButtonText   String   @default("Entrar")
+  heroSecondaryButtonText String   @default("Acompanhar")
+  aboutTitle              String   @default("Sobre o sistema")
+  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operação jurídica com mais controle, imagem profissional e praticidade no dia a dia.")
+  featuresTitle           String   @default("Funcionalidades")
+  featuresSubtitle        String   @default("Tudo o que seu escritório precisa para operar com segurança e organização.")
+  mediaTitle              String   @default("Veja o sistema em ação")
+  mediaSubtitle           String   @default("Apresente telas, GIFs e demonstrações do produto em uma experiência premium.")
+  plansTitle              String   @default("Planos")
+  plansSubtitle           String   @default("Escolha o plano ideal para o seu momento.")
+  updatesTitle            String   @default("Atualizações")
+  updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lançamentos do sistema.")
+  ctaTitle                String   @default("Pronto para elevar o nível da sua operação jurídica?")
+  ctaSubtitle             String   @default("Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.")
+  footerText              String   @default("JURIDICVAS - Plataforma jurídica premium.")
+  loginUrl                String   @default("/login")
+  trackUrl                String   @default("/acompanhar")
+  isPublished             Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model LandingFeature {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  icon        String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model LandingMedia {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  type        String   @default("image")
+  url         String
+  alt         String?
+  section     String   @default("hero")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([section, sortOrder])
+  @@index([isActive])
+}
+
+model PublicPlan {
+  id            String   @id @default(cuid())
+  name          String
+  priceLabel    String
+  billingPeriod String   @default("/mês")
+  description   String?
+  featuresText  String
+  badgeText     String?
+  isHighlighted Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model PublicUpdatePost {
+  id           String   @id @default(cuid())
+  title        String
+  summary      String
+  category     String   @default("Novidade")
+  publishedAt  DateTime @default(now())
+  isPublished  Boolean  @default(true)
+  isHighlighted Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([publishedAt])
+  @@index([isPublished])
+}

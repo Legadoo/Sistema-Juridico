@@ -14,6 +14,13 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+type MeResponse = {
+  ok?: boolean;
+  user?: {
+    role?: string;
+  };
+};
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -22,6 +29,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     function updateViewport() {
@@ -33,6 +41,35 @@ export default function LoginPage() {
 
     return () => {
       window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/me", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as MeResponse | null;
+
+        if (!ignore && response.ok && data?.ok && data.user) {
+          const redirectTo = data.user.role === "SUPERADMIN" ? "/admin/super" : "/admin";
+          window.location.href = redirectTo;
+          return;
+        }
+      } catch {
+        // sem sessão ativa
+      } finally {
+        if (!ignore) {
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    void checkSession();
+
+    return () => {
+      ignore = true;
     };
   }, []);
 
@@ -68,6 +105,25 @@ export default function LoginPage() {
       setMsg("Não foi possível entrar agora.");
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background:
+            "radial-gradient(circle at top left, rgba(56,189,248,0.08), transparent 20%), radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 28%), linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
+          color: "#E2E8F0",
+          padding: 24,
+          textAlign: "center",
+        }}
+      >
+        Verificando acesso...
+      </div>
+    );
   }
 
   return (

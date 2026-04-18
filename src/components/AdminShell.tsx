@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -148,6 +148,7 @@ export default function AdminShell({
 
   if (role === "SUPERADMIN") {
     navItems.push({ href: "/admin/settings", label: "ConfiguraÃƒÂ§ÃƒÂµes" });
+    navItems.push({ href: "/admin/super/site", label: "Site público" });
   }
 
   return (
