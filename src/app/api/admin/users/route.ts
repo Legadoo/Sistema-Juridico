@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
 export async function GET() {
+  const moduleGuard = await ensureAdminModuleResponse("moduleUsers");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
@@ -35,6 +38,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleUsers");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 

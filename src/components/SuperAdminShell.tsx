@@ -63,6 +63,7 @@ export default function SuperAdminShell({ userName, children }: SuperAdminShellP
   }
 
   const navItems = [
+    { href: "/admin/super/users", label: "Usuários" },
     { href: "/admin/super", label: "Dashboard SaaS" },
     { href: "/admin/super/firms", label: "Advocacias" },
     { href: "/admin/super/site", label: "Site público" },
@@ -132,7 +133,7 @@ export default function SuperAdminShell({ userName, children }: SuperAdminShellP
             <div className="border-t border-cyan-400/10 p-4">
               <div className="mb-3 rounded-2xl border border-cyan-400/10 bg-cyan-400/[0.04] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  SessÃ£o ativa
+                  Sessão ativa
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}

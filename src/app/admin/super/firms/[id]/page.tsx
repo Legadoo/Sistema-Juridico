@@ -776,7 +776,7 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
               </label>
 
               <label style={{ display: "grid", gap: 8 }}>
-                <span style={{ color: "#94A3B8", fontSize: 13 }}>Email</span>
+                <span style={{ color: "#94A3B8", fontSize: 13 }}>E-mail</span>
                 <input
                   value={userForm.email}
                   onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -861,7 +861,7 @@ export default function SuperadminFirmDetailsPage({ params }: PageProps) {
                   </label>
 
                   <label style={{ display: "grid", gap: 8 }}>
-                    <span style={{ color: "#94A3B8", fontSize: 13 }}>Email</span>
+                    <span style={{ color: "#94A3B8", fontSize: 13 }}>E-mail</span>
                     <input
                       value={editUserForm.email}
                       onChange={(e) => setEditUserForm((prev) => ({ ...prev, email: e.target.value }))}

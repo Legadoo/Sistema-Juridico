@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import {
   deactivateAvailabilitySlotForFirm,
@@ -10,6 +11,8 @@ export async function PATCH(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAvailability");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {
@@ -49,6 +52,8 @@ export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAvailability");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {

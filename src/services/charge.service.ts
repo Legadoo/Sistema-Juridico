@@ -149,7 +149,7 @@ export async function createChargeForFirm(params: {
   message?: string | null;
 }) {
   if (!Number.isFinite(params.amount) || params.amount <= 0) {
-    throw new Error("Valor da cobrança invalido.");
+    throw new Error("Valor da cobrança inválido.");
   }
 
   const [client, actor] = await Promise.all([
@@ -173,7 +173,7 @@ export async function createChargeForFirm(params: {
   }
 
   if (!actor) {
-    throw new Error("Usuário invalido para criar a cobrança.");
+    throw new Error("Usuário inválido para criar a cobrança.");
   }
 
   if (params.processId) {
@@ -362,7 +362,7 @@ export async function cancelChargeForFirm(params: {
   });
 
   if (!charge) {
-    throw new Error("Cobrança não encontrada encontrada.");
+    throw new Error("Cobrança não encontrada.");
   }
 
   if (charge.status === CHARGE_STATUS.PAID) {

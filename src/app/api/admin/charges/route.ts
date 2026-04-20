@@ -1,3 +1,4 @@
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import {
@@ -10,6 +11,8 @@ function ensureLawFirmUser(user: { role: string; firmId?: string | null }) {
 }
 
 export async function GET() {
+  const moduleGuard = await ensureAdminModuleResponse("moduleCharges");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 
@@ -45,6 +48,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleCharges");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 

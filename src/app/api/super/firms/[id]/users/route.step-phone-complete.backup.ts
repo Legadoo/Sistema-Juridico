@@ -20,7 +20,7 @@ export async function GET(_: Request, context: RouteContext) {
 
     if (!firm) {
       return NextResponse.json(
-        { ok: false, message: "Advocacia nao encontrada." },
+        { ok: false, message: "Advocacia não encontrada." },
         { status: 404 }
       );
     }
@@ -43,7 +43,7 @@ export async function GET(_: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "UNAUTHORIZED") {
-        return NextResponse.json({ ok: false, message: "Nao autenticado." }, { status: 401 });
+        return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
       }
 
       if (error.message === "FORBIDDEN_SUPERADMIN_ONLY") {
@@ -55,7 +55,7 @@ export async function GET(_: Request, context: RouteContext) {
     }
 
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel carregar os usuarios." },
+      { ok: false, message: "Não foi possível carregar os usuários." },
       { status: 500 }
     );
   }
@@ -82,7 +82,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (!["MASTER", "SECRETARY"].includes(role)) {
       return NextResponse.json(
-        { ok: false, message: "Perfil invalido." },
+        { ok: false, message: "Perfil inválido." },
         { status: 400 }
       );
     }
@@ -94,7 +94,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (!firm) {
       return NextResponse.json(
-        { ok: false, message: "Advocacia nao encontrada." },
+        { ok: false, message: "Advocacia não encontrada." },
         { status: 404 }
       );
     }
@@ -106,7 +106,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (existingEmail) {
       return NextResponse.json(
-        { ok: false, message: "Ja existe um usuario com este email." },
+        { ok: false, message: "Já existe um usuário com este e-mail." },
         { status: 409 }
       );
     }
@@ -137,7 +137,7 @@ export async function POST(req: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "UNAUTHORIZED") {
-        return NextResponse.json({ ok: false, message: "Nao autenticado." }, { status: 401 });
+        return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
       }
 
       if (error.message === "FORBIDDEN_SUPERADMIN_ONLY") {
@@ -149,7 +149,7 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel criar o usuario." },
+      { ok: false, message: "Não foi possível criar o usuário." },
       { status: 500 }
     );
   }

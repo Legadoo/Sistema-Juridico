@@ -1,8 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
 export async function GET() {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 

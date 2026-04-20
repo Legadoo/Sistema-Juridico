@@ -2,6 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, destroySession } from "@/lib/session";
 
+function getSuggestedRedirect(params: {
+  role: string;
+  firmId?: string | null;
+  onboardingStatus?: string | null;
+}) {
+  if (params.role === "SUPERADMIN") return "/admin/super";
+
+  if (params.firmId && params.onboardingStatus === "ACTIVE") {
+    return "/admin";
+  }
+
+  if (params.onboardingStatus === "FIRM_REQUIRED") {
+    return "/onboarding/firm";
+  }
+
+  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") {
+    return "/";
+  }
+
+  return "/";
+}
+
 export async function GET() {
   const user = await getSessionUser();
 
@@ -34,6 +56,36 @@ export async function GET() {
     }
   }
 
+  let firmConfig = null;
+
+  if (user.firmId) {
+    firmConfig = await prisma.firmConfig.findUnique({
+      where: { firmId: user.firmId },
+      select: {
+        moduleDashboard: true,
+        moduleClients: true,
+        moduleProcesses: true,
+        moduleDeadlines: true,
+        moduleAppointments: true,
+        moduleAvailability: true,
+        moduleUsers: true,
+        moduleCharges: true,
+      },
+    });
+  }
+
+  const onboardingStatus = user.onboardingStatus ?? "PLAN_REQUIRED";
+
+  const canAccessAdmin =
+    user.role === "SUPERADMIN" ||
+    (Boolean(user.firmId) && onboardingStatus === "ACTIVE");
+
+  const suggestedRedirect = getSuggestedRedirect({
+    role: user.role,
+    firmId: user.firmId,
+    onboardingStatus,
+  });
+
   return NextResponse.json({
     ok: true,
     user: {
@@ -43,7 +95,13 @@ export async function GET() {
       role: user.role,
       active: user.active,
       firmId: user.firmId,
+      onboardingStatus,
+      selectedPlanId: user.selectedPlanId ?? null,
+      selectedPlanNameSnapshot: user.selectedPlanNameSnapshot ?? null,
+      canAccessAdmin,
     },
     firm,
+    firmConfig,
+    suggestedRedirect,
   });
 }

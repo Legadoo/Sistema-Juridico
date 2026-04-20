@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   if (!name || !email || !password) {
     return NextResponse.json(
-      { ok: false, message: "Preencha nome da advocacia, email e senha." },
+      { ok: false, message: "Preencha nome da advocacia, e-mail e senha." },
       { status: 400 }
     );
   }
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
   if (existingUser) {
     return NextResponse.json(
-      { ok: false, message: "Já existe um usuário com este email." },
+      { ok: false, message: "Já existe um usuário com este e-mail." },
       { status: 409 }
     );
   }

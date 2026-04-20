@@ -1,3 +1,4 @@
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +17,8 @@ function escapeCsv(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAppointments");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 

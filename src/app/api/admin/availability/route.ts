@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import {
   createAvailabilityWindowForFirm,
@@ -6,6 +7,8 @@ import {
 } from "@/services/availability.service";
 
 export async function GET() {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAvailability");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {
@@ -23,6 +26,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAvailability");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {

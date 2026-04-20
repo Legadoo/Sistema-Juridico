@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import { createRecurringCharge } from "@/services/recurring-charge.service";
 
 export async function POST(request: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleCharges");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 

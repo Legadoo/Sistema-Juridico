@@ -55,6 +55,10 @@ type PublicPlan = {
   description?: string | null;
   featuresText: string;
   badgeText?: string | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  ctaText: string;
+  isPurchasable: boolean;
   isHighlighted: boolean;
   sortOrder: number;
   isActive: boolean;
@@ -86,6 +90,7 @@ type PublicSiteResponse = {
 
 type MeResponse = {
   ok?: boolean;
+  suggestedRedirect?: string;
   user?: {
     id?: string;
     name?: string;
@@ -93,33 +98,43 @@ type MeResponse = {
     role?: string;
     active?: boolean;
     firmId?: string | null;
+    onboardingStatus?: string;
+    canAccessAdmin?: boolean;
   };
 };
 
 const fallbackConfig: LandingConfig = {
   brandName: "JURIDICVAS",
-  heroTitle: "Gestão jurídica premium para escritórios que querem crescer com organização.",
-  heroSubtitle:
-    "Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessível.",
-  heroPrimaryButtonText: "Entrar",
-  heroSecondaryButtonText: "Acompanhar",
-  aboutTitle: "Sobre o sistema",
-  aboutText:
-    "O JURIDICVAS foi criado para profissionalizar a operação jurídica com mais controle, imagem profissional e praticidade no dia a dia.",
+
+  heroTitle: "Gestão jurídica inteligente para escritórios modernos",
+  heroSubtitle: "Organize processos, clientes e tarefas em um único sistema simples e poderoso.",
+
+  heroPrimaryButtonText: "Começar agora",
+  heroSecondaryButtonText: "Ver demonstração",
+
+  aboutTitle: "Sobre o JuridicVas",
+  aboutText: "O JuridicVas é uma plataforma completa para advogados e escritórios que desejam otimizar sua rotina e aumentar a produtividade.",
+
   featuresTitle: "Funcionalidades",
-  featuresSubtitle: "Tudo o que seu escritório precisa para operar com segurança e organização.",
-  mediaTitle: "Veja o sistema em ação",
-  mediaSubtitle: "Apresente telas, GIFs e demonstrações do produto em uma experiência premium.",
+  featuresSubtitle: "Tudo que você precisa para gerenciar seu escritório em um só lugar.",
+
+  mediaTitle: "Veja na prática",
+  mediaSubtitle: "Explore como o sistema funciona no dia a dia.",
+
   plansTitle: "Planos",
-  plansSubtitle: "Escolha o plano ideal para o seu momento.",
+  plansSubtitle: "Escolha o plano ideal para você ou seu escritório.",
+
   updatesTitle: "Atualizações",
-  updatesSubtitle: "Acompanhe novidades, melhorias e lançamentos do sistema.",
-  ctaTitle: "Pronto para elevar o nível da sua operação jurídica?",
-  ctaSubtitle:
-    "Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.",
-  footerText: "JURIDICVAS - Plataforma jurídica premium.",
+  updatesSubtitle: "Fique por dentro das novidades do sistema.",
+
+  ctaTitle: "Pronto para transformar sua gestão?",
+  ctaSubtitle: "Comece agora e leve seu escritório para o próximo nível.",
+
+  footerText: "© 2026 JuridicVas. Todos os direitos reservados.",
+
   loginUrl: "/login",
-  trackUrl: "/acompanhar",
+  trackUrl: "/dashboard",
+
   isPublished: true,
 };
 
@@ -145,48 +160,89 @@ export default function HomePage() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<MeResponse["user"] | null>(null);
+  const [sessionSuggestedRedirect, setSessionSuggestedRedirect] = useState("/login");
+  const [checkoutLoadingPlanId, setCheckoutLoadingPlanId] = useState<string | null>(null);
+  const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [subscriptionStatus, setSubscriptionStatus] = useState<{
+    nextStep?: string;
+    subscription?: {
+      status?: string;
+      checkoutUrl?: string | null;
+      plan?: {
+        id?: string;
+        name?: string;
+      } | null;
+    } | null;
+  } | null>(null);
+  const [showPlansModal, setShowPlansModal] = useState(false);
 
   useEffect(() => {
-    function updateViewport() {
-      setViewportWidth(window.innerWidth);
-    }
+  if (!sessionUser) return;
 
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
+  if (sessionUser.role === "SUPERADMIN") {
+    setShowPlansModal(false);
+    window.location.href = "/admin/super";
+    return;
+  }
 
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-    };
-  }, []);
+  if (sessionUser.firmId && sessionUser.onboardingStatus === "ACTIVE") {
+    setShowPlansModal(false);
+    window.location.href = "/admin";
+    return;
+  }
+
+  if (sessionUser.onboardingStatus === "FIRM_REQUIRED") {
+    setShowPlansModal(false);
+    window.location.href = "/onboarding/firm";
+    return;
+  }
+
+  if (sessionUser.onboardingStatus === "PLAN_REQUIRED") {
+    setShowPlansModal(true);
+    return;
+  }
+
+  if (sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT") {
+    setShowPlansModal(true);
+    return;
+  }
+
+  setShowPlansModal(false);
+}, [sessionUser]);
 
   useEffect(() => {
-    if (viewportWidth >= 640) {
-      setMobileMenuOpen(false);
-    }
-  }, [viewportWidth]);
+  if (!sessionUser) return;
 
-  useEffect(() => {
-    let ignore = false;
+  if (sessionUser.role === "SUPERADMIN") {
+    setShowPlansModal(false);
+    window.location.href = "/admin/super";
+    return;
+  }
 
-    async function loadSession() {
-      try {
-        const response = await fetch("/api/me", { cache: "no-store" });
-        const data = (await response.json().catch(() => null)) as MeResponse | null;
+  if (sessionUser.firmId && sessionUser.onboardingStatus === "ACTIVE") {
+    setShowPlansModal(false);
+    window.location.href = "/admin";
+    return;
+  }
 
-        if (!ignore && response.ok && data?.ok && data.user) {
-          setSessionUser(data.user);
-        }
-      } catch {
-        // sem sessão, segue normal
-      }
-    }
+  if (sessionUser.onboardingStatus === "FIRM_REQUIRED") {
+    setShowPlansModal(false);
+    window.location.href = "/onboarding/firm";
+    return;
+  }
 
-    void loadSession();
+  if (sessionUser.onboardingStatus === "PLAN_REQUIRED") {
+    setShowPlansModal(true);
+    return;
+  }
 
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  if (sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT") {
+    setShowPlansModal(true);
+    return;
+  }
+
+  setShowPlansModal(false);
+}, [sessionUser]);
 
   useEffect(() => {
     let ignore = false;
@@ -273,7 +329,7 @@ export default function HomePage() {
     };
   }, [heroMediaList.length]);
 
-  const officeHref = sessionUser?.role === "SUPERADMIN" ? "/admin/super" : "/admin";
+  const officeHref = sessionUser ? sessionSuggestedRedirect : "/login";
   const officeLabel = sessionUser ? "Escritório" : "Login";
 
   const navItems = [
@@ -326,6 +382,88 @@ export default function HomePage() {
 
   function closeMobileMenu() {
     setMobileMenuOpen(false);
+  }
+
+  async function startPlanCheckout(planId: string) {
+    if (!sessionUser) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setCheckoutMessage("");
+    setCheckoutLoadingPlanId(planId);
+
+    try {
+      const response = await fetch("/api/public/checkout/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setCheckoutMessage(data?.message || "Não foi possível iniciar a assinatura.");
+        return;
+      }
+
+      const checkoutUrl = data?.data?.checkoutUrl;
+      if (!checkoutUrl) {
+        setCheckoutMessage("Checkout não disponível.");
+        return;
+      }
+
+      window.location.href = checkoutUrl;
+    } catch {
+      setCheckoutMessage("Falha ao iniciar checkout do plano.");
+    } finally {
+      setCheckoutLoadingPlanId(null);
+    }
+  }
+
+  async function handlePublicLogout() {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
+  function handlePrimaryOfficeAction() {
+    if (!sessionUser) {
+      window.location.href = "/login";
+      return;
+    }
+
+    if (sessionUser.role === "SUPERADMIN") {
+      window.location.href = "/admin/super";
+      return;
+    }
+
+    if (sessionUser.onboardingStatus === "ACTIVE" && sessionUser.firmId) {
+      window.location.href = "/admin";
+      return;
+    }
+
+    if (sessionUser.onboardingStatus === "FIRM_REQUIRED") {
+      window.location.href = "/onboarding/firm";
+      return;
+    }
+
+    if (
+      sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT" &&
+      subscriptionStatus?.subscription?.status === "PENDING" &&
+      subscriptionStatus?.subscription?.checkoutUrl
+    ) {
+      window.location.href = subscriptionStatus.subscription.checkoutUrl;
+      return;
+    }
+
+    if (!(sessionUser?.firmId && sessionUser?.onboardingStatus === "ACTIVE")) {
+  setShowPlansModal(true);
+}
   }
 
   return (
@@ -400,7 +538,7 @@ export default function HomePage() {
                   fontSize: isMobile ? 13 : 15,
                 }}
               >
-                Plataforma jurídica premium
+                Plataforma 
               </div>
             </div>
 
@@ -474,16 +612,16 @@ export default function HomePage() {
                   Acompanhar
                 </a>
 
-                <a
-                  href={officeHref}
+                <button
+                  type="button"
                   className="jv-premium-btn"
+                  onClick={handlePrimaryOfficeAction}
                   style={{
-                    textDecoration: "none",
                     textAlign: "center",
                   }}
                 >
                   {officeLabel}
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -637,7 +775,7 @@ export default function HomePage() {
                   fontWeight: 900,
                 }}
               >
-                SISTEMA · {site.config.brandName}
+                SISTEMA JURÍDICO
               </div>
 
               <h1
@@ -667,23 +805,29 @@ export default function HomePage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
                   gap: 10,
                 }}
               >
-                <a
-                  href={officeHref}
+                <button
+                  type="button"
                   className="jv-premium-btn"
+                  onClick={handlePrimaryOfficeAction}
                   style={{
-                    textDecoration: "none",
                     textAlign: "center",
                     width: "100%",
                     padding: isMobile ? "12px 10px" : undefined,
                     fontSize: isMobile ? 13 : undefined,
                   }}
                 >
-                  {sessionUser ? "Escritório" : site.config.heroPrimaryButtonText || "Entrar"}
-                </a>
+                  {sessionUser
+                    ? sessionUser.onboardingStatus === "FIRM_REQUIRED"
+                      ? "Cadastrar advocacia"
+                      : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
+                      ? "Continuar pagamento"
+                      : "Escritório"
+                    : site.config.heroPrimaryButtonText || "Entrar"}
+                </button>
 
                 <a
                   href={site.config.trackUrl || "/acompanhar"}
@@ -698,6 +842,36 @@ export default function HomePage() {
                 >
                   {site.config.heroSecondaryButtonText || "Acompanhar"}
                 </a>
+
+                <a
+                  href="/cadastro"
+                  className="jv-premium-btn-secondary"
+                  style={{
+                    textDecoration: "none",
+                    textAlign: "center",
+                    width: "100%",
+                    padding: isMobile ? "12px 10px" : undefined,
+                    fontSize: isMobile ? 13 : undefined,
+                  }}
+                >
+                  Criar conta
+                </a>
+
+                {sessionUser ? (
+                  <button
+                    type="button"
+                    className="jv-premium-btn-secondary"
+                    onClick={handlePublicLogout}
+                    style={{
+                      textAlign: "center",
+                      width: "100%",
+                      padding: isMobile ? "12px 10px" : undefined,
+                      fontSize: isMobile ? 13 : undefined,
+                    }}
+                  >
+                    Sair
+                  </button>
+                ) : null}
               </div>
 
               <div
@@ -793,7 +967,7 @@ export default function HomePage() {
                     <div>
                       <div style={{ fontWeight: 900 }}>Demonstração do sistema</div>
                       <div style={{ marginTop: 8, color: "#94A3B8", lineHeight: 1.7 }}>
-                        Cadastre uma mídia na seção hero do site público.
+                        Cadastre uma Conta.
                       </div>
                     </div>
                   </div>
@@ -883,6 +1057,22 @@ export default function HomePage() {
               }}
             >
               Carregando a landing pública...
+            </div>
+          ) : null}
+
+          {checkoutMessage ? (
+            <div
+              className="jv-premium-card"
+              style={{
+                marginTop: 18,
+                borderRadius: 18,
+                padding: 14,
+                color: "#FCA5A5",
+                fontSize: isMobile ? 13 : 14,
+                lineHeight: 1.7,
+              }}
+            >
+              {checkoutMessage}
             </div>
           ) : null}
         </section>
@@ -1022,7 +1212,7 @@ export default function HomePage() {
                   ? "1fr"
                   : isTablet
                   ? "repeat(2, minmax(0, 1fr))"
-                  : "repeat(3, minmax(0, 1fr))",
+                  : "repeat(auto-fit, minmax(320px, 1fr))",
                 gap: 14,
               }}
             >
@@ -1125,7 +1315,7 @@ export default function HomePage() {
                   ? "1fr"
                   : isTablet
                   ? "repeat(2, minmax(0, 1fr))"
-                  : "repeat(3, minmax(0, 1fr))",
+                  : "repeat(auto-fit, minmax(320px, 1fr))",
                 gap: 14,
               }}
             >
@@ -1147,15 +1337,52 @@ export default function HomePage() {
                     key={item.id}
                     className="jv-premium-card"
                     style={{
-                      borderRadius: 22,
-                      padding: isMobile ? 18 : 20,
+                      borderRadius: 24,
+                      padding: isMobile ? 16 : 18,
                       display: "grid",
                       gap: 14,
+                      overflow: "hidden",
                       border: item.isHighlighted
-                        ? "1px solid rgba(99,102,241,0.38)"
+                        ? "1px solid rgba(99,102,241,0.42)"
                         : "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: item.isHighlighted
+                        ? "0 20px 50px rgba(79,70,229,0.16)"
+                        : undefined,
                     }}
                   >
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.imageAlt || item.name}
+                        style={{
+                          width: "100%",
+                          height: isMobile ? 180 : 210,
+                          objectFit: "cover",
+                          borderRadius: 16,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          display: "block",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: isMobile ? 180 : 210,
+                          borderRadius: 16,
+                          border: "1px dashed rgba(255,255,255,0.10)",
+                          display: "grid",
+                          placeItems: "center",
+                          textAlign: "center",
+                          color: "#64748B",
+                          background:
+                            "linear-gradient(135deg, rgba(99,102,241,0.10), rgba(15,23,42,0.40))",
+                          padding: 16,
+                        }}
+                      >
+                        Prévia do plano
+                      </div>
+                    )}
+
                     <div
                       style={{
                         display: "flex",
@@ -1165,14 +1392,27 @@ export default function HomePage() {
                         alignItems: "flex-start",
                       }}
                     >
-                      <div
-                        style={{
-                          color: "#F8FAFC",
-                          fontSize: isMobile ? 20 : 22,
-                          fontWeight: 950,
-                        }}
-                      >
-                        {item.name}
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div
+                          style={{
+                            color: "#F8FAFC",
+                            fontSize: isMobile ? 20 : 22,
+                            fontWeight: 950,
+                            lineHeight: 1.1,
+                          }}
+                        >
+                          {item.name}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#94A3B8",
+                            lineHeight: 1.6,
+                            fontSize: isMobile ? 13 : 14,
+                          }}
+                        >
+                          {item.description || "Plano ideal para operação jurídica profissional."}
+                        </div>
                       </div>
 
                       {item.badgeText ? (
@@ -1185,6 +1425,7 @@ export default function HomePage() {
                             color: "#C4B5FD",
                             fontSize: 12,
                             fontWeight: 900,
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {item.badgeText}
@@ -1192,10 +1433,17 @@ export default function HomePage() {
                       ) : null}
                     </div>
 
-                    <div>
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                        borderRadius: 18,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
                       <div
                         style={{
-                          fontSize: isMobile ? 28 : 32,
+                          fontSize: isMobile ? 30 : 34,
                           fontWeight: 950,
                           color: "#F8FAFC",
                           lineHeight: 1,
@@ -1207,22 +1455,11 @@ export default function HomePage() {
                             fontSize: isMobile ? 14 : 15,
                             color: "#94A3B8",
                             fontWeight: 700,
-                            marginLeft: 4,
+                            marginLeft: 6,
                           }}
                         >
                           {item.billingPeriod}
                         </span>
-                      </div>
-
-                      <div
-                        style={{
-                          color: "#94A3B8",
-                          lineHeight: 1.7,
-                          marginTop: 8,
-                          fontSize: isMobile ? 13 : 14,
-                        }}
-                      >
-                        {item.description || "Plano ideal para operação jurídica profissional."}
                       </div>
                     </div>
 
@@ -1232,46 +1469,51 @@ export default function HomePage() {
                         color: "#CBD5E1",
                         lineHeight: 1.8,
                         fontSize: isMobile ? 13 : 14,
+                        padding: "2px 2px 0",
                       }}
                     >
                       {item.featuresText}
                     </div>
 
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 10,
-                      }}
-                    >
-                      <a
-                        href={officeHref}
+                    <div style={{ marginTop: 2 }}>
+                      <button
+                        type="button"
                         className="jv-premium-btn"
+                        onClick={() => {
+                          if (!item.isPurchasable) return;
+                          void startPlanCheckout(item.id);
+                        }}
+                        disabled={!item.isPurchasable || checkoutLoadingPlanId === item.id}
                         style={{
-                          textDecoration: "none",
-                          textAlign: "center",
                           width: "100%",
                           padding: isMobile ? "11px 8px" : undefined,
                           fontSize: isMobile ? 13 : undefined,
+                          opacity: item.isPurchasable ? 1 : 0.75,
+                          cursor: item.isPurchasable ? "pointer" : "not-allowed",
                         }}
                       >
-                        {sessionUser ? "Escritório" : "Entrar"}
-                      </a>
-
-                      <a
-                        href="#atualizacoes"
-                        className="jv-premium-btn-secondary"
-                        style={{
-                          textDecoration: "none",
-                          textAlign: "center",
-                          width: "100%",
-                          padding: isMobile ? "11px 8px" : undefined,
-                          fontSize: isMobile ? 13 : undefined,
-                        }}
-                      >
-                        Novidades
-                      </a>
+                        {checkoutLoadingPlanId === item.id
+                          ? "Abrindo checkout..."
+                          : item.ctaText || "Assinar agora"}
+                      </button>
                     </div>
+
+                    {!item.isPurchasable ? (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 14,
+                          background: "rgba(245,158,11,0.10)",
+                          border: "1px solid rgba(245,158,11,0.18)",
+                          color: "#FCD34D",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Este plano está visível no site, mas ainda não está liberado para compra.
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -1418,19 +1660,25 @@ export default function HomePage() {
                 gap: 10,
               }}
             >
-              <a
-                href={officeHref}
+              <button
+                type="button"
                 className="jv-premium-btn"
+                onClick={handlePrimaryOfficeAction}
                 style={{
-                  textDecoration: "none",
                   textAlign: "center",
                   width: "100%",
                   padding: isMobile ? "12px 8px" : undefined,
                   fontSize: isMobile ? 13 : undefined,
                 }}
               >
-                {sessionUser ? "Escritório" : site.config.heroPrimaryButtonText || "Entrar"}
-              </a>
+                {sessionUser
+                  ? sessionUser.onboardingStatus === "FIRM_REQUIRED"
+                    ? "Cadastrar advocacia"
+                    : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
+                    ? "Continuar pagamento"
+                    : "Escritório"
+                  : site.config.heroPrimaryButtonText || "Entrar"}
+              </button>
 
               <a
                 href={site.config.trackUrl || "/acompanhar"}
@@ -1449,6 +1697,307 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      {showPlansModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 120,
+            background: "rgba(2,6,23,0.72)",
+            backdropFilter: "blur(10px)",
+            display: "grid",
+            placeItems: "center",
+            padding: 18,
+          }}
+        >
+          <div
+            style={{
+              width: "min(1180px, 100%)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              borderRadius: 28,
+              padding: 22,
+              background:
+                "linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.92))",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.38)",
+              display: "grid",
+              gap: 18,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "flex-start",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "grid", gap: 8 }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    width: "fit-content",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 11px",
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "#C4B5FD",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  ESCOLHA SEU PLANO
+                </div>
+
+                <div
+                  style={{
+                    color: "#F8FAFC",
+                    fontSize: 32,
+                    fontWeight: 950,
+                    letterSpacing: "-0.04em",
+                    lineHeight: 1.05,
+                  }}
+                >
+                  Ative sua experiência no JuridicVas
+                </div>
+
+                <div
+                  style={{
+                    color: "#94A3B8",
+                    fontSize: 14,
+                    lineHeight: 1.8,
+                    maxWidth: 760,
+                  }}
+                >
+                  Escolha um plano para liberar o seu acesso. Se você iniciou um pagamento,
+                  pode continuar exatamente de onde parou.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="jv-premium-btn-secondary"
+                onClick={() => setShowPlansModal(false)}
+              >
+                Fechar
+              </button>
+            </div>
+
+            {subscriptionStatus?.nextStep === "WAIT_PAYMENT" &&
+            subscriptionStatus?.subscription?.checkoutUrl ? (
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 18,
+                  background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.18)",
+                  color: "#FCD34D",
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div>
+                  Você ainda tem um pagamento pendente.
+                </div>
+
+                <button
+                  type="button"
+                  className="jv-premium-btn"
+                  onClick={() => {
+                    const url = subscriptionStatus?.subscription?.checkoutUrl;
+                    if (url) window.location.href = url;
+                  }}
+                  style={{ width: "fit-content" }}
+                >
+                  Continuar pagamento pendente
+                </button>
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  viewportWidth < 640
+                    ? "1fr"
+                    : viewportWidth < 1024
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {site.plans.length === 0 ? (
+                <div
+                  className="jv-premium-card"
+                  style={{
+                    borderRadius: 20,
+                    padding: 18,
+                    color: "#94A3B8",
+                    gridColumn: "1 / -1",
+                  }}
+                >
+                  Nenhum plano disponível no momento.
+                </div>
+              ) : (
+                site.plans.map((item) => (
+                  <div
+                    key={item.id}
+                    className="jv-premium-card"
+                    style={{
+                      borderRadius: 22,
+                      padding: 16,
+                      display: "grid",
+                      gap: 14,
+                      border: item.isHighlighted
+                        ? "1px solid rgba(99,102,241,0.42)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.imageAlt || item.name}
+                        style={{
+                          width: "100%",
+                          height: 190,
+                          objectFit: "cover",
+                          borderRadius: 16,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          display: "block",
+                        }}
+                      />
+                    ) : null}
+
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#F8FAFC",
+                            fontSize: 22,
+                            fontWeight: 950,
+                          }}
+                        >
+                          {item.name}
+                        </div>
+
+                        {item.badgeText ? (
+                          <div
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 999,
+                              background: "rgba(99,102,241,0.18)",
+                              border: "1px solid rgba(99,102,241,0.24)",
+                              color: "#C4B5FD",
+                              fontSize: 12,
+                              fontWeight: 900,
+                            }}
+                          >
+                            {item.badgeText}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#C4B5FD",
+                          fontSize: 30,
+                          fontWeight: 950,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {item.priceLabel}
+                        <span
+                          style={{
+                            color: "#94A3B8",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            marginLeft: 6,
+                          }}
+                        >
+                          {item.billingPeriod}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#94A3B8",
+                          lineHeight: 1.7,
+                          fontSize: 14,
+                        }}
+                      >
+                        {item.description || "Plano ideal para sua advocacia."}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        color: "#CBD5E1",
+                        lineHeight: 1.8,
+                        fontSize: 14,
+                      }}
+                    >
+                      {item.featuresText}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="jv-premium-btn"
+                      disabled={!item.isPurchasable || checkoutLoadingPlanId === item.id}
+                      onClick={() => {
+                        if (!item.isPurchasable) return;
+                        void startPlanCheckout(item.id);
+                      }}
+                      style={{
+                        width: "100%",
+                        opacity: item.isPurchasable ? 1 : 0.75,
+                        cursor: item.isPurchasable ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      {checkoutLoadingPlanId === item.id
+                        ? "Abrindo checkout..."
+                        : item.ctaText || "Assinar agora"}
+                    </button>
+
+                    {!item.isPurchasable ? (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 14,
+                          background: "rgba(245,158,11,0.10)",
+                          border: "1px solid rgba(245,158,11,0.18)",
+                          color: "#FCD34D",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Este plano está visível, mas ainda não está liberado para compra.
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <footer
         style={{
@@ -1469,7 +2018,7 @@ export default function HomePage() {
         >
           <div style={{ fontSize: isMobile ? 13 : 14 }}>{site.config.footerText}</div>
           <div style={{ color: "#64748B", fontSize: isMobile ? 12 : 13 }}>
-            {site.config.brandName} · Dark Premium Experience
+            {site.config.brandName} - Dark Premium Experience
           </div>
         </div>
       </footer>

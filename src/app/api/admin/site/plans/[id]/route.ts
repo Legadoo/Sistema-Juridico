@@ -1,38 +1,28 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
-import { deletePlan, updatePlan } from "@/services/public-site/site";
+import { updatePlan, deletePlan } from "@/services/public-site/site";
 
-async function requireSuperadmin() {
+function forbidden() {
+  return NextResponse.json(
+    { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
+    { status: 403 }
+  );
+}
+
+type Params = {
+  params: Promise<{ id: string }>;
+};
+
+export async function PUT(req: Request, context: Params) {
   const user = await getSessionUser();
+
   if (!user) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, message: "Não autenticado." },
-        { status: 401 }
-      ),
-    };
+    return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
   }
 
   if (user.role !== "SUPERADMIN") {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
-        { status: 403 }
-      ),
-    };
+    return forbidden();
   }
-
-  return { ok: true as const };
-}
-
-export async function PUT(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const auth = await requireSuperadmin();
-  if (!auth.ok) return auth.response;
 
   const { id } = await context.params;
   const body = await req.json().catch(() => null);
@@ -45,26 +35,33 @@ export async function PUT(
   }
 
   try {
-    const data = await updatePlan(id, body as Record<string, unknown>);
+    const plan = await updatePlan(id, body as Record<string, unknown>);
     return NextResponse.json({
       ok: true,
       message: "Plano atualizado com sucesso.",
-      data,
+      data: plan,
     });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Não foi possível atualizar o plano.";
 
-    return NextResponse.json({ ok: false, message }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 400 }
+    );
   }
 }
 
-export async function DELETE(
-  _req: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  const auth = await requireSuperadmin();
-  if (!auth.ok) return auth.response;
+export async function DELETE(_req: Request, context: Params) {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
+  }
+
+  if (user.role !== "SUPERADMIN") {
+    return forbidden();
+  }
 
   const { id } = await context.params;
 
@@ -72,12 +69,12 @@ export async function DELETE(
     await deletePlan(id);
     return NextResponse.json({
       ok: true,
-      message: "Plano removido com sucesso.",
+      message: "Plano excluído com sucesso.",
     });
   } catch {
     return NextResponse.json(
-      { ok: false, message: "Não foi possível remover o plano." },
-      { status: 400 }
+      { ok: false, message: "Não foi possível excluir o plano." },
+      { status: 500 }
     );
   }
 }

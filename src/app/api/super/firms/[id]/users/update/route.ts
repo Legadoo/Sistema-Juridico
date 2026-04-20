@@ -64,7 +64,7 @@ export async function POST(req: Request, context: RouteContext) {
 
       if (exists) {
         return NextResponse.json(
-          { ok: false, message: "Já existe um usuário com este email." },
+          { ok: false, message: "Já existe um usuário com este e-mail." },
           { status: 409 }
         );
       }

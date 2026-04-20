@@ -496,7 +496,7 @@ export default function ChargesPage() {
       "",
       "Se você não reconhece essa cobrança, ou tem alguma dúvida sobre o pagamento, entre em contato com o seu fornecedor:",
       `Telefone: ${lawyerPhone}`,
-      `Email: ${lawyerEmail}`,
+      `E-mail: ${lawyerEmail}`,
       "",
       "Caso você já tenha efetuado o pagamento nas últimas 48 horas, favor desconsiderar esta mensagem.",
     ].join("\n");

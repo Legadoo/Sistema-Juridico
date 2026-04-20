@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import { deleteFinishedAppointmentForFirm } from "@/services/appointment.service";
 
@@ -6,6 +7,8 @@ export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleAppointments");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {

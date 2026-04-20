@@ -20,14 +20,31 @@ type NavItemProps = {
 
 type MeResponse = {
   ok?: boolean;
+  suggestedRedirect?: string;
+  user?: {
+    canAccessAdmin?: boolean;
+    onboardingStatus?: string;
+    role?: string;
+    firmId?: string | null;
+  } | null;
   firm?: {
     name?: string;
+  } | null;
+  firmConfig?: {
+    moduleDashboard?: boolean;
+    moduleClients?: boolean;
+    moduleProcesses?: boolean;
+    moduleDeadlines?: boolean;
+    moduleAppointments?: boolean;
+    moduleAvailability?: boolean;
+    moduleUsers?: boolean;
+    moduleCharges?: boolean;
   } | null;
 };
 
 function roleLabel(role: string) {
   if (role === "MASTER") return "Advogado";
-  if (role === "SECRETARY") return "EstagiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio";
+  if (role === "SECRETARY") return "Estagiário";
   if (role === "SUPERADMIN") return "Super Admin";
   return role;
 }
@@ -84,31 +101,83 @@ export default function AdminShell({
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [resolvedFirmName, setResolvedFirmName] = useState(firmName || "Advocacia");
+  const [firmModules, setFirmModules] = useState({
+    moduleDashboard: true,
+    moduleClients: true,
+    moduleProcesses: true,
+    moduleDeadlines: true,
+    moduleAppointments: true,
+    moduleAvailability: true,
+    moduleUsers: true,
+    moduleCharges: true,
+  });
 
   useEffect(() => {
-    let ignore = false;
+  let ignore = false;
 
-    async function loadFirm() {
-      try {
-        const response = await fetch("/api/me", { cache: "no-store" });
-        const data = (await response.json().catch(() => null)) as MeResponse | null;
+  async function loadFirm() {
+    try {
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const data = (await response.json().catch(() => null)) as MeResponse | null;
 
-        if (!ignore && data?.ok) {
-          setResolvedFirmName(data.firm?.name || firmName || "Advocacia");
+      if (!ignore && response.ok && data?.ok) {
+        const canAccessAdmin = data.user?.canAccessAdmin;
+        const suggestedRedirect = data.suggestedRedirect || "/";
+
+        if (role !== "SUPERADMIN" && !canAccessAdmin) {
+          window.location.href = suggestedRedirect;
+          return;
         }
-      } catch {
-        if (!ignore) {
-          setResolvedFirmName(firmName || "Advocacia");
+
+        setResolvedFirmName(data.firm?.name || firmName || "Advocacia");
+
+        if (data.firmConfig) {
+          setFirmModules({
+            moduleDashboard: data.firmConfig.moduleDashboard ?? true,
+            moduleClients: data.firmConfig.moduleClients ?? true,
+            moduleProcesses: data.firmConfig.moduleProcesses ?? true,
+            moduleDeadlines: data.firmConfig.moduleDeadlines ?? true,
+            moduleAppointments: data.firmConfig.moduleAppointments ?? true,
+            moduleAvailability: data.firmConfig.moduleAvailability ?? true,
+            moduleUsers: data.firmConfig.moduleUsers ?? true,
+            moduleCharges: data.firmConfig.moduleCharges ?? true,
+          });
+
+          const routeBlocked =
+            (pathname === "/admin" && !(data.firmConfig.moduleDashboard ?? true)) ||
+            (pathname.startsWith("/admin/clients") && !(data.firmConfig.moduleClients ?? true)) ||
+            (pathname.startsWith("/admin/processes") && !(data.firmConfig.moduleProcesses ?? true)) ||
+            (pathname.startsWith("/admin/deadlines") && !(data.firmConfig.moduleDeadlines ?? true)) ||
+            (pathname.startsWith("/admin/appointments") && !(data.firmConfig.moduleAppointments ?? true)) ||
+            (pathname.startsWith("/admin/availability") && !(data.firmConfig.moduleAvailability ?? true)) ||
+            (pathname.startsWith("/admin/users") && !(data.firmConfig.moduleUsers ?? true)) ||
+            (pathname.startsWith("/admin/charges") && !(data.firmConfig.moduleCharges ?? true));
+
+          if (role !== "SUPERADMIN" && routeBlocked) {
+            window.location.href = "/admin";
+            return;
+          }
         }
+
+        return;
+      }
+
+      if (!ignore) {
+        window.location.href = "/login";
+      }
+    } catch {
+      if (!ignore) {
+        window.location.href = "/login";
       }
     }
+  }
 
-    void loadFirm();
+  void loadFirm();
 
-    return () => {
-      ignore = true;
-    };
-  }, [firmName]);
+  return () => {
+    ignore = true;
+  };
+}, [firmName, role, pathname]);
 
   async function logout() {
     if (loading) return;
@@ -136,18 +205,40 @@ export default function AdminShell({
   }
 
   const navItems = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/clients", label: "Clientes" },
-    { href: "/admin/clients/archived", label: "Clientes arquivados" },
-    { href: "/admin/processes", label: "Processos" },
-    { href: "/admin/processes/archived", label: "Processos arquivados" },
-    { href: "/admin/deadlines", label: "Prazos" }, { href: "/admin/appointments", label: "Agendamentos" }, { href: "/admin/availability", label: "Abertura de agenda" },
-    { href: "/admin/users", label: "Usuários" },
-    { href: "/admin/charges", label: "Cobranças" },
-  ];
+  ...(role === "SUPERADMIN" || firmModules.moduleDashboard
+    ? [{ href: "/admin", label: "Dashboard" }]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleClients
+    ? [
+        { href: "/admin/clients", label: "Clientes" },
+        { href: "/admin/clients/archived", label: "Clientes arquivados" },
+      ]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleProcesses
+    ? [
+        { href: "/admin/processes", label: "Processos" },
+        { href: "/admin/processes/archived", label: "Processos arquivados" },
+      ]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleDeadlines
+    ? [{ href: "/admin/deadlines", label: "Prazos" }]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleAppointments
+    ? [{ href: "/admin/appointments", label: "Agendamentos" }]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleAvailability
+    ? [{ href: "/admin/availability", label: "Abertura de agenda" }]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleUsers
+    ? [{ href: "/admin/users", label: "Usuários" }]
+    : []),
+  ...(role === "SUPERADMIN" || firmModules.moduleCharges
+    ? [{ href: "/admin/charges", label: "Cobranças" }]
+    : []),
+];
 
   if (role === "SUPERADMIN") {
-    navItems.push({ href: "/admin/settings", label: "ConfiguraÃƒÂ§ÃƒÂµes" });
+    navItems.push({ href: "/admin/settings", label: "Configurações" });
     navItems.push({ href: "/admin/super/site", label: "Site público" });
   }
 
@@ -215,7 +306,7 @@ export default function AdminShell({
             <div className="border-t border-white/10 p-4">
               <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  SessÃƒÂ£o ativa
+                  Sessão ativa
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}

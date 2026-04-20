@@ -16,8 +16,12 @@ const inputStyle: React.CSSProperties = {
 
 type MeResponse = {
   ok?: boolean;
+  suggestedRedirect?: string;
   user?: {
     role?: string;
+    onboardingStatus?: string;
+    firmId?: string | null;
+    canAccessAdmin?: boolean;
   };
 };
 
@@ -30,6 +34,19 @@ export default function LoginPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const verified = params.get("verified");
+
+    if (verified === "invalid") {
+      setMsg("Link de verificação inválido.");
+    }
+
+    if (verified === "expired") {
+      setMsg("Seu link de verificação expirou.");
+    }
+  }, []);
 
   useEffect(() => {
     function updateViewport() {
@@ -53,8 +70,7 @@ export default function LoginPage() {
         const data = (await response.json().catch(() => null)) as MeResponse | null;
 
         if (!ignore && response.ok && data?.ok && data.user) {
-          const redirectTo = data.user.role === "SUPERADMIN" ? "/admin/super" : "/admin";
-          window.location.href = redirectTo;
+          window.location.href = data.suggestedRedirect || "/";
           return;
         }
       } catch {
@@ -385,6 +401,18 @@ export default function LoginPage() {
                   style={{ width: "100%" }}
                 >
                   Preencher modo demo
+                </button>
+
+                <button
+                  type="button"
+                  className="jv-premium-btn-secondary"
+                  onClick={() => {
+                    window.location.href = "/cadastro";
+                  }}
+                  disabled={loading}
+                  style={{ width: "100%" }}
+                >
+                  Criar cadastro de advogado
                 </button>
               </div>
             </form>

@@ -38,7 +38,7 @@ export async function GET(_: Request, context: RouteContext) {
 
     if (!firm) {
       return NextResponse.json(
-        { ok: false, message: "Advocacia nao encontrada." },
+        { ok: false, message: "Advocacia não encontrada." },
         { status: 404 }
       );
     }
@@ -61,19 +61,19 @@ export async function GET(_: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "UNAUTHORIZED") {
-        return NextResponse.json({ ok: false, message: "Nao autenticado." }, { status: 401 });
+        return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
       }
 
       if (error.message === "FORBIDDEN_SUPERADMIN_ONLY") {
         return NextResponse.json(
-          { ok: false, message: "Apenas SUPERADMIN pode acessar esta area." },
+          { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
           { status: 403 }
         );
       }
     }
 
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel carregar a advocacia." },
+      { ok: false, message: "Não foi possível carregar a advocacia." },
       { status: 500 }
     );
   }
@@ -93,7 +93,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (!name) {
       return NextResponse.json(
-        { ok: false, message: "Nome da advocacia obrigatorio." },
+        { ok: false, message: "Nome da advocacia obrigatório." },
         { status: 400 }
       );
     }
@@ -102,14 +102,14 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (!slug) {
       return NextResponse.json(
-        { ok: false, message: "Slug invalido." },
+        { ok: false, message: "Slug inválido." },
         { status: 400 }
       );
     }
 
     if (!Number.isFinite(maxClients) || maxClients < 1 || maxClients > 100000) {
       return NextResponse.json(
-        { ok: false, message: "maxClients invalido." },
+        { ok: false, message: "maxClients inválido." },
         { status: 400 }
       );
     }
@@ -121,7 +121,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (!firm) {
       return NextResponse.json(
-        { ok: false, message: "Advocacia nao encontrada." },
+        { ok: false, message: "Advocacia não encontrada." },
         { status: 404 }
       );
     }
@@ -136,7 +136,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     if (existingSlug) {
       return NextResponse.json(
-        { ok: false, message: "Ja existe outra advocacia com este slug." },
+        { ok: false, message: "Já existe outra advocacia com este slug." },
         { status: 409 }
       );
     }
@@ -172,19 +172,19 @@ export async function POST(req: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "UNAUTHORIZED") {
-        return NextResponse.json({ ok: false, message: "Nao autenticado." }, { status: 401 });
+        return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
       }
 
       if (error.message === "FORBIDDEN_SUPERADMIN_ONLY") {
         return NextResponse.json(
-          { ok: false, message: "Apenas SUPERADMIN pode alterar esta area." },
+          { ok: false, message: "Apenas SUPERADMIN pode alterar esta área." },
           { status: 403 }
         );
       }
     }
 
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel salvar a advocacia." },
+      { ok: false, message: "Não foi possível salvar a advocacia." },
       { status: 500 }
     );
   }

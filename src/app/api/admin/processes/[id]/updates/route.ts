@@ -1,10 +1,13 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, ctx: Ctx) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
@@ -52,6 +55,8 @@ export async function GET(_: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 

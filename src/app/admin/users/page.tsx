@@ -26,6 +26,11 @@ type UserRow = {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
+  emailVerified?: boolean;
+  onboardingStatus?: string | null;
+  selectedPlanId?: string | null;
+  selectedPlanNameSnapshot?: string | null;
   role: UserRole;
   active: boolean;
   createdAt?: string;
@@ -40,8 +45,17 @@ type ToastState = {
 type FormState = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   role: "MASTER" | "SECRETARY";
+  selectedPlanId: string;
+};
+
+type PublicPlanOption = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isPurchasable: boolean;
 };
 
 type DeleteAction = {
@@ -51,8 +65,10 @@ type DeleteAction = {
 const emptyForm: FormState = {
   name: "",
   email: "",
+  phone: "",
   password: "",
   role: "SECRETARY",
+  selectedPlanId: "",
 };
 
 function normalizeMe(data: MeResponse): Me | null {
@@ -77,6 +93,7 @@ function formatDate(date?: string) {
 export default function UsersPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [planOptions, setPlanOptions] = useState<PublicPlanOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -129,6 +146,19 @@ export default function UsersPage() {
     }
 
     setMe(normalizedMe);
+
+    if (normalizedMe.role === "SUPERADMIN") {
+      const plansResponse = await fetch("/api/admin/users/plans", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => null);
+
+      const plansList =
+        Array.isArray(plansResponse?.plans) ? plansResponse.plans :
+        Array.isArray(plansResponse?.data) ? plansResponse.data :
+        [];
+
+      setPlanOptions(plansList);
+    }
 
     const response = await fetch("/api/admin/users", { cache: "no-store" })
       .then((r) => r.json())
@@ -184,15 +214,17 @@ export default function UsersPage() {
     setEditForm({
       name: user.name,
       email: user.email,
+      phone: user.phone ?? "",
       password: "",
       role: user.role === "MASTER" ? "MASTER" : "SECRETARY",
+      selectedPlanId: user.selectedPlanId ?? "",
     });
     setEditOpen(true);
   }
 
   async function submitCreate() {
-    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password.trim()) {
-      showToast("Preencha nome, email e senha.", "warning");
+    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.phone.trim() || !createForm.password.trim()) {
+      showToast("Preencha nome, telefone, e-mail e senha.", "warning");
       return;
     }
 
@@ -206,6 +238,7 @@ export default function UsersPage() {
           name: createForm.name.trim(),
           email: createForm.email.trim(),
           password: createForm.password,
+          phone: createForm.phone.trim(),
           role: createForm.role,
         }),
       }).then(async (r) => ({
@@ -237,6 +270,8 @@ export default function UsersPage() {
       name: editForm.name.trim(),
       email: editForm.email.trim(),
       password: editForm.password,
+      phone: editForm.phone.trim(),
+      selectedPlanId: editForm.selectedPlanId,
     };
 
     if (isSuper) {
@@ -387,9 +422,15 @@ export default function UsersPage() {
           />
           <input
             className="jv-premium-input"
-            placeholder="Email"
+            placeholder="E-mail"
             value={createForm.email}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Telefone"
+            value={createForm.phone}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, phone: e.target.value }))}
           />
           <input
             className="jv-premium-input"
@@ -449,9 +490,15 @@ export default function UsersPage() {
           />
           <input
             className="jv-premium-input"
-            placeholder="Email"
+            placeholder="E-mail"
             value={editForm.email}
             onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <input
+            className="jv-premium-input"
+            placeholder="Telefone"
+            value={editForm.phone}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
           />
           <input
             className="jv-premium-input"
@@ -462,6 +509,52 @@ export default function UsersPage() {
           />
 
           {isSuper && (
+            <>
+              <select
+                className="jv-premium-input"
+                value={editForm.role}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    role: e.target.value as "MASTER" | "SECRETARY",
+                  }))
+                }
+                style={{
+                  colorScheme: "dark",
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: "#F8FAFC",
+                }}
+              >
+                <option value="SECRETARY" style={{ background: "#0F172A", color: "#F8FAFC" }}>SECRETARY</option>
+                <option value="MASTER" style={{ background: "#0F172A", color: "#F8FAFC" }}>MASTER</option>
+              </select>
+
+              <select
+                className="jv-premium-input"
+                value={editForm.selectedPlanId}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    selectedPlanId: e.target.value,
+                  }))
+                }
+                style={{
+                  colorScheme: "dark",
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  color: "#F8FAFC",
+                }}
+              >
+                <option value="" style={{ background: "#0F172A", color: "#F8FAFC" }}>Sem plano vinculado</option>
+                {planOptions.map((plan) => (
+                  <option key={plan.id} value={plan.id} style={{ background: "#0F172A", color: "#F8FAFC" }}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {isSuper && false && (
             <select
               className="jv-premium-input"
               value={editForm.role}
@@ -517,7 +610,7 @@ export default function UsersPage() {
             <>
               <strong>{deleteAction.user.name}</strong>
               <div style={{ color: "#94A3B8", marginTop: 6, wordBreak: "break-word" }}>
-                Email: {deleteAction.user.email}
+                E-mail: {deleteAction.user.email}
               </div>
             </>
           ) : null}
@@ -686,6 +779,18 @@ export default function UsersPage() {
                         {user.email}
                       </div>
 
+                      <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
+                        Telefone: {user.phone || "Não informado"}
+                      </div>
+
+                      <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
+                        Plano: {user.selectedPlanNameSnapshot || "Nenhum"}
+                      </div>
+
+                      <div style={{ color: "#94A3B8", fontSize: 14, wordBreak: "break-word" }}>
+                        Onboarding: {user.onboardingStatus ?? "null"}
+                      </div>
+
 
 
 
@@ -703,6 +808,23 @@ export default function UsersPage() {
                           }}
                         >
                           {user.role}
+                        </span>
+
+                        <span
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 999,
+                            background: user.emailVerified ? "rgba(16,185,129,0.10)" : "rgba(239,68,68,0.10)",
+                            color: user.emailVerified ? "#A7F3D0" : "#FECACA",
+                            border: user.emailVerified
+                              ? "1px solid rgba(16,185,129,0.18)"
+                              : "1px solid rgba(239,68,68,0.18)",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {user.emailVerified ? "E-mail verificado" : "E-mail pendente"}
                         </span>
 
                         <span

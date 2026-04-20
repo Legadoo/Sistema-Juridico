@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import { listArchivedClientsByFirm } from "@/services/client.service";
 
 export async function GET() {
+  const moduleGuard = await ensureAdminModuleResponse("moduleClients");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 

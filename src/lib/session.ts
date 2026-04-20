@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
@@ -48,6 +48,9 @@ export async function getSessionUser() {
           role: true,
           active: true,
           firmId: true,
+          onboardingStatus: true,
+          selectedPlanId: true,
+          selectedPlanNameSnapshot: true,
         },
       },
     },

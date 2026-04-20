@@ -372,7 +372,7 @@ export default function SuperadminFirmClientsPage({ params }: PageProps) {
                     }}
                   >
                     <div style={{ padding: 14, borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div style={{ color: "#64748B", fontSize: 12, marginBottom: 6 }}>Email</div>
+                      <div style={{ color: "#64748B", fontSize: 12, marginBottom: 6 }}>E-mail</div>
                       <div style={{ color: "#F8FAFC", fontWeight: 700 }}>{client.email || "Não informado"}</div>
                     </div>
 
@@ -450,7 +450,7 @@ export default function SuperadminFirmClientsPage({ params }: PageProps) {
                 </label>
 
                 <label style={{ display: "grid", gap: 8 }}>
-                  <span style={{ color: "#94A3B8", fontSize: 13 }}>Email</span>
+                  <span style={{ color: "#94A3B8", fontSize: 13 }}>E-mail</span>
                   <input
                     value={editForm.email}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}

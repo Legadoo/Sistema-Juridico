@@ -67,7 +67,7 @@ export async function sendChargeEmail(params: {
     "",
     "Se você não reconhece essa cobrança, ou tem alguma dúvida sobre o pagamento, entre em contato com o seu fornecedor:",
     `Telefone: ${lawyerPhone}`,
-    `Email: ${lawyerEmail}`,
+    `E-mail: ${lawyerEmail}`,
     "",
     "Caso você já tenha efetuado o pagamento nas últimas 48 horas, favor desconsiderar esta mensagem.",
   ].join("\n");
@@ -96,7 +96,7 @@ export async function sendChargeEmail(params: {
 
       <p>
         <strong>Telefone:</strong> ${lawyerPhone}<br />
-        <strong>Email:</strong> ${lawyerEmail}
+        <strong>E-mail:</strong> ${lawyerEmail}
       </p>
 
       <p>Caso você já tenha efetuado o pagamento nas últimas 48 horas, favor desconsiderar esta mensagem.</p>

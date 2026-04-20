@@ -29,11 +29,19 @@ model LawFirm {
 }
 
 model FirmConfig {
-  id         String   @id @default(cuid())
-  firmId     String   @unique
-  maxClients Int      @default(50)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  firmId             String   @unique
+  maxClients         Int      @default(50)
+  moduleDashboard    Boolean  @default(true)
+  moduleClients      Boolean  @default(true)
+  moduleProcesses    Boolean  @default(true)
+  moduleDeadlines    Boolean  @default(true)
+  moduleAppointments Boolean  @default(true)
+  moduleAvailability Boolean  @default(true)
+  moduleUsers        Boolean  @default(true)
+  moduleCharges      Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   firm LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
 }
@@ -42,13 +50,19 @@ model User {
   availabilityWindows AvailabilityWindow[] @relation("CreatedAvailabilityWindows")
   createdAppointments Appointment[]        @relation("CreatedAppointments")
 
-  id       String  @id @default(cuid())
-  name     String
-  email    String  @unique
-  phone    String?
-  password String
-  role     String  @default("SECRETARY") // "MASTER" ou "SECRETARY"
-  active   Boolean @default(true)
+  id                         String    @id @default(cuid())
+  name                       String
+  email                      String    @unique
+  phone                      String?
+  emailVerified              Boolean   @default(false)
+  emailVerificationToken     String?
+  emailVerificationExpiresAt DateTime?
+  password                   String
+  role                       String    @default("SECRETARY") // "MASTER" ou "SECRETARY"
+  active                     Boolean   @default(true)
+  onboardingStatus           String?   @default("PLAN_REQUIRED")
+  selectedPlanId             String?
+  selectedPlanNameSnapshot   String?
 
   firmId String?
   firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: Restrict)
@@ -58,10 +72,12 @@ model User {
 
   sessions Session[]
 
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
   createdCharges          Charge[]
-  createdRecurringCharges RecurringCharge[] @relation("UserCreatedRecurringCharges")
+  createdRecurringCharges RecurringCharge[]  @relation("UserCreatedRecurringCharges")
+  saasSubscriptions       SaaSSubscription[]
+  selectedPlan            PublicPlan?        @relation("UserSelectedPlan", fields: [selectedPlanId], references: [id])
 
   @@index([firmId])
 }
@@ -264,6 +280,16 @@ model PaymentGatewayConfig {
   @@index([firmId])
 }
 
+model PublicSitePaymentConfig {
+  id             String   @id @default("global-public-payment")
+  provider       String   @default("MERCADO_PAGO")
+  accessTokenEnc String
+  publicKeyEnc   String?
+  isActive       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model Charge {
   id              String  @id @default(cuid())
   firmId          String
@@ -357,12 +383,12 @@ model RecurringChargeInstallment {
 model LandingPageConfig {
   id                      String   @id @default("global-public-site")
   brandName               String   @default("JURIDICVAS")
-  heroTitle               String   @default("Gestão jurídica premium para escritórios que querem crescer com organização.")
-  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessível.")
+  heroTitle               String   @default("Gestão jurí­dica premium para escritórios que querem crescer com organização.")
+  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessí­vel.")
   heroPrimaryButtonText   String   @default("Entrar")
   heroSecondaryButtonText String   @default("Acompanhar")
   aboutTitle              String   @default("Sobre o sistema")
-  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operação jurídica com mais controle, imagem profissional e praticidade no dia a dia.")
+  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operação jurí­dica com mais controle, imagem profissional e praticidade no dia a dia.")
   featuresTitle           String   @default("Funcionalidades")
   featuresSubtitle        String   @default("Tudo o que seu escritório precisa para operar com segurança e organização.")
   mediaTitle              String   @default("Veja o sistema em ação")
@@ -371,9 +397,9 @@ model LandingPageConfig {
   plansSubtitle           String   @default("Escolha o plano ideal para o seu momento.")
   updatesTitle            String   @default("Atualizações")
   updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lançamentos do sistema.")
-  ctaTitle                String   @default("Pronto para elevar o nível da sua operação jurídica?")
+  ctaTitle                String   @default("Pronto para elevar o ní­vel da sua operação jurí­dica?")
   ctaSubtitle             String   @default("Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.")
-  footerText              String   @default("JURIDICVAS - Plataforma jurídica premium.")
+  footerText              String   @default("JURIDICVAS - Plataforma jurí­dica premium.")
   loginUrl                String   @default("/login")
   trackUrl                String   @default("/acompanhar")
   isPublished             Boolean  @default(true)
@@ -413,34 +439,70 @@ model LandingMedia {
 }
 
 model PublicPlan {
-  id            String   @id @default(cuid())
-  name          String
-  priceLabel    String
-  billingPeriod String   @default("/mês")
-  description   String?
-  featuresText  String
-  badgeText     String?
-  isHighlighted Boolean  @default(false)
-  sortOrder     Int      @default(0)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  priceLabel         String
+  billingPeriod      String   @default("/mÃƒÆ’Ã‚Âªs")
+  description        String?
+  featuresText       String
+  badgeText          String?
+  imageUrl           String?
+  imageAlt           String?
+  ctaText            String   @default("Assinar agora")
+  isPurchasable      Boolean  @default(true)
+  moduleDashboard    Boolean  @default(true)
+  moduleClients      Boolean  @default(true)
+  moduleProcesses    Boolean  @default(true)
+  moduleDeadlines    Boolean  @default(true)
+  moduleAppointments Boolean  @default(true)
+  moduleAvailability Boolean  @default(true)
+  moduleUsers        Boolean  @default(true)
+  moduleCharges      Boolean  @default(true)
+  isHighlighted      Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  subscriptions   SaaSSubscription[]
+  selectedByUsers User[]             @relation("UserSelectedPlan")
 
   @@index([sortOrder])
   @@index([isActive])
 }
 
 model PublicUpdatePost {
-  id           String   @id @default(cuid())
-  title        String
-  summary      String
-  category     String   @default("Novidade")
-  publishedAt  DateTime @default(now())
-  isPublished  Boolean  @default(true)
-  isHighlighted Boolean @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  summary       String
+  category      String   @default("Novidade")
+  publishedAt   DateTime @default(now())
+  isPublished   Boolean  @default(true)
+  isHighlighted Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([publishedAt])
   @@index([isPublished])
+}
+
+model SaaSSubscription {
+  id                   String    @id @default(cuid())
+  userId               String
+  publicPlanId         String
+  status               String    @default("PENDING")
+  provider             String    @default("MERCADO_PAGO")
+  providerPreferenceId String?
+  providerPaymentId    String?
+  externalReference    String    @unique
+  checkoutUrl          String?
+  paidAt               DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicPlan PublicPlan @relation(fields: [publicPlanId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([publicPlanId])
 }

@@ -1,50 +1,46 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
-import { createPlan, listPlans } from "@/services/public-site/site";
+import { listPlans, createPlan } from "@/services/public-site/site";
 
-async function requireSuperadmin() {
-  const user = await getSessionUser();
-  if (!user) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, message: "Não autenticado." },
-        { status: 401 }
-      ),
-    };
-  }
-
-  if (user.role !== "SUPERADMIN") {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
-        { status: 403 }
-      ),
-    };
-  }
-
-  return { ok: true as const };
+function forbidden() {
+  return NextResponse.json(
+    { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
+    { status: 403 }
+  );
 }
 
 export async function GET() {
-  const auth = await requireSuperadmin();
-  if (!auth.ok) return auth.response;
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
+  }
+
+  if (user.role !== "SUPERADMIN") {
+    return forbidden();
+  }
 
   try {
-    const data = await listPlans();
-    return NextResponse.json({ ok: true, data });
+    const plans = await listPlans();
+    return NextResponse.json({ ok: true, data: plans });
   } catch {
     return NextResponse.json(
-      { ok: false, message: "Não foi possível listar os planos." },
+      { ok: false, message: "Não foi possível carregar os planos." },
       { status: 500 }
     );
   }
 }
 
 export async function POST(req: Request) {
-  const auth = await requireSuperadmin();
-  if (!auth.ok) return auth.response;
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
+  }
+
+  if (user.role !== "SUPERADMIN") {
+    return forbidden();
+  }
 
   const body = await req.json().catch(() => null);
 
@@ -56,16 +52,19 @@ export async function POST(req: Request) {
   }
 
   try {
-    const data = await createPlan(body as Record<string, unknown>);
+    const plan = await createPlan(body as Record<string, unknown>);
     return NextResponse.json({
       ok: true,
       message: "Plano criado com sucesso.",
-      data,
+      data: plan,
     });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Não foi possível criar o plano.";
 
-    return NextResponse.json({ ok: false, message }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 400 }
+    );
   }
 }

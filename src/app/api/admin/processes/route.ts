@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import {
   listProcessesByFirm,
@@ -6,6 +7,8 @@ import {
 } from "@/services/process.service";
 
 export async function GET(req: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {
@@ -44,6 +47,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
   const user = await getSessionUser();
 
   if (!user) {

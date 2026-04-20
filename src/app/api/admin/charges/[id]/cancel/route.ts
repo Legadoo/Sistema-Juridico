@@ -1,3 +1,4 @@
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { cancelChargeForFirm } from "@/services/charge.service";
@@ -10,6 +11,8 @@ export async function POST(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleCharges");
+  if (moduleGuard) return moduleGuard;
   try {
     const user = await getSessionUser();
 

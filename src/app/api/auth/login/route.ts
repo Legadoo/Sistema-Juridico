@@ -3,6 +3,28 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 
+function getSuggestedRedirect(params: {
+  role: string;
+  firmId?: string | null;
+  onboardingStatus?: string | null;
+}) {
+  if (params.role === "SUPERADMIN") return "/admin/super";
+
+  if (params.firmId && params.onboardingStatus === "ACTIVE") {
+    return "/admin";
+  }
+
+  if (params.onboardingStatus === "FIRM_REQUIRED") {
+    return "/onboarding/firm";
+  }
+
+  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") {
+    return "/";
+  }
+
+  return "/";
+}
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const email = (body?.email ?? "").toString().trim().toLowerCase();
@@ -10,7 +32,7 @@ export async function POST(req: Request) {
 
   if (!email || !password) {
     return NextResponse.json(
-      { ok: false, message: "Preencha email e senha." },
+      { ok: false, message: "Preencha e-mail e senha." },
       { status: 400 }
     );
   }
@@ -35,26 +57,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // SUPERADMIN pode existir sem firma
-  if (user.role !== "SUPERADMIN") {
-    if (!user.firmId || !user.firm) {
-      return NextResponse.json(
-        { ok: false, message: "Usuário sem advocacia válida vinculada." },
-        { status: 403 }
-      );
-    }
-
-    if (!user.firm.active) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Advocacia desativada. Entre em contato com o administrador da plataforma.",
-        },
-        { status: 403 }
-      );
-    }
-  }
-
   const valid = await bcrypt.compare(password, user.password);
 
   if (!valid) {
@@ -64,10 +66,42 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!user.emailVerified) {
+    return NextResponse.json(
+      { ok: false, message: "Confirme seu e-mail antes de entrar no sistema." },
+      { status: 403 }
+    );
+  }
+
+  const onboardingStatus = user.onboardingStatus ?? "PLAN_REQUIRED";
+
+  if (user.role !== "SUPERADMIN") {
+    if (user.firmId && user.firm && !user.firm.active) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Advocacia desativada. Entre em contato com o administrador da plataforma.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (onboardingStatus === "ACTIVE" && (!user.firmId || !user.firm)) {
+      return NextResponse.json(
+        { ok: false, message: "Usuário ACTIVE sem advocacia válida vinculada." },
+        { status: 403 }
+      );
+    }
+  }
+
   await createSession(user.id);
 
   return NextResponse.json({
     ok: true,
-    redirectTo: user.role === "SUPERADMIN" ? "/admin/super" : "/admin",
+    redirectTo: getSuggestedRedirect({
+      role: user.role,
+      firmId: user.firmId,
+      onboardingStatus,
+    }),
   });
 }

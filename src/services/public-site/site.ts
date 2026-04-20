@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { encryptText, decryptText } from "@/lib/crypto";
+import { validateMercadoPagoCredentials } from "@/services/mercado-pago.service";
 
 const LANDING_CONFIG_ID = "global-public-site";
 
@@ -341,6 +343,18 @@ export async function createPlan(input: Record<string, unknown>) {
       description: safeOptionalText(input.description),
       featuresText,
       badgeText: safeOptionalText(input.badgeText),
+      imageUrl: safeOptionalText(input.imageUrl),
+      imageAlt: safeOptionalText(input.imageAlt),
+      ctaText: safeText(input.ctaText, "Assinar agora") || "Assinar agora",
+      isPurchasable: safeBoolean(input.isPurchasable, true),
+      moduleDashboard: safeBoolean(input.moduleDashboard, true),
+      moduleClients: safeBoolean(input.moduleClients, true),
+      moduleProcesses: safeBoolean(input.moduleProcesses, true),
+      moduleDeadlines: safeBoolean(input.moduleDeadlines, true),
+      moduleAppointments: safeBoolean(input.moduleAppointments, true),
+      moduleAvailability: safeBoolean(input.moduleAvailability, true),
+      moduleUsers: safeBoolean(input.moduleUsers, true),
+      moduleCharges: safeBoolean(input.moduleCharges, true),
       isHighlighted: safeBoolean(input.isHighlighted, false),
       sortOrder: safeNumber(input.sortOrder, 0),
       isActive: safeBoolean(input.isActive, true),
@@ -369,6 +383,52 @@ export async function updatePlan(id: string, input: Record<string, unknown>) {
         Object.prototype.hasOwnProperty.call(input, "badgeText")
           ? safeOptionalText(input.badgeText)
           : current.badgeText,
+      imageUrl:
+        Object.prototype.hasOwnProperty.call(input, "imageUrl")
+          ? safeOptionalText(input.imageUrl)
+          : current.imageUrl,
+      imageAlt:
+        Object.prototype.hasOwnProperty.call(input, "imageAlt")
+          ? safeOptionalText(input.imageAlt)
+          : current.imageAlt,
+      ctaText:
+        safeText(input.ctaText, current.ctaText) || current.ctaText,
+      isPurchasable:
+        Object.prototype.hasOwnProperty.call(input, "isPurchasable")
+          ? safeBoolean(input.isPurchasable, current.isPurchasable)
+          : current.isPurchasable,
+      moduleDashboard:
+        Object.prototype.hasOwnProperty.call(input, "moduleDashboard")
+          ? safeBoolean(input.moduleDashboard, current.moduleDashboard)
+          : current.moduleDashboard,
+      moduleClients:
+        Object.prototype.hasOwnProperty.call(input, "moduleClients")
+          ? safeBoolean(input.moduleClients, current.moduleClients)
+          : current.moduleClients,
+      moduleProcesses:
+        Object.prototype.hasOwnProperty.call(input, "moduleProcesses")
+          ? safeBoolean(input.moduleProcesses, current.moduleProcesses)
+          : current.moduleProcesses,
+      moduleDeadlines:
+        Object.prototype.hasOwnProperty.call(input, "moduleDeadlines")
+          ? safeBoolean(input.moduleDeadlines, current.moduleDeadlines)
+          : current.moduleDeadlines,
+      moduleAppointments:
+        Object.prototype.hasOwnProperty.call(input, "moduleAppointments")
+          ? safeBoolean(input.moduleAppointments, current.moduleAppointments)
+          : current.moduleAppointments,
+      moduleAvailability:
+        Object.prototype.hasOwnProperty.call(input, "moduleAvailability")
+          ? safeBoolean(input.moduleAvailability, current.moduleAvailability)
+          : current.moduleAvailability,
+      moduleUsers:
+        Object.prototype.hasOwnProperty.call(input, "moduleUsers")
+          ? safeBoolean(input.moduleUsers, current.moduleUsers)
+          : current.moduleUsers,
+      moduleCharges:
+        Object.prototype.hasOwnProperty.call(input, "moduleCharges")
+          ? safeBoolean(input.moduleCharges, current.moduleCharges)
+          : current.moduleCharges,
       isHighlighted:
         Object.prototype.hasOwnProperty.call(input, "isHighlighted")
           ? safeBoolean(input.isHighlighted, current.isHighlighted)
@@ -442,4 +502,68 @@ export async function updateUpdatePost(id: string, input: Record<string, unknown
 
 export async function deleteUpdatePost(id: string) {
   return prisma.publicUpdatePost.delete({ where: { id } });
+}
+const PUBLIC_SITE_PAYMENT_ID = "global-public-payment";
+
+export async function getPublicSitePaymentConfigForAdmin() {
+  const config = await prisma.publicSitePaymentConfig.findUnique({
+    where: { id: PUBLIC_SITE_PAYMENT_ID },
+  });
+
+  if (!config) return null;
+
+  return {
+    id: config.id,
+    provider: config.provider,
+    isActive: config.isActive,
+    hasAccessToken: Boolean(config.accessTokenEnc),
+    hasPublicKey: Boolean(config.publicKeyEnc),
+    publicKey: config.publicKeyEnc ? decryptText(config.publicKeyEnc) : "",
+    createdAt: config.createdAt,
+    updatedAt: config.updatedAt,
+  };
+}
+
+export async function savePublicSitePaymentConfig(input: Record<string, unknown>) {
+  const accessToken = safeText(input.accessToken);
+  const publicKey = safeOptionalText(input.publicKey);
+  const isActive = safeBoolean(input.isActive, true);
+
+  if (!accessToken) {
+    throw new Error("Access Token do Mercado Pago é obrigatório.");
+  }
+
+  const validation = await validateMercadoPagoCredentials({
+    accessToken,
+    publicKey,
+  });
+
+  if (!validation.ok) {
+    throw new Error(validation.message);
+  }
+
+  const payload = {
+    provider: "MERCADO_PAGO",
+    accessTokenEnc: encryptText(accessToken),
+    publicKeyEnc: publicKey ? encryptText(publicKey) : null,
+    isActive,
+  };
+
+  const existing = await prisma.publicSitePaymentConfig.findUnique({
+    where: { id: PUBLIC_SITE_PAYMENT_ID },
+  });
+
+  if (existing) {
+    return prisma.publicSitePaymentConfig.update({
+      where: { id: PUBLIC_SITE_PAYMENT_ID },
+      data: payload,
+    });
+  }
+
+  return prisma.publicSitePaymentConfig.create({
+    data: {
+      id: PUBLIC_SITE_PAYMENT_ID,
+      ...payload,
+    },
+  });
 }

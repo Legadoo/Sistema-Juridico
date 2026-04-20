@@ -228,7 +228,7 @@ export default function SuperadminFirmsPage() {
                   </div>
 
                   <div style={{ padding: 14, borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ color: "#64748B", fontSize: 12, marginBottom: 6 }}>Usuarios</div>
+                    <div style={{ color: "#64748B", fontSize: 12, marginBottom: 6 }}>Usuários</div>
                     <div style={{ color: "#F8FAFC", fontWeight: 700 }}>{firm.usersCount}</div>
                   </div>
 

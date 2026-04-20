@@ -54,7 +54,7 @@ export default function LoginClient() {
 
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "#333" }}>Email</span>
+            <span style={{ fontSize: 13, color: "#333" }}>E-mail</span>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}

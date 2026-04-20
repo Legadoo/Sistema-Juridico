@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/AdminShell";
@@ -416,7 +416,7 @@ export default function ClientsPage() {
           />
           <input
             className="jv-premium-input"
-            placeholder="Email (opcional)"
+            placeholder="E-mail (opcional)"
             value={form.email}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
           />
@@ -615,7 +615,7 @@ export default function ClientsPage() {
           </div>
 
           <div className="jv-glass" style={{ borderRadius: 24, padding: 20 }}>
-            <div style={{ color: "#94A3B8", fontSize: 13 }}>Com email cadastrado</div>
+            <div style={{ color: "#94A3B8", fontSize: 13 }}>Com e-mail cadastrado</div>
             <div style={{ color: "#F8FAFC", fontSize: 32, fontWeight: 800, marginTop: 8 }}>
               {stats.withEmail}
             </div>
@@ -701,7 +701,7 @@ export default function ClientsPage() {
                       </div>
 
                       <div style={{ color: "#64748B", fontSize: 13 }}>
-                        {[client.phone, client.email].filter(Boolean).join(" · ") || "Sem telefone e email cadastrados"}
+                        {[client.phone, client.email].filter(Boolean).join(" · ") || "Sem telefone e e-mail cadastrados"}
                       </div>
 
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
