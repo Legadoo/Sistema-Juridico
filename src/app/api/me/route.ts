@@ -4,23 +4,13 @@ import { getSessionUser, destroySession } from "@/lib/session";
 
 function getSuggestedRedirect(params: {
   role: string;
-  firmId?: string | null;
+  canAccessAdmin: boolean;
   onboardingStatus?: string | null;
 }) {
   if (params.role === "SUPERADMIN") return "/admin/super";
-
-  if (params.firmId && params.onboardingStatus === "ACTIVE") {
-    return "/admin";
-  }
-
-  if (params.onboardingStatus === "FIRM_REQUIRED") {
-    return "/onboarding/firm";
-  }
-
-  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") {
-    return "/";
-  }
-
+  if (params.canAccessAdmin) return "/admin";
+  if (params.onboardingStatus === "FIRM_REQUIRED") return "/onboarding/firm";
+  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") return "/";
   return "/";
 }
 
@@ -78,11 +68,11 @@ export async function GET() {
 
   const canAccessAdmin =
     user.role === "SUPERADMIN" ||
-    (Boolean(user.firmId) && onboardingStatus === "ACTIVE");
+    Boolean(user.active && user.firmId && firm?.active);
 
   const suggestedRedirect = getSuggestedRedirect({
     role: user.role,
-    firmId: user.firmId,
+    canAccessAdmin,
     onboardingStatus,
   });
 

@@ -5,23 +5,13 @@ import { createSession } from "@/lib/session";
 
 function getSuggestedRedirect(params: {
   role: string;
-  firmId?: string | null;
+  canAccessAdmin: boolean;
   onboardingStatus?: string | null;
 }) {
   if (params.role === "SUPERADMIN") return "/admin/super";
-
-  if (params.firmId && params.onboardingStatus === "ACTIVE") {
-    return "/admin";
-  }
-
-  if (params.onboardingStatus === "FIRM_REQUIRED") {
-    return "/onboarding/firm";
-  }
-
-  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") {
-    return "/";
-  }
-
+  if (params.canAccessAdmin) return "/admin";
+  if (params.onboardingStatus === "FIRM_REQUIRED") return "/onboarding/firm";
+  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") return "/";
   return "/";
 }
 
@@ -32,7 +22,7 @@ export async function POST(req: Request) {
 
   if (!email || !password) {
     return NextResponse.json(
-      { ok: false, message: "Preencha e-mail e senha." },
+      { ok: false, message: "Preencha email e senha." },
       { status: 400 }
     );
   }
@@ -52,7 +42,7 @@ export async function POST(req: Request) {
 
   if (!user || !user.active) {
     return NextResponse.json(
-      { ok: false, message: "Login inválido." },
+      { ok: false, message: "Login invalido." },
       { status: 401 }
     );
   }
@@ -61,38 +51,33 @@ export async function POST(req: Request) {
 
   if (!valid) {
     return NextResponse.json(
-      { ok: false, message: "Login inválido." },
+      { ok: false, message: "Login invalido." },
       { status: 401 }
     );
   }
 
   if (!user.emailVerified) {
     return NextResponse.json(
-      { ok: false, message: "Confirme seu e-mail antes de entrar no sistema." },
+      { ok: false, message: "Confirme seu email antes de entrar no sistema." },
+      { status: 403 }
+    );
+  }
+
+  if (user.role !== "SUPERADMIN" && user.firmId && user.firm && !user.firm.active) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Advocacia desativada. Entre em contato com o administrador da plataforma.",
+      },
       { status: 403 }
     );
   }
 
   const onboardingStatus = user.onboardingStatus ?? "PLAN_REQUIRED";
 
-  if (user.role !== "SUPERADMIN") {
-    if (user.firmId && user.firm && !user.firm.active) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Advocacia desativada. Entre em contato com o administrador da plataforma.",
-        },
-        { status: 403 }
-      );
-    }
-
-    if (onboardingStatus === "ACTIVE" && (!user.firmId || !user.firm)) {
-      return NextResponse.json(
-        { ok: false, message: "Usuário ACTIVE sem advocacia válida vinculada." },
-        { status: 403 }
-      );
-    }
-  }
+  const canAccessAdmin =
+    user.role === "SUPERADMIN" ||
+    Boolean(user.active && user.emailVerified && user.firmId && user.firm?.active);
 
   await createSession(user.id);
 
@@ -100,7 +85,7 @@ export async function POST(req: Request) {
     ok: true,
     redirectTo: getSuggestedRedirect({
       role: user.role,
-      firmId: user.firmId,
+      canAccessAdmin,
       onboardingStatus,
     }),
   });
