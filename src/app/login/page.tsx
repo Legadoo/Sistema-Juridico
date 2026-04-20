@@ -40,11 +40,11 @@ export default function LoginPage() {
     const verified = params.get("verified");
 
     if (verified === "invalid") {
-      setMsg("Link de verificação inválido.");
+      setMsg("Link de verificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido.");
     }
 
     if (verified === "expired") {
-      setMsg("Seu link de verificação expirou.");
+      setMsg("Seu link de verificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o expirou.");
     }
   }, []);
 
@@ -74,7 +74,7 @@ export default function LoginPage() {
           return;
         }
       } catch {
-        // sem sessão ativa
+        // sem sessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ativa
       } finally {
         if (!ignore) {
           setCheckingSession(false);
@@ -92,7 +92,7 @@ export default function LoginPage() {
   function fillDemo() {
     setEmail("demoadv@demo.com");
     setPassword("demo123");
-    setMsg("Credenciais demo preenchidas. Ajuste se necessário.");
+    setMsg("Credenciais demo preenchidas. Ajuste se necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.");
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -110,7 +110,7 @@ export default function LoginPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.ok) {
-        setMsg(data?.message || "Credenciais inválidas.");
+        setMsg(data?.message || "Credenciais invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lidas.");
         setLoading(false);
         return;
       }
@@ -118,7 +118,7 @@ export default function LoginPage() {
       window.location.href = data?.redirectTo || "/admin";
       router.refresh();
     } catch {
-      setMsg("Não foi possível entrar agora.");
+      setMsg("NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel entrar agora.");
       setLoading(false);
     }
   }
@@ -203,7 +203,7 @@ export default function LoginPage() {
               letterSpacing: "0.04em",
             }}
           >
-            JURIDICVAS · PAINEL ADMINISTRATIVO
+            JURIDICVAS ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· PAINEL ADMINISTRATIVO
           </div>
 
           <div style={{ display: "grid", gap: 14 }}>
@@ -218,7 +218,7 @@ export default function LoginPage() {
                 maxWidth: 720,
               }}
             >
-              Gestão jurídica com presença, organização e controle real.
+              GestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o jurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dica com presenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a, organizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e controle real.
             </h1>
 
             <p
@@ -230,7 +230,7 @@ export default function LoginPage() {
                 maxWidth: 720,
               }}
             >
-              Centralize clientes, processos, prazos e atualizações em um sistema
+              Centralize clientes, processos, prazos e atualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes em um sistema
               profissional, moderno e feito para a rotina do advogado.
             </p>
           </div>
@@ -245,9 +245,9 @@ export default function LoginPage() {
             }}
           >
             {[
-              "Área do cliente",
+              "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Ârea do cliente",
               "Controle de prazos",
-              "Histórico processual",
+              "HistÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico processual",
               "Painel premium",
             ].map((item) => (
               <div
@@ -330,7 +330,7 @@ export default function LoginPage() {
                   marginTop: 8,
                 }}
               >
-                Acesse seu painel administrativo com segurança.
+                Acesse seu painel administrativo com seguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a.
               </div>
             </div>
 
@@ -414,6 +414,46 @@ export default function LoginPage() {
                 >
                   Criar cadastro de advogado
                 </button>
+
+                <button
+                  type="button"
+                  className="jv-premium-btn-secondary"
+                  onClick={async () => {
+                    try {
+                      await fetch("/api/auth/logout", { method: "POST" });
+                    } finally {
+                      window.location.href = "/login";
+                    }
+                  }}
+                  disabled={loading}
+                  style={{ width: "100%" }}
+                >
+                  Sair da sessao atual
+                </button>
+
+                <button
+                  type="button"
+                  className="jv-premium-btn-secondary"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/me", { cache: "no-store" });
+                      const data = await response.json().catch(() => null);
+
+                      if (response.ok && data?.ok) {
+                        window.location.href = data?.suggestedRedirect || "/";
+                        return;
+                      }
+
+                      window.location.href = "/";
+                    } catch {
+                      window.location.href = "/";
+                    }
+                  }}
+                  disabled={loading}
+                  style={{ width: "100%" }}
+                >
+                  Ir para o painel atual
+                </button>
               </div>
             </form>
 
@@ -429,7 +469,7 @@ export default function LoginPage() {
                 lineHeight: 1.7,
               }}
             >
-              Ambiente restrito para equipe interna do escritório.
+              Ambiente restrito para equipe interna do escritÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio.
             </div>
           </div>
         </section>
