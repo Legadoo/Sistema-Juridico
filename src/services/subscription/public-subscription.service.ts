@@ -15,7 +15,7 @@ function parsePlanAmount(priceLabel: string) {
 
   const amount = Number(normalized);
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Preço do plano inválido para checkout.");
+    throw new Error("PreÃ§o do plano invÃ¡lido para checkout.");
   }
 
   return amount;
@@ -46,19 +46,19 @@ export async function createPublicPlanCheckout(params: {
   ]);
 
   if (!user || !user.active) {
-    throw new Error("Usuário inválido para checkout.");
+    throw new Error("UsuÃ¡rio invÃ¡lido para checkout.");
   }
 
   if (!plan || !plan.isActive) {
-    throw new Error("Plano não encontrado ou inativo.");
+    throw new Error("Plano nÃ£o encontrado ou inativo.");
   }
 
   if (!plan.isPurchasable) {
-    throw new Error("Este plano ainda não está disponível para compra.");
+    throw new Error("Este plano ainda nÃ£o estÃ¡ disponÃ­vel para compra.");
   }
 
   if (!paymentConfig || !paymentConfig.isActive || !paymentConfig.accessTokenEnc) {
-    throw new Error("Pagamento do site público ainda não está configurado.");
+    throw new Error("Pagamento do site pÃºblico ainda nÃ£o estÃ¡ configurado.");
   }
 
   const activeSubscription = await prisma.saaSSubscription.findFirst({
@@ -114,7 +114,7 @@ export async function createPublicPlanCheckout(params: {
     preference.paymentUrl ?? preference.initPoint ?? preference.sandboxInitPoint ?? null;
 
   if (!checkoutUrl) {
-    throw new Error("O Mercado Pago não retornou uma URL de checkout.");
+    throw new Error("O Mercado Pago nÃ£o retornou uma URL de checkout.");
   }
 
   const subscription = await prisma.saaSSubscription.create({
@@ -287,7 +287,7 @@ export async function getPublicSubscriptionStatusForUser(userId: string) {
   });
 
   if (!user || !user.active) {
-    throw new Error("Usuário inválido.");
+    throw new Error("UsuÃ¡rio invÃ¡lido.");
   }
 
   const subscription = await prisma.saaSSubscription.findFirst({
@@ -368,7 +368,7 @@ export async function createFirmForPaidUser(params: {
   const firmName = (params.firmName || "").trim();
 
   if (!firmName) {
-    throw new Error("Nome da advocacia é obrigatório.");
+    throw new Error("Nome da advocacia e obrigatorio.");
   }
 
   const user = await prisma.user.findUnique({
@@ -387,20 +387,22 @@ export async function createFirmForPaidUser(params: {
   });
 
   if (!user || !user.active) {
-    throw new Error("Usuário inválido.");
+    throw new Error("Usuario invalido.");
   }
 
   if (user.role === "SUPERADMIN") {
-    throw new Error("SUPERADMIN não pode criar advocacia por este fluxo.");
+    throw new Error("SUPERADMIN nao pode criar advocacia por este fluxo.");
   }
 
   if (user.firmId) {
-    throw new Error("Usuário já possui advocacia vinculada.");
+    throw new Error("Usuario ja possui advocacia vinculada.");
   }
 
   if (user.onboardingStatus !== "FIRM_REQUIRED") {
-    throw new Error("O usuário ainda não está liberado para criar a advocacia.");
+    throw new Error("O usuario ainda nao esta liberado para criar a advocacia.");
   }
+
+  let planToUse = null;
 
   const paidSubscription = await prisma.saaSSubscription.findFirst({
     where: {
@@ -415,8 +417,18 @@ export async function createFirmForPaidUser(params: {
     },
   });
 
-  if (!paidSubscription) {
-    throw new Error("Nenhum plano pago encontrado para este usuário.");
+  if (paidSubscription?.publicPlan) {
+    planToUse = paidSubscription.publicPlan;
+  }
+
+  if (!planToUse && user.selectedPlanId) {
+    planToUse = await prisma.publicPlan.findUnique({
+      where: { id: user.selectedPlanId },
+    });
+  }
+
+  if (!planToUse) {
+    throw new Error("Nenhum plano valido encontrado para este usuario.");
   }
 
   const slug = await buildUniqueFirmSlug(firmName);
@@ -434,14 +446,14 @@ export async function createFirmForPaidUser(params: {
       data: {
         firmId: firm.id,
         maxClients: 50,
-        moduleDashboard: paidSubscription.publicPlan.moduleDashboard,
-        moduleClients: paidSubscription.publicPlan.moduleClients,
-        moduleProcesses: paidSubscription.publicPlan.moduleProcesses,
-        moduleDeadlines: paidSubscription.publicPlan.moduleDeadlines,
-        moduleAppointments: paidSubscription.publicPlan.moduleAppointments,
-        moduleAvailability: paidSubscription.publicPlan.moduleAvailability,
-        moduleUsers: paidSubscription.publicPlan.moduleUsers,
-        moduleCharges: paidSubscription.publicPlan.moduleCharges,
+        moduleDashboard: planToUse.moduleDashboard,
+        moduleClients: planToUse.moduleClients,
+        moduleProcesses: planToUse.moduleProcesses,
+        moduleDeadlines: planToUse.moduleDeadlines,
+        moduleAppointments: planToUse.moduleAppointments,
+        moduleAvailability: planToUse.moduleAvailability,
+        moduleUsers: planToUse.moduleUsers,
+        moduleCharges: planToUse.moduleCharges,
       },
     });
 
@@ -451,8 +463,8 @@ export async function createFirmForPaidUser(params: {
         firmId: firm.id,
         role: "MASTER",
         onboardingStatus: "ACTIVE",
-      selectedPlanId: user.selectedPlanId ?? paidSubscription.publicPlanId,
-      selectedPlanNameSnapshot: user.selectedPlanNameSnapshot ?? paidSubscription.publicPlan.name,
+        selectedPlanId: user.selectedPlanId ?? planToUse.id,
+        selectedPlanNameSnapshot: user.selectedPlanNameSnapshot ?? planToUse.name,
       },
       select: {
         id: true,
@@ -461,8 +473,8 @@ export async function createFirmForPaidUser(params: {
         role: true,
         firmId: true,
         onboardingStatus: true,
-      selectedPlanId: true,
-      selectedPlanNameSnapshot: true,
+        selectedPlanId: true,
+        selectedPlanNameSnapshot: true,
       },
     });
 
