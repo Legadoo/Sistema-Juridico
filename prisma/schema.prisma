@@ -392,7 +392,7 @@ model LandingPageConfig {
   featuresTitle           String   @default("Funcionalidades")
   featuresSubtitle        String   @default("Tudo o que seu escritório precisa para operar com segurança e organização.")
   mediaTitle              String   @default("Veja o sistema em ação")
-  mediaSubtitle           String   @default("Apresente telas, GIFs e demonstrações do produto em uma experiência premium.")
+  mediaSubtitle           String   @default("")
   plansTitle              String   @default("Planos")
   plansSubtitle           String   @default("Escolha o plano ideal para o seu momento.")
   updatesTitle            String   @default("Atualizações")

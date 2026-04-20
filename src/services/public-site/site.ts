@@ -25,7 +25,7 @@ export async function ensureLandingConfig() {
         "Tudo o que seu escritório precisa para operar com segurança e organização.",
       mediaTitle: "Veja o sistema em ação",
       mediaSubtitle:
-        "Apresente telas, GIFs e demonstrações do produto em uma experiência premium.",
+        "",
       plansTitle: "Planos",
       plansSubtitle: "Escolha o plano ideal para o seu momento.",
       updatesTitle: "Atualizações",

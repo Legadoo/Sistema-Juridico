@@ -11,7 +11,7 @@ CREATE TABLE "LandingPageConfig" (
     "featuresTitle" TEXT NOT NULL DEFAULT 'Funcionalidades',
     "featuresSubtitle" TEXT NOT NULL DEFAULT 'Tudo o que seu escritório precisa para operar com segurança e organização.',
     "mediaTitle" TEXT NOT NULL DEFAULT 'Veja o sistema em ação',
-    "mediaSubtitle" TEXT NOT NULL DEFAULT 'Apresente telas, GIFs e demonstrações do produto em uma experiência premium.',
+    "mediaSubtitle" TEXT NOT NULL DEFAULT '',
     "plansTitle" TEXT NOT NULL DEFAULT 'Planos',
     "plansSubtitle" TEXT NOT NULL DEFAULT 'Escolha o plano ideal para o seu momento.',
     "updatesTitle" TEXT NOT NULL DEFAULT 'Atualizações',

@@ -2063,8 +2063,24 @@ export default function HomePage() {
           }}
         >
           <div style={{ fontSize: isMobile ? 13 : 14 }}>{site.config.footerText}</div>
+
           <div style={{ color: "#64748B", fontSize: isMobile ? 12 : 13 }}>
             {site.config.brandName} - Dark Premium Experience
+          </div>
+
+          <div style={{ marginTop: 6 }}>
+            <a
+              href="https://wa.me/5521990414735"
+              target="_blank"
+              style={{
+                color: "#22C55E",
+                fontSize: isMobile ? 12 : 13,
+                textDecoration: "none",
+                fontWeight: 700,
+              }}
+            >
+              Suporte: Fale conosco no WhatsApp
+            </a>
           </div>
         </div>
       </footer>
