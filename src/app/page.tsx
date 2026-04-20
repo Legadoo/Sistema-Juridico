@@ -177,38 +177,65 @@ export default function HomePage() {
   const [showPlansModal, setShowPlansModal] = useState(false);
 
   useEffect(() => {
-  if (!sessionUser) return;
+    let ignore = false;
 
-  if (sessionUser.role === "SUPERADMIN") {
-    setShowPlansModal(false);
-    window.location.href = "/admin/super";
-    return;
-  }
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/me", { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as MeResponse | null;
 
-  if (sessionUser.firmId && sessionUser.onboardingStatus === "ACTIVE") {
-    setShowPlansModal(false);
-    window.location.href = "/admin";
-    return;
-  }
+        if (!ignore && response.ok && data?.ok && data.user) {
+          setSessionUser(data.user);
+          setSessionSuggestedRedirect(data.suggestedRedirect || "/");
+          return;
+        }
 
-  if (sessionUser.onboardingStatus === "FIRM_REQUIRED") {
-    setShowPlansModal(false);
-    window.location.href = "/onboarding/firm";
-    return;
-  }
+        if (!ignore) {
+          setSessionUser(null);
+          setSessionSuggestedRedirect("/login");
+        }
+      } catch {
+        if (!ignore) {
+          setSessionUser(null);
+          setSessionSuggestedRedirect("/login");
+        }
+      }
+    }
 
-  if (sessionUser.onboardingStatus === "PLAN_REQUIRED") {
-    setShowPlansModal(true);
-    return;
-  }
+    void loadSession();
 
-  if (sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT") {
-    setShowPlansModal(true);
-    return;
-  }
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
-  setShowPlansModal(false);
-}, [sessionUser]);
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadSubscriptionStatus() {
+      if (!sessionUser || sessionUser.role === "SUPERADMIN") return;
+
+      try {
+        const response = await fetch("/api/public/subscription/status", {
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!ignore && response.ok && data?.ok) {
+          setSubscriptionStatus(data.data ?? null);
+        }
+      } catch {
+        // sem travar home
+      }
+    }
+
+    void loadSubscriptionStatus();
+
+    return () => {
+      ignore = true;
+    };
+  }, [sessionUser]);
 
   useEffect(() => {
   if (!sessionUser) return;
@@ -461,9 +488,15 @@ export default function HomePage() {
       return;
     }
 
-    if (!(sessionUser?.firmId && sessionUser?.onboardingStatus === "ACTIVE")) {
-  setShowPlansModal(true);
-}
+    if (
+      sessionUser.onboardingStatus === "PLAN_REQUIRED" ||
+      sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
+    ) {
+      setShowPlansModal(true);
+      return;
+    }
+
+    setShowPlansModal(true);
   }
 
   return (
@@ -597,7 +630,7 @@ export default function HomePage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "auto auto",
+                  gridTemplateColumns: sessionUser ? "auto auto auto" : "auto auto",
                   gap: 8,
                 }}
               >
@@ -611,6 +644,19 @@ export default function HomePage() {
                 >
                   Acompanhar
                 </a>
+
+                {sessionUser ? (
+                  <button
+                    type="button"
+                    className="jv-premium-btn-secondary"
+                    onClick={handlePublicLogout}
+                    style={{
+                      textAlign: "center",
+                    }}
+                  >
+                    Logout
+                  </button>
+                ) : null}
 
                 <button
                   type="button"

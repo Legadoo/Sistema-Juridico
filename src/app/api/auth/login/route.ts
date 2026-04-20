@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   if (!email || !password) {
     return NextResponse.json(
-      { ok: false, message: "Preencha email e senha." },
+      { ok: false, message: "Preencha e-mail e senha." },
       { status: 400 }
     );
   }
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
   if (!user || !user.active) {
     return NextResponse.json(
-      { ok: false, message: "Login invalido." },
+      { ok: false, message: "Login inválido." },
       { status: 401 }
     );
   }
@@ -51,14 +51,14 @@ export async function POST(req: Request) {
 
   if (!valid) {
     return NextResponse.json(
-      { ok: false, message: "Login invalido." },
+      { ok: false, message: "Login inválido." },
       { status: 401 }
     );
   }
 
   if (!user.emailVerified) {
     return NextResponse.json(
-      { ok: false, message: "Confirme seu email antes de entrar no sistema." },
+      { ok: false, message: "Confirme seu e-mail antes de entrar no sistema." },
       { status: 403 }
     );
   }
