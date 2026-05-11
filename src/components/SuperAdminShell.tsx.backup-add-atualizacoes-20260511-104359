@@ -112,11 +112,6 @@ export default function SuperAdminShell({
       label: "Pagamento público",
       subItem: true,
     },
-    {
-      href: "/admin/super/site/atualizacoes",
-      label: "Atualizações",
-      subItem: true,
-    },
   ];
 
   return (
@@ -248,4 +243,3 @@ export default function SuperAdminShell({
     </div>
   );
 }
-
