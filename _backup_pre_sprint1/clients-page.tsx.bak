@@ -8,8 +8,8 @@ type Client = {
   id: string;
   name: string;
   document: string;
-  phone?: string | null;
-  email?: string | null;
+  phone: string | null;
+  email: string | null;
   accessCode: string;
   createdAt: string;
 };
@@ -37,16 +37,16 @@ export default function ClientsPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
 
-  const isSuper = me?.role === "SUPERADMIN";
-const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role === "SECRETARY";
+  const isSuper = me.role === "SUPERADMIN";
+const canEdit = me.role === "SUPERADMIN" || me.role === "MASTER" || me.role === "SECRETARY";
 
   async function load() {
     const m = await fetch("/api/me").then(r => r.json()).catch(() => null);
-    if (!m?.ok) return;
+    if (!m.ok) return;
     setMe({ name: m.user.name, role: m.user.role });
 
     const res = await fetch("/api/admin/clients").then(r => r.json()).catch(() => null);
-    if (res?.ok) setClients(res.clients);
+    if (res.ok) setClients(res.clients);
   }
 
   useEffect(() => { load(); }, []);
@@ -69,7 +69,7 @@ const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role =
     }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
 
     if (!res || !res.ok || !res.d.ok) {
-      setMsg(res?.d?.message || "Erro ao criar cliente.");
+      setMsg(res.d.message || "Erro ao criar cliente.");
       return;
     }
 
@@ -78,7 +78,7 @@ const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role =
   }
 
   async function archiveClient(clientId: string) {
-    if (!confirm("Arquivar este cliente? Ele some das listas ativas.")) return;
+    if (!confirm("Arquivar este cliente Ele some das listas ativas.")) return;
 
     await fetch("/api/admin/clients/archive", {
       method: "POST",
@@ -92,7 +92,7 @@ const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role =
   async function deleteClient(clientId: string) {
     if (!isSuper) return;
 
-    const ok = confirm("EXCLUIR cliente PERMANENTEMENTE? Isso apaga de vez do sistema.");
+    const ok = confirm("EXCLUIR cliente PERMANENTEMENTE Isso apaga de vez do sistema.");
     if (!ok) return;
 
     const res = await fetch("/api/admin/clients/delete", {
@@ -102,7 +102,7 @@ const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role =
     }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
 
     if (!res || !res.ok || !res.d.ok) {
-      alert(res?.d?.message || "Erro ao excluir cliente.");
+      alert(res.d.message || "Erro ao excluir cliente.");
       return;
     }
 
@@ -136,7 +136,7 @@ const canEdit = me?.role === "SUPERADMIN" || me?.role === "MASTER" || me?.role =
     }).then(async r => ({ ok: r.ok, d: await r.json().catch(() => ({})) })).catch(() => null);
 
     if (!res || !res.ok || !res.d.ok) {
-      alert(res?.d?.message || "Erro ao salvar.");
+      alert(res.d.message || "Erro ao salvar.");
       return;
     }
 
@@ -200,7 +200,7 @@ Acesse: ${link}`;
                   <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>{c.document}</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    {c.phone || ""}{c.email ? (c.phone ? " · " : "") + c.email : ""}
+                    {c.phone || ""}{c.email  (c.phone  " · " : "") + c.email : ""}
                   </div>
                 </div>
 

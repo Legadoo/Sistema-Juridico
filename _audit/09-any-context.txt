@@ -6,10 +6,10 @@ TARGET LINE: 74
   68:     setMe({ id: m.user.id, name: m.user.name, role: m.user.role });
   69: 
   70:     const c = await fetch("/api/admin/clients").then(r => r.json()).catch(() => null);
-  71:     if (c?.ok) setClients(c.clients);
+  71:     if (c.ok) setClients(c.clients);
   72: 
   73:     const p = await fetch("/api/admin/processes").then(r => r.json()).catch(() => null);
-  74:     if (p?.ok) setProcesses((p.processes || []).filter((x: any) => !x.archived));
+  74:     if (p.ok) setProcesses((p.processes || []).filter((x: any) => !x.archived));
   75:   }
   76: 
   77:   useEffect(() => {
@@ -51,7 +51,7 @@ TARGET LINE: 202
 FILE: .\src\app\admin\users\page.tsx
 ------------------------------------------------------------
 TARGET LINE: 125
- 119:     setEditRole(u.role === "MASTER" ? "MASTER" : "SECRETARY");
+ 119:     setEditRole(u.role === "MASTER"  "MASTER" : "SECRETARY");
  120:   }
  121: 
  122:   async function saveEdit() {
@@ -84,9 +84,9 @@ TARGET LINE: 243
 FILE: .\src\app\api\admin\clients\update\route.ts
 ------------------------------------------------------------
 TARGET LINE: 27
-  21:   const document = onlyDigits((body?.document ?? "").toString());
-  22:   const phone = (body?.phone ?? "").toString().trim();
-  23:   const email = (body?.email ?? "").toString().trim();
+  21:   const document = onlyDigits((body.document  "").toString());
+  22:   const phone = (body.phone  "").toString().trim();
+  23:   const email = (body.email  "").toString().trim();
   24: 
   25:   if (!clientId) return NextResponse.json({ ok: false, message: "clientId obrigatório." }, { status: 400 });
   26: 
@@ -109,7 +109,7 @@ TARGET LINE: 52
   50: 
   51:     return NextResponse.json({ ok: true, process: created });
   52:   } catch (e: any) {
-  53:     if (e?.code === "P2002") {
+  53:     if (e.code === "P2002") {
   54:       return NextResponse.json({ ok: false, message: "Esse CNJ já está cadastrado." }, { status: 400 });
   55:     }
   56:     console.error(e);

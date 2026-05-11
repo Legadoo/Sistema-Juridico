@@ -36,10 +36,10 @@ model Client {
   id         String   @id @default(cuid())
   name       String
   document   String   @unique // CPF ou CNPJ (somente numeros)
-  phone      String?
-  email      String?
+  phone      String
+  email      String
   accessCode String // codigo do cliente
-  notes      String?
+  notes      String
   archived   Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -50,11 +50,11 @@ model Client {
 model LegalProcess {
   id        String    @id @default(cuid())
   cnj       String    @unique
-  tribunal  String?
-  vara      String?
+  tribunal  String
+  vara      String
   status    String    @default("ACTIVE") // "ACTIVE" ou "ARCHIVED"
-  startDate DateTime?
-  notes     String?
+  startDate DateTime
+  notes     String
   archived  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

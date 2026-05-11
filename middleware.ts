@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname.startsWith("/admin")) {
-    const hasCookie = req.cookies.get("juriflow_session")?.value;
+    const hasCookie = req.cookies.get("juriflow_session").value;
     if (!hasCookie) {
       const url = req.nextUrl.clone();
       url.pathname = "/login";

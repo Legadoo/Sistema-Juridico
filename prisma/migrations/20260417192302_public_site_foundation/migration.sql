@@ -16,7 +16,7 @@ CREATE TABLE "LandingPageConfig" (
     "plansSubtitle" TEXT NOT NULL DEFAULT 'Escolha o plano ideal para o seu momento.',
     "updatesTitle" TEXT NOT NULL DEFAULT 'Atualizações',
     "updatesSubtitle" TEXT NOT NULL DEFAULT 'Acompanhe novidades, melhorias e lançamentos do sistema.',
-    "ctaTitle" TEXT NOT NULL DEFAULT 'Pronto para elevar o nível da sua operação jurídica?',
+    "ctaTitle" TEXT NOT NULL DEFAULT 'Pronto para elevar o nível da sua operação jurídica',
     "ctaSubtitle" TEXT NOT NULL DEFAULT 'Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.',
     "footerText" TEXT NOT NULL DEFAULT 'JURIDICVAS - Plataforma jurídica premium.',
     "loginUrl" TEXT NOT NULL DEFAULT '/login',

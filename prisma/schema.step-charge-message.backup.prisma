@@ -22,8 +22,8 @@ model LawFirm {
   users                User[]
   clients              Client[]
   processes            LegalProcess[]
-  config               FirmConfig?
-  paymentGatewayConfig PaymentGatewayConfig?
+  config               FirmConfig
+  paymentGatewayConfig PaymentGatewayConfig
   charges              Charge[]
   recurringCharges     RecurringCharge[]     @relation("FirmRecurringCharges")
 }
@@ -49,8 +49,8 @@ model User {
   role     String  @default("SECRETARY") // "MASTER" ou "SECRETARY"
   active   Boolean @default(true)
 
-  firmId String?
-  firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: Restrict)
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Restrict)
 
   assignedClients   Client[]       @relation("AssignedClients")
   assignedProcesses LegalProcess[] @relation("AssignedProcesses")
@@ -82,10 +82,10 @@ model Client {
   id         String   @id @default(cuid())
   name       String
   document   String // CPF ou CNPJ (somente numeros)
-  phone      String?
-  email      String?
+  phone      String
+  email      String
   accessCode String // codigo do cliente
-  notes      String?
+  notes      String
   archived   Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -93,8 +93,8 @@ model Client {
   firmId String
   firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
-  assignedLawyerId String?
-  assignedLawyer   User?   @relation("AssignedClients", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
+  assignedLawyerId String
+  assignedLawyer   User   @relation("AssignedClients", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
 
   processes              LegalProcess[]
   charges                Charge[]
@@ -108,11 +108,11 @@ model Client {
 model LegalProcess {
   id        String    @id @default(cuid())
   cnj       String
-  tribunal  String?
-  vara      String?
+  tribunal  String
+  vara      String
   status    String    @default("ACTIVE") // "ACTIVE" ou "ARCHIVED"
-  startDate DateTime?
-  notes     String?
+  startDate DateTime
+  notes     String
   archived  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -123,8 +123,8 @@ model LegalProcess {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  assignedLawyerId String?
-  assignedLawyer   User?   @relation("AssignedProcesses", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
+  assignedLawyerId String
+  assignedLawyer   User   @relation("AssignedProcesses", fields: [assignedLawyerId], references: [id], onDelete: SetNull)
 
   updates   ProcessUpdate[]
   deadlines Deadline[]
@@ -152,7 +152,7 @@ model ProcessUpdate {
 model Deadline {
   id          String   @id @default(cuid())
   title       String
-  description String?
+  description String
   dueDate     DateTime
   priority    String   @default("MEDIUM") // "LOW" | "MEDIUM" | "HIGH"
   done        Boolean  @default(false)
@@ -177,7 +177,7 @@ model Appointment {
   durationMinutes Int      @default(60)
   status          String   @default("AGENDADO") // SCHEDULED | CONFIRMED | CANCELLED | COMPLETED
   source          String   @default("INTERNAL") // INTERNAL | PUBLIC
-  notes           String?
+  notes           String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -187,9 +187,9 @@ model Appointment {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  availabilitySlotId String? @unique
+  availabilitySlotId String @unique
 
-  availabilitySlot AvailabilitySlot? @relation(fields: [availabilitySlotId], references: [id], onDelete: SetNull)
+  availabilitySlot AvailabilitySlot @relation(fields: [availabilitySlotId], references: [id], onDelete: SetNull)
 
   createdByUserId String
   createdByUser   User   @relation("CreatedAppointments", fields: [createdByUserId], references: [id], onDelete: Restrict)
@@ -207,7 +207,7 @@ model AvailabilityWindow {
   endTime             String
   slotIntervalMinutes Int
   isActive            Boolean  @default(true)
-  notes               String?
+  notes               String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -229,7 +229,7 @@ model AvailabilitySlot {
   endAt     DateTime
   isBooked  Boolean   @default(false)
   isActive  Boolean   @default(true)
-  bookedAt  DateTime?
+  bookedAt  DateTime
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -239,7 +239,7 @@ model AvailabilitySlot {
   windowId String
   window   AvailabilityWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
 
-  appointment Appointment?
+  appointment Appointment
 
   @@unique([windowId, startAt])
   @@index([firmId])
@@ -252,7 +252,7 @@ model PaymentGatewayConfig {
   firmId              String   @unique
   provider            String
   accessTokenEnc      String
-  publicKeyEnc        String?
+  publicKeyEnc        String
   isActive            Boolean  @default(false)
   enabledBySuperadmin Boolean  @default(false)
   createdAt           DateTime @default(now())
@@ -267,36 +267,36 @@ model Charge {
   id              String  @id @default(cuid())
   firmId          String
   clientId        String
-  processId       String?
+  processId       String
   createdByUserId String
 
   provider             String
-  providerPreferenceId String?
-  providerPaymentId    String?
+  providerPreferenceId String
+  providerPaymentId    String
   externalReference    String  @unique
 
   amount  Decimal
-  message String?
+  message String
   status  String  @default("PENDING")
 
-  paymentUrl       String?
-  initPoint        String?
-  sandboxInitPoint String?
+  paymentUrl       String
+  initPoint        String
+  sandboxInitPoint String
 
-  emailTarget String?
-  phoneTarget String?
+  emailTarget String
+  phoneTarget String
 
-  emailSentAt        DateTime?
-  whatsappPreparedAt DateTime?
-  paidAt             DateTime?
-  lastWebhookAt      DateTime?
+  emailSentAt        DateTime
+  whatsappPreparedAt DateTime
+  paidAt             DateTime
+  lastWebhookAt      DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   firm          LawFirm       @relation(fields: [firmId], references: [id], onDelete: Cascade)
   client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  process       LegalProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
+  process       LegalProcess @relation(fields: [processId], references: [id], onDelete: SetNull)
   createdByUser User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
 
   @@index([firmId, status])
@@ -316,8 +316,8 @@ model RecurringCharge {
   currentInstallment          Int      @default(0)
   chargeDay                   Int
   hasInterest                 Boolean  @default(false)
-  interestPercent             Float?
-  interestStartsAtInstallment Int?
+  interestPercent             Float
+  interestStartsAtInstallment Int
   status                      String   @default("ACTIVE")
   nextChargeDate              DateTime
   createdAt                   DateTime @default(now())
@@ -339,10 +339,10 @@ model RecurringChargeInstallment {
   amount               Float
   dueDate              DateTime
   status               String    @default("PENDING")
-  mercadoPagoPaymentId String?
-  mercadoPagoInitPoint String?
-  emailSentAt          DateTime?
-  paidAt               DateTime?
+  mercadoPagoPaymentId String
+  mercadoPagoInitPoint String
+  emailSentAt          DateTime
+  paidAt               DateTime
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

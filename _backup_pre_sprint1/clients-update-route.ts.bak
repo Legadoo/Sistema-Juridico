@@ -16,11 +16,11 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  const clientId = (body?.clientId ?? "").toString().trim();
-  const name = (body?.name ?? "").toString().trim();
-  const document = onlyDigits((body?.document ?? "").toString());
-  const phone = (body?.phone ?? "").toString().trim();
-  const email = (body?.email ?? "").toString().trim();
+  const clientId = (body.clientId  "").toString().trim();
+  const name = (body.name  "").toString().trim();
+  const document = onlyDigits((body.document  "").toString());
+  const phone = (body.phone  "").toString().trim();
+  const email = (body.email  "").toString().trim();
 
   if (!clientId) return NextResponse.json({ ok: false, message: "clientId obrigatório." }, { status: 400 });
 

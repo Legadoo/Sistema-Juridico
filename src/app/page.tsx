@@ -106,31 +106,31 @@ type MeResponse = {
 const fallbackConfig: LandingConfig = {
   brandName: "JURIDICVAS",
 
-  heroTitle: "GestÃ£o jurÃ­dica inteligente para escritÃ³rios modernos",
-  heroSubtitle: "Organize processos, clientes e tarefas em um Ãºnico sistema simples e poderoso.",
+  heroTitle: "Gestão jurídica inteligente para escritórios modernos",
+  heroSubtitle: "Organize processos, clientes e tarefas em um único sistema simples e poderoso.",
 
-  heroPrimaryButtonText: "ComeÃ§ar agora",
-  heroSecondaryButtonText: "Ver demonstraÃ§Ã£o",
+  heroPrimaryButtonText: "Começar agora",
+  heroSecondaryButtonText: "Ver demonstração",
 
   aboutTitle: "Sobre o JuridicVas",
-  aboutText: "O JuridicVas Ã© uma plataforma completa para advogados e escritÃ³rios que desejam otimizar sua rotina e aumentar a produtividade.",
+  aboutText: "O JuridicVas é uma plataforma completa para advogados e escritórios que desejam otimizar sua rotina e aumentar a produtividade.",
 
   featuresTitle: "Funcionalidades",
-  featuresSubtitle: "Tudo que vocÃª precisa para gerenciar seu escritÃ³rio em um sÃ³ lugar.",
+  featuresSubtitle: "Tudo que você precisa para gerenciar seu escritório em um só lugar.",
 
-  mediaTitle: "Veja na prÃ¡tica",
+  mediaTitle: "Veja na prática",
   mediaSubtitle: "Explore como o sistema funciona no dia a dia.",
 
   plansTitle: "Planos",
-  plansSubtitle: "Escolha o plano ideal para vocÃª ou seu escritÃ³rio.",
+  plansSubtitle: "Escolha o plano ideal para você ou seu escritório.",
 
-  updatesTitle: "AtualizaÃ§Ãµes",
+  updatesTitle: "Atualizações",
   updatesSubtitle: "Fique por dentro das novidades do sistema.",
 
-  ctaTitle: "Pronto para transformar sua gestÃ£o?",
-  ctaSubtitle: "Comece agora e leve seu escritÃ³rio para o prÃ³ximo nÃ­vel.",
+  ctaTitle: "Pronto para transformar sua gestão?",
+  ctaSubtitle: "Comece agora e leve seu escritório para o próximo nível.",
 
-  footerText: "Â© 2026 JuridicVas. Todos os direitos reservados.",
+  footerText: "© 2026 JuridicVas. Todos os direitos reservados.",
 
   loginUrl: "/login",
   trackUrl: "/dashboard",
@@ -156,7 +156,7 @@ export default function HomePage() {
     updates: [],
   });
 
-  const [viewportWidth, setViewportWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(1280);
   const [heroIndex, setHeroIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<MeResponse["user"] | null>(null);
@@ -287,7 +287,7 @@ export default function HomePage() {
 
         if (!response.ok || !data?.ok || !data.data) {
           if (!ignore) {
-            setErrorMessage(data?.message || "NÃ£o foi possÃ­vel carregar a pÃ¡gina inicial.");
+            setErrorMessage(data?.message || "Não foi possível carregar a página inicial.");
           }
           return;
         }
@@ -303,7 +303,7 @@ export default function HomePage() {
         }
       } catch {
         if (!ignore) {
-          setErrorMessage("Falha ao carregar o conteÃºdo pÃºblico do sistema.");
+          setErrorMessage("Falha ao carregar o conteúdo público do sistema.");
         }
       } finally {
         if (!ignore) {
@@ -360,15 +360,15 @@ export default function HomePage() {
   }, [heroMediaList.length]);
 
   const officeHref = sessionUser ? sessionSuggestedRedirect : "/login";
-  const officeLabel = sessionUser ? "EscritÃ³rio" : "Login";
+  const officeLabel = sessionUser ? "Escritório" : "Login";
 
   const navItems = [
-    ["#inicio", "InÃ­cio"],
+    ["#inicio", "Início"],
     ["#sobre", "Sobre"],
     ["#recursos", "Recursos"],
-    ["#midias", "DemonstraÃ§Ãµes"],
+    ["#midias", "Demonstrações"],
     ["#planos", "Planos"],
-    ["#atualizacoes", "AtualizaÃ§Ãµes"],
+    ["#atualizacoes", "Atualizações"],
   ] as const;
 
   const containerMaxWidth = 1360;
@@ -433,13 +433,13 @@ export default function HomePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        setCheckoutMessage(data?.message || "NÃ£o foi possÃ­vel iniciar a assinatura.");
+        setCheckoutMessage(data?.message || "Não foi possível iniciar a assinatura.");
         return;
       }
 
       const checkoutUrl = data?.data?.checkoutUrl;
       if (!checkoutUrl) {
-        setCheckoutMessage("Checkout nÃ£o disponÃ­vel.");
+        setCheckoutMessage("Checkout não disponível.");
         return;
       }
 
@@ -504,12 +504,265 @@ export default function HomePage() {
 
   return (
     <div
+      className="jv-public-home-layout"
       style={{
         minHeight: "100vh", overflowX: "hidden", background:
           "radial-gradient(circle at top, rgba(79,70,229,0.22), transparent 20%), linear-gradient(180deg, #04060c 0%, #090d16 36%, #05070b 100%)",
         color: "#F8FAFC",
       }}
     >
+      {/* PUBLIC_HOME_DESKTOP_FIX_START */}
+      <style>{`
+        .jv-public-home-layout {
+          overflow-x: hidden;
+        }
+
+        .jv-public-home-layout * {
+          box-sizing: border-box;
+        }
+
+        @media (min-width: 1024px) {
+          .jv-public-home-layout main > section {
+            max-width: 1360px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-left: 48px !important;
+            padding-right: 48px !important;
+          }
+
+          .jv-public-home-layout #inicio {
+            padding-top: 92px !important;
+            padding-bottom: 92px !important;
+          }
+
+          .jv-public-home-layout #inicio > div {
+            display: grid !important;
+            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
+            gap: 58px !important;
+            align-items: center !important;
+            text-align: left !important;
+          }
+
+          .jv-public-home-layout #inicio > div > div:first-child {
+            text-align: left !important;
+            align-items: start !important;
+            justify-items: start !important;
+            max-width: 760px !important;
+          }
+
+          .jv-public-home-layout #inicio h1 {
+            text-align: left !important;
+            font-size: 66px !important;
+            line-height: 0.98 !important;
+            letter-spacing: -0.06em !important;
+            max-width: 760px !important;
+          }
+
+          .jv-public-home-layout #inicio p {
+            text-align: left !important;
+            font-size: 18px !important;
+            line-height: 1.75 !important;
+            max-width: 690px !important;
+          }
+
+          .jv-public-home-layout #inicio [style*="display: inline-flex"] {
+            justify-self: start !important;
+          }
+
+          .jv-public-home-layout #inicio [style*="grid-template-columns: 1fr 1fr 1fr"],
+          .jv-public-home-layout #inicio [style*="repeat(3"] {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+
+          .jv-public-home-layout #inicio a.jv-premium-btn,
+          .jv-public-home-layout #inicio a.jv-premium-btn-secondary,
+          .jv-public-home-layout #inicio button.jv-premium-btn,
+          .jv-public-home-layout #inicio button.jv-premium-btn-secondary {
+            width: 100% !important;
+            min-height: 48px !important;
+            justify-content: center !important;
+          }
+
+          .jv-public-home-layout #inicio .jv-premium-card {
+            text-align: left !important;
+          }
+
+          .jv-public-home-layout #inicio img,
+          .jv-public-home-layout #inicio video {
+            width: 100% !important;
+            height: 420px !important;
+            object-fit: cover !important;
+          }
+
+          .jv-public-home-layout h2 {
+            font-size: 38px !important;
+            line-height: 1.05 !important;
+            letter-spacing: -0.05em !important;
+          }
+
+          .jv-public-home-layout nav {
+            justify-content: center !important;
+          }
+
+          .jv-public-home-layout header > div {
+            max-width: 1360px !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .jv-public-home-layout {
+            width: 100% !important;
+            overflow-x: hidden !important;
+          }
+
+          .jv-public-home-layout main {
+            width: 100% !important;
+            overflow-x: hidden !important;
+          }
+
+          .jv-public-home-layout main > section {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+
+          .jv-public-home-layout #inicio {
+            padding-top: 32px !important;
+            padding-bottom: 40px !important;
+          }
+
+          .jv-public-home-layout #inicio > div {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 22px !important;
+            align-items: start !important;
+          }
+
+          .jv-public-home-layout [style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+          }
+
+          .jv-public-home-layout [style*="repeat(2"] {
+            grid-template-columns: 1fr !important;
+          }
+
+          .jv-public-home-layout [style*="repeat(3"] {
+            grid-template-columns: 1fr !important;
+          }
+
+          .jv-public-home-layout [style*="minmax"] {
+            grid-template-columns: 1fr !important;
+          }
+
+          .jv-public-home-layout h1 {
+            font-size: 31px !important;
+            line-height: 1.08 !important;
+            letter-spacing: -0.035em !important;
+            max-width: 100% !important;
+            overflow-wrap: break-word !important;
+            word-break: normal !important;
+            text-wrap: balance !important;
+          }
+
+          .jv-public-home-layout h2 {
+            font-size: 26px !important;
+            line-height: 1.12 !important;
+            letter-spacing: -0.035em !important;
+            overflow-wrap: break-word !important;
+            word-break: normal !important;
+            text-wrap: balance !important;
+          }
+
+          .jv-public-home-layout h3 {
+            font-size: 18px !important;
+            line-height: 1.2 !important;
+            overflow-wrap: break-word !important;
+          }
+
+          .jv-public-home-layout p {
+            font-size: 15px !important;
+            line-height: 1.65 !important;
+            max-width: 100% !important;
+            overflow-wrap: break-word !important;
+            word-break: normal !important;
+          }
+
+          .jv-public-home-layout .jv-premium-card {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            border-radius: 20px !important;
+            padding: 16px !important;
+          }
+
+          .jv-public-home-layout a.jv-premium-btn,
+          .jv-public-home-layout a.jv-premium-btn-secondary,
+          .jv-public-home-layout button.jv-premium-btn,
+          .jv-public-home-layout button.jv-premium-btn-secondary {
+            width: 100% !important;
+            min-height: 46px !important;
+            display: inline-flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 12px 14px !important;
+            font-size: 14px !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+          }
+
+          .jv-public-home-layout img,
+          .jv-public-home-layout video {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 240px !important;
+            object-fit: cover !important;
+            border-radius: 16px !important;
+          }
+
+          .jv-public-home-layout [aria-label="Falar com o suporte pelo WhatsApp"] {
+            right: 16px !important;
+            bottom: 18px !important;
+            width: 56px !important;
+            min-width: 56px !important;
+            height: 56px !important;
+            padding: 0 !important;
+            border-radius: 999px !important;
+          }
+
+          .jv-public-home-layout [aria-label="Falar com o suporte pelo WhatsApp"] span:last-child {
+            display: none !important;
+          }
+        }
+
+        @media (max-width: 390px) {
+          .jv-public-home-layout main > section {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+          }
+
+          .jv-public-home-layout h1 {
+            font-size: 28px !important;
+            line-height: 1.1 !important;
+          }
+
+          .jv-public-home-layout h2 {
+            font-size: 24px !important;
+          }
+
+          .jv-public-home-layout p {
+            font-size: 14px !important;
+          }
+
+          .jv-public-home-layout .jv-premium-card {
+            padding: 14px !important;
+            border-radius: 18px !important;
+          }
+        }
+      `}</style>
+      {/* PUBLIC_HOME_DESKTOP_FIX_END */}
       {isMobile && mobileMenuOpen ? (
         <button
           type="button"
@@ -821,7 +1074,7 @@ export default function HomePage() {
                   fontWeight: 900,
                 }}
               >
-                SISTEMA JURÃDICO
+                SISTEMA JURÍDICO
               </div>
 
               <h1
@@ -871,7 +1124,7 @@ export default function HomePage() {
                       ? "Cadastrar advocacia"
                       : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
                       ? "Continuar pagamento"
-                      : "EscritÃ³rio"
+                      : "Escritório"
                     : site.config.heroPrimaryButtonText || "Entrar"}
                 </button>
 
@@ -932,9 +1185,9 @@ export default function HomePage() {
                 }}
               >
                 {[
-                  ["Clientes", "OrganizaÃ§Ã£o total"],
+                  ["Clientes", "Organização total"],
                   ["Processos", "Fluxo moderno"],
-                  ["CobranÃ§as", "OperaÃ§Ã£o premium"],
+                  ["Cobranças", "Operação premium"],
                 ].map(([title, value]) => (
                   <div
                     key={title}
@@ -1011,7 +1264,7 @@ export default function HomePage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 900 }}>DemonstraÃ§Ã£o do sistema</div>
+                      <div style={{ fontWeight: 900 }}>Demonstração do sistema</div>
                       <div style={{ marginTop: 8, color: "#94A3B8", lineHeight: 1.7 }}>
                         Cadastre uma Conta.
                       </div>
@@ -1102,7 +1355,7 @@ export default function HomePage() {
                 fontSize: isMobile ? 13 : 14,
               }}
             >
-              Carregando a landing pÃºblica...
+              Carregando a landing pública...
             </div>
           ) : null}
 
@@ -1272,7 +1525,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhuma mÃ­dia de showcase publicada ainda.
+                  Nenhuma mídia de showcase publicada ainda.
                 </div>
               ) : (
                 showcaseMedia.map((item) => (
@@ -1425,7 +1678,7 @@ export default function HomePage() {
                           padding: 16,
                         }}
                       >
-                        PrÃ©via do plano
+                        Prévia do plano
                       </div>
                     )}
 
@@ -1457,7 +1710,7 @@ export default function HomePage() {
                             fontSize: isMobile ? 13 : 14,
                           }}
                         >
-                          {item.description || "Plano ideal para operaÃ§Ã£o jurÃ­dica profissional."}
+                          {item.description || "Plano ideal para operação jurídica profissional."}
                         </div>
                       </div>
 
@@ -1556,7 +1809,7 @@ export default function HomePage() {
                           lineHeight: 1.6,
                         }}
                       >
-                        Este plano estÃ¡ visÃ­vel no site, mas ainda nÃ£o estÃ¡ liberado para compra.
+                        Este plano está visível no site, mas ainda não está liberado para compra.
                       </div>
                     ) : null}
                   </div>
@@ -1597,7 +1850,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhuma atualizaÃ§Ã£o pÃºblica cadastrada ainda.
+                  Nenhuma atualização pública cadastrada ainda.
                 </div>
               ) : (
                 site.updates.map((item) => (
@@ -1721,7 +1974,7 @@ export default function HomePage() {
                     ? "Cadastrar advocacia"
                     : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
                     ? "Continuar pagamento"
-                    : "EscritÃ³rio"
+                    : "Escritório"
                   : site.config.heroPrimaryButtonText || "Entrar"}
               </button>
 
@@ -1809,7 +2062,7 @@ export default function HomePage() {
                     lineHeight: 1.05,
                   }}
                 >
-                  Ative sua experiÃªncia no JuridicVas
+                  Ative sua experiência no JuridicVas
                 </div>
 
                 <div
@@ -1820,7 +2073,7 @@ export default function HomePage() {
                     maxWidth: 760,
                   }}
                 >
-                  Escolha um plano para liberar o seu acesso. Se vocÃª iniciou um pagamento,
+                  Escolha um plano para liberar o seu acesso. Se você iniciou um pagamento,
                   pode continuar exatamente de onde parou.
                 </div>
               </div>
@@ -1850,7 +2103,7 @@ export default function HomePage() {
                 }}
               >
                 <div>
-                  VocÃª ainda tem um pagamento pendente.
+                  Você ainda tem um pagamento pendente.
                 </div>
 
                 <button
@@ -1889,7 +2142,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhum plano disponÃ­vel no momento.
+                  Nenhum plano disponível no momento.
                 </div>
               ) : (
                 site.plans.map((item) => (
@@ -2032,7 +2285,7 @@ export default function HomePage() {
                           lineHeight: 1.6,
                         }}
                       >
-                        Este plano estÃ¡ visÃ­vel, mas ainda nÃ£o estÃ¡ liberado para compra.
+                        Este plano está visível, mas ainda não está liberado para compra.
                       </div>
                     ) : null}
                   </div>
@@ -2139,7 +2392,7 @@ export default function HomePage() {
             lineHeight: 1,
           }}
         >
-          ðŸ’¬
+          💬
         </span>
 
         {!isMobile ? <span>Falar no WhatsApp</span> : null}
@@ -2148,5 +2401,6 @@ export default function HomePage() {
     </div>
   );
 }
+
 
 
