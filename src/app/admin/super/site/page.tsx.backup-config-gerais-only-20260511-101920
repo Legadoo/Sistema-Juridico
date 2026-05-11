@@ -860,7 +860,7 @@ export default function SuperSitePage() {
                 letterSpacing: "-0.04em",
               }}
             >
-              Configurações gerais do site público
+              Acesse rapidamente as áreas editáveis da landing
             </h2>
 
             <p
@@ -871,7 +871,8 @@ export default function SuperSitePage() {
                 lineHeight: 1.7,
               }}
             >
-              Nesta página ficam os textos principais da landing, nome da marca, botões do hero, chamadas comerciais, rodapé e status de publicação. As demais áreas aparecem como subcategorias no menu lateral.
+              As configurações gerais permanecem nesta página. As demais áreas foram separadas
+              em abas próprias para facilitar a edição e manter o painel mais profissional.
             </p>
           </div>
 
@@ -913,7 +914,7 @@ export default function SuperSitePage() {
                 href: "/admin/super/site/pagamento",
                 icon: "💳",
               },
-            ].filter((item) => item.title === "Configurações gerais").map((item) => (
+            ].map((item) => (
               <a
                 key={item.href}
                 href={item.href}
@@ -2100,4 +2101,3 @@ export default function SuperSitePage() {
     </SuperAdminShell>
   );
 }
-

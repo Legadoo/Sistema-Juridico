@@ -17,26 +17,13 @@ type NavItemProps = {
   subItem?: boolean;
 };
 
-type SuperNavItem = {
-  href: string;
-  label: string;
-  subItem?: boolean;
-};
-
 function isItemActive(pathname: string, href: string) {
   if (href === "/admin/super") return pathname === href;
   if (href === "/admin/super/site") return pathname === href;
-
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function NavItem({
-  href,
-  label,
-  pathname,
-  onNavigate,
-  subItem = false,
-}: NavItemProps) {
+function NavItem({ href, label, pathname, onNavigate, subItem = false }: NavItemProps) {
   const active = isItemActive(pathname, href);
 
   return (
@@ -45,27 +32,18 @@ function NavItem({
       onClick={onNavigate}
       className={[
         "group flex items-center rounded-2xl py-3 text-sm font-medium transition-all duration-200",
-        subItem
-          ? "ml-5 border-l border-cyan-400/20 rounded-l-none px-4 text-xs"
-          : "px-4",
+        subItem ? "ml-5 border-l border-cyan-400/20 rounded-l-none px-4 text-xs" : "px-4",
         active
           ? "bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/30 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]"
           : "text-zinc-300 hover:bg-white/5 hover:text-white",
       ].join(" ")}
     >
-      {subItem ? (
-        <span className="mr-2 text-cyan-400/70">└</span>
-      ) : null}
-
       <span className="truncate">{label}</span>
     </Link>
   );
 }
 
-export default function SuperAdminShell({
-  userName,
-  children,
-}: SuperAdminShellProps) {
+export default function SuperAdminShell({ userName, children }: SuperAdminShellProps) {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -87,31 +65,15 @@ export default function SuperAdminShell({
     window.location.href = "/login";
   }
 
-  const navItems: SuperNavItem[] = [
+  const navItems = [
     { href: "/admin/super/users", label: "Usuários" },
     { href: "/admin/super", label: "Dashboard SaaS" },
     { href: "/admin/super/firms", label: "Advocacias" },
     { href: "/admin/super/site", label: "Site público" },
-    {
-      href: "/admin/super/site/funcionalidades",
-      label: "Funcionalidades",
-      subItem: true,
-    },
-    {
-      href: "/admin/super/site/midias",
-      label: "Mídias públicas",
-      subItem: true,
-    },
-    {
-      href: "/admin/super/site/planos",
-      label: "Planos públicos",
-      subItem: true,
-    },
-    {
-      href: "/admin/super/site/pagamento",
-      label: "Pagamento público",
-      subItem: true,
-    },
+    { href: "/admin/super/site/funcionalidades", label: "Funcionalidades", subItem: true },
+    { href: "/admin/super/site/midias", label: "Mídias públicas", subItem: true },
+    { href: "/admin/super/site/planos", label: "Planos públicos", subItem: true },
+    { href: "/admin/super/site/pagamento", label: "Pagamento público", subItem: true },
   ];
 
   return (
@@ -128,9 +90,12 @@ export default function SuperAdminShell({
 
         <aside
           className={[
-            "fixed inset-y-0 left-0 z-50 w-[310px] border-r border-cyan-400/10 bg-[#060912]/95 backdrop-blur-xl transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0",
-            mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-          ].join(" ")}
+        "group flex items-center rounded-2xl py-3 text-sm font-medium transition-all duration-200",
+        subItem ? "ml-5 border-l border-cyan-400/20 rounded-l-none px-4 text-xs" : "px-4",
+        active
+          ? "bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/30 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]"
+          : "text-zinc-300 hover:bg-white/5 hover:text-white",
+      ].join(" ")}
         >
           <div className="flex h-full flex-col">
             <div className="border-b border-cyan-400/10 px-5 py-6">
@@ -171,7 +136,7 @@ export default function SuperAdminShell({
                   label={item.label}
                   pathname={pathname}
                   onNavigate={() => setMobileMenuOpen(false)}
-                  subItem={item.subItem ?? false}
+                  subItem={"subItem" in item ? item.subItem : false}
                 />
               ))}
             </nav>
@@ -179,15 +144,14 @@ export default function SuperAdminShell({
             <div className="border-t border-cyan-400/10 p-4">
               <div className="mb-3 rounded-2xl border border-cyan-400/10 bg-cyan-400/[0.04] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  Sessão ativa
+                  SessÃ£o ativa
                 </div>
-
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}
                 </div>
-
-                <div className="mt-1 text-xs text-zinc-400">Super Admin</div>
-
+                <div className="mt-1 text-xs text-zinc-400">
+                  Super Admin
+                </div>
                 <div className="mt-2 text-xs text-cyan-300">
                   Controle global da plataforma
                 </div>
@@ -212,11 +176,9 @@ export default function SuperAdminShell({
                 <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300/80">
                   JuridicVas
                 </div>
-
                 <div className="truncate text-sm font-medium text-zinc-200">
                   {userName}
                 </div>
-
                 <div className="truncate text-xs text-cyan-300">
                   Console SaaS
                 </div>
@@ -228,7 +190,7 @@ export default function SuperAdminShell({
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-white"
                 onClick={() => setMobileMenuOpen(true)}
               >
-                ☰
+              â˜°
               </button>
             </div>
           </header>
@@ -243,3 +205,7 @@ export default function SuperAdminShell({
     </div>
   );
 }
+
+
+
+

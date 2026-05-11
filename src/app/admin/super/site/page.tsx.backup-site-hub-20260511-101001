@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import SuperAdminShell from "@/components/SuperAdminShell";
@@ -152,7 +152,7 @@ const emptyMediaForm = {
 const emptyPlanForm = {
   name: "",
   priceLabel: "",
-  billingPeriod: "/mÃªs",
+  billingPeriod: "/mês",
   description: "",
   featuresText: "",
   badgeText: "",
@@ -371,21 +371,21 @@ export default function SuperSitePage() {
 
       if (!siteResponse.ok || !siteData?.ok) {
         if (!ignore) {
-          showToast(siteData?.message || "NÃ£o foi possÃ­vel carregar o site pÃºblico.", "error");
+          showToast(siteData?.message || "Não foi possível carregar o site público.", "error");
         }
         return;
       }
 
       if (!plansResponse.ok || !plansData?.ok) {
         if (!ignore) {
-          showToast(plansData?.message || "NÃ£o foi possÃ­vel carregar os planos.", "error");
+          showToast(plansData?.message || "Não foi possível carregar os planos.", "error");
         }
         return;
       }
 
       if (!paymentResponse.ok || !paymentData?.ok) {
         if (!ignore) {
-          showToast(paymentData?.message || "NÃ£o foi possÃ­vel carregar o pagamento do site.", "error");
+          showToast(paymentData?.message || "Não foi possível carregar o pagamento do site.", "error");
         }
         return;
       }
@@ -407,7 +407,7 @@ export default function SuperSitePage() {
       }
     } catch {
       if (!ignore) {
-        showToast("Falha ao carregar dados do site pÃºblico.", "error");
+        showToast("Falha ao carregar dados do site público.", "error");
       }
     } finally {
       if (!ignore) {
@@ -480,7 +480,7 @@ export default function SuperSitePage() {
 
       showToast("Imagem do plano enviada com sucesso.", "success");
     } catch {
-      showToast("NÃ£o foi possÃ­vel enviar a imagem do plano.", "error");
+      showToast("Não foi possível enviar a imagem do plano.", "error");
     } finally {
       setUploadingMedia(false);
     }
@@ -501,12 +501,12 @@ export default function SuperSitePage() {
     }
 
     if (!planForm.priceLabel.trim()) {
-      showToast("Informe o preÃ§o do plano.", "warning");
+      showToast("Informe o preço do plano.", "warning");
       return;
     }
 
     if (!planForm.featuresText.trim()) {
-      showToast("Informe os benefÃ­cios do plano.", "warning");
+      showToast("Informe os benefícios do plano.", "warning");
       return;
     }
 
@@ -540,7 +540,7 @@ export default function SuperSitePage() {
       resetPlanForm();
       await loadSiteData();
     } catch {
-      showToast("NÃ£o foi possÃ­vel salvar o plano.", "error");
+      showToast("Não foi possível salvar o plano.", "error");
     } finally {
       setSavingPlan(false);
     }
@@ -560,7 +560,7 @@ export default function SuperSitePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "NÃ£o foi possÃ­vel excluir o plano.", "error");
+        showToast(data?.message || "Não foi possível excluir o plano.", "error");
         return;
       }
 
@@ -568,7 +568,7 @@ export default function SuperSitePage() {
         resetPlanForm();
       }
 
-      showToast("Plano excluÃ­do com sucesso.", "success");
+      showToast("Plano excluído com sucesso.", "success");
       await loadSiteData();
     } catch {
       showToast("Falha ao excluir o plano.", "error");
@@ -584,7 +584,7 @@ export default function SuperSitePage() {
     }
 
     if (!config.heroTitle.trim()) {
-      showToast("Informe o tÃ­tulo principal.", "warning");
+      showToast("Informe o título principal.", "warning");
       return;
     }
 
@@ -600,14 +600,14 @@ export default function SuperSitePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "Erro ao salvar configuraÃ§Ã£o.", "error");
+        showToast(data?.message || "Erro ao salvar configuração.", "error");
         return;
       }
 
-      showToast("ConfiguraÃ§Ã£o geral salva com sucesso.", "success");
+      showToast("Configuração geral salva com sucesso.", "success");
       await loadSiteData();
     } catch {
-      showToast("NÃ£o foi possÃ­vel salvar a configuraÃ§Ã£o geral.", "error");
+      showToast("Não foi possível salvar a configuração geral.", "error");
     } finally {
       setSavingConfig(false);
     }
@@ -628,7 +628,7 @@ export default function SuperSitePage() {
       const data = (await response.json().catch(() => null)) as UploadResponse | null;
 
       if (!response.ok || !data?.ok || !data.data?.url) {
-        showToast(data?.message || "Erro ao enviar a mÃ­dia.", "error");
+        showToast(data?.message || "Erro ao enviar a mídia.", "error");
         return;
       }
 
@@ -641,9 +641,9 @@ export default function SuperSitePage() {
         alt: prev.alt || data.data!.originalName,
       }));
 
-      showToast("MÃ­dia enviada com sucesso.", "success");
+      showToast("Mídia enviada com sucesso.", "success");
     } catch {
-      showToast("NÃ£o foi possÃ­vel enviar a mÃ­dia.", "error");
+      showToast("Não foi possível enviar a mídia.", "error");
     } finally {
       setUploadingMedia(false);
     }
@@ -675,7 +675,7 @@ export default function SuperSitePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "NÃ£o foi possÃ­vel remover o arquivo.", "error");
+        showToast(data?.message || "Não foi possível remover o arquivo.", "error");
         return;
       }
 
@@ -690,12 +690,12 @@ export default function SuperSitePage() {
 
   async function saveMedia() {
     if (!mediaForm.title.trim()) {
-      showToast("Informe o tÃ­tulo da mÃ­dia.", "warning");
+      showToast("Informe o título da mídia.", "warning");
       return;
     }
 
     if (!mediaForm.url.trim()) {
-      showToast("Envie uma mÃ­dia ou informe uma URL.", "warning");
+      showToast("Envie uma mídia ou informe uma URL.", "warning");
       return;
     }
 
@@ -717,19 +717,19 @@ export default function SuperSitePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "Erro ao salvar a mÃ­dia.", "error");
+        showToast(data?.message || "Erro ao salvar a mídia.", "error");
         return;
       }
 
       showToast(
-        editingMediaId ? "MÃ­dia atualizada com sucesso." : "MÃ­dia criada com sucesso.",
+        editingMediaId ? "Mídia atualizada com sucesso." : "Mídia criada com sucesso.",
         "success"
       );
 
       resetMediaForm();
       await loadSiteData();
     } catch {
-      showToast("NÃ£o foi possÃ­vel salvar a mÃ­dia.", "error");
+      showToast("Não foi possível salvar a mídia.", "error");
     } finally {
       setSavingMedia(false);
     }
@@ -751,7 +751,7 @@ export default function SuperSitePage() {
 
   async function deleteMedia(item: LandingMedia) {
     const confirmed = window.confirm(
-      "Deseja excluir esta mÃ­dia do site pÃºblico? Se for arquivo local, o arquivo fÃ­sico tambÃ©m serÃ¡ removido."
+      "Deseja excluir esta mídia do site público? Se for arquivo local, o arquivo físico também será removido."
     );
 
     if (!confirmed) return;
@@ -766,7 +766,7 @@ export default function SuperSitePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "NÃ£o foi possÃ­vel excluir a mÃ­dia.", "error");
+        showToast(data?.message || "Não foi possível excluir a mídia.", "error");
         return;
       }
 
@@ -782,10 +782,10 @@ export default function SuperSitePage() {
         resetMediaForm();
       }
 
-      showToast("MÃ­dia excluÃ­da com sucesso.", "success");
+      showToast("Mídia excluída com sucesso.", "success");
       await loadSiteData();
     } catch {
-      showToast("Falha ao excluir a mÃ­dia.", "error");
+      showToast("Falha ao excluir a mídia.", "error");
     } finally {
       setDeletingMediaId(null);
     }
@@ -804,7 +804,7 @@ export default function SuperSitePage() {
           textAlign: "center",
         }}
       >
-        Carregando gestÃ£o do site pÃºblico...
+        Carregando gestão do site público...
       </div>
     );
   }
@@ -824,154 +824,6 @@ export default function SuperSitePage() {
       />
 
       <div style={{ display: "grid", gap: 24 }}>
-        <section
-          className="jv-glass"
-          style={{
-            borderRadius: 28,
-            padding: 22,
-            display: "grid",
-            gap: 18,
-          }}
-        >
-          <div style={{ display: "grid", gap: 6 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                width: "fit-content",
-                padding: "7px 10px",
-                borderRadius: 999,
-                background: "rgba(34,211,238,0.10)",
-                border: "1px solid rgba(34,211,238,0.18)",
-                color: "#A5F3FC",
-                fontSize: 11,
-                fontWeight: 900,
-                letterSpacing: "0.08em",
-              }}
-            >
-              CENTRAL DO SITE PÚBLICO
-            </div>
-
-            <h2
-              style={{
-                margin: 0,
-                color: "#F8FAFC",
-                fontSize: 24,
-                fontWeight: 900,
-                letterSpacing: "-0.04em",
-              }}
-            >
-              Configurações gerais do site público
-            </h2>
-
-            <p
-              style={{
-                margin: 0,
-                color: "#94A3B8",
-                fontSize: 14,
-                lineHeight: 1.7,
-              }}
-            >
-              Nesta página ficam os textos principais da landing, nome da marca, botões do hero, chamadas comerciais, rodapé e status de publicação. As demais áreas aparecem como subcategorias no menu lateral.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 14,
-            }}
-          >
-            {[
-              {
-                title: "Configurações gerais",
-                text: "Textos principais, marca, CTA e status da landing.",
-                href: "/admin/super/site",
-                icon: "⚙️",
-              },
-              {
-                title: "Funcionalidades",
-                text: "Recursos exibidos no bloco comercial do site.",
-                href: "/admin/super/site/funcionalidades",
-                icon: "✨",
-              },
-              {
-                title: "Mídias do site",
-                text: "Imagens e vídeos do hero e da vitrine pública.",
-                href: "/admin/super/site/midias",
-                icon: "🖼️",
-              },
-              {
-                title: "Planos públicos",
-                text: "Planos, preços, módulos e destaques comerciais.",
-                href: "/admin/super/site/planos",
-                icon: "💎",
-              },
-              {
-                title: "Pagamento público",
-                text: "Credenciais e status do checkout do site.",
-                href: "/admin/super/site/pagamento",
-                icon: "💳",
-              },
-            ].filter((item) => item.title === "Configurações gerais").map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="jv-premium-card"
-                style={{
-                  borderRadius: 22,
-                  padding: 18,
-                  display: "grid",
-                  gap: 12,
-                  textDecoration: "none",
-                  color: "#F8FAFC",
-                  minHeight: 160,
-                }}
-              >
-                <div
-                  style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: 16,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    fontSize: 23,
-                  }}
-                >
-                  {item.icon}
-                </div>
-
-                <div>
-                  <strong
-                    style={{
-                      display: "block",
-                      fontSize: 17,
-                      fontWeight: 900,
-                      letterSpacing: "-0.03em",
-                    }}
-                  >
-                    {item.title}
-                  </strong>
-
-                  <span
-                    style={{
-                      display: "block",
-                      marginTop: 8,
-                      color: "#94A3B8",
-                      fontSize: 13,
-                      lineHeight: 1.65,
-                    }}
-                  >
-                    {item.text}
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-
         <section
           style={{
             position: "relative",
@@ -1002,7 +854,7 @@ export default function SuperSitePage() {
                 letterSpacing: "0.04em",
               }}
             >
-              SITE PÃšBLICO Â· SUPERADMIN
+              SITE PÚBLICO · SUPERADMIN
             </div>
 
             <h1
@@ -1015,7 +867,7 @@ export default function SuperSitePage() {
                 color: "#F8FAFC",
               }}
             >
-              Editor intuitivo da landing pÃºblica
+              Editor intuitivo da landing pública
             </h1>
 
             <p
@@ -1027,15 +879,15 @@ export default function SuperSitePage() {
                 maxWidth: 860,
               }}
             >
-              Agora vocÃª pode organizar mÃ­dias do hero e da showcase separadamente,
-              alÃ©m de montar uma landing mais dinÃ¢mica com mÃºltiplos arquivos no topo.
+              Agora você pode organizar mídias do hero e da showcase separadamente,
+              além de montar uma landing mais dinâmica com múltiplos arquivos no topo.
             </p>
           </div>
         </section>
 
         <SectionCard
-          title="ConfiguraÃ§Ã£o geral"
-          description="Controle os textos centrais e links principais da landing pÃºblica."
+          title="Configuração geral"
+          description="Controle os textos centrais e links principais da landing pública."
         >
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: twoCols, gap: 16 }}>
@@ -1071,7 +923,7 @@ export default function SuperSitePage() {
               </Field>
             </div>
 
-            <Field label="TÃ­tulo principal">
+            <Field label="Título principal">
               <textarea
                 value={config.heroTitle}
                 onChange={(e) => setConfig((prev) => ({ ...prev, heroTitle: e.target.value }))}
@@ -1079,7 +931,7 @@ export default function SuperSitePage() {
               />
             </Field>
 
-            <Field label="SubtÃ­tulo principal">
+            <Field label="Subtítulo principal">
               <textarea
                 value={config.heroSubtitle}
                 onChange={(e) => setConfig((prev) => ({ ...prev, heroSubtitle: e.target.value }))}
@@ -1094,7 +946,7 @@ export default function SuperSitePage() {
                 onClick={saveConfig}
                 disabled={savingConfig || loading}
               >
-                {savingConfig ? "Salvando..." : "Salvar configuraÃ§Ã£o geral"}
+                {savingConfig ? "Salvando..." : "Salvar configuração geral"}
               </button>
 
               <button
@@ -1110,8 +962,8 @@ export default function SuperSitePage() {
         </SectionCard>
 
         <SectionCard
-          title="MÃ­dias do site pÃºblico"
-          description="Cadastre mÃ­dias para o hero e para a showcase. Hero aparece no topo; showcase aparece na galeria."
+          title="Mídias do site público"
+          description="Cadastre mídias para o hero e para a showcase. Hero aparece no topo; showcase aparece na galeria."
         >
           <div style={{ display: "grid", gap: 18 }}>
             <div
@@ -1124,7 +976,7 @@ export default function SuperSitePage() {
             >
               <div style={{ display: "grid", gap: 16 }}>
                 <div style={{ display: "grid", gridTemplateColumns: twoCols, gap: 16 }}>
-                  <Field label="TÃ­tulo da mÃ­dia">
+                  <Field label="Título da mídia">
                     <input
                       type="text"
                       value={mediaForm.title}
@@ -1134,7 +986,7 @@ export default function SuperSitePage() {
                     />
                   </Field>
 
-                  <Field label="SeÃ§Ã£o da mÃ­dia">
+                  <Field label="Seção da mídia">
                     <select
                       value={mediaForm.section}
                       onChange={(e) => setMediaForm((prev) => ({ ...prev, section: e.target.value }))}
@@ -1145,7 +997,7 @@ export default function SuperSitePage() {
                     </select>
                   </Field>
 
-                  <Field label="Tipo de mÃ­dia">
+                  <Field label="Tipo de mídia">
                     <select
                       value={mediaForm.type}
                       onChange={(e) => setMediaForm((prev) => ({ ...prev, type: e.target.value }))}
@@ -1169,7 +1021,7 @@ export default function SuperSitePage() {
                   </Field>
                 </div>
 
-                <Field label="DescriÃ§Ã£o">
+                <Field label="Descrição">
                   <textarea
                     value={mediaForm.description}
                     onChange={(e) => setMediaForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -1187,7 +1039,7 @@ export default function SuperSitePage() {
                   />
                 </Field>
 
-                <Field label="URL da mÃ­dia">
+                <Field label="URL da mídia">
                   <input
                     type="text"
                     value={mediaForm.url}
@@ -1215,7 +1067,7 @@ export default function SuperSitePage() {
                       checked={mediaForm.isActive}
                       onChange={(e) => setMediaForm((prev) => ({ ...prev, isActive: e.target.checked }))}
                     />
-                    MÃ­dia ativa
+                    Mídia ativa
                   </label>
                 </Field>
 
@@ -1224,7 +1076,7 @@ export default function SuperSitePage() {
                     className="jv-premium-btn-secondary"
                     style={{ cursor: uploadingMedia ? "not-allowed" : "pointer" }}
                   >
-                    {uploadingMedia ? "Enviando..." : "Enviar mÃ­dia"}
+                    {uploadingMedia ? "Enviando..." : "Enviar mídia"}
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,video/mp4,video/webm,video/ogg"
@@ -1243,8 +1095,8 @@ export default function SuperSitePage() {
                     {savingMedia
                       ? "Salvando..."
                       : editingMediaId
-                      ? "Salvar mÃ­dia"
-                      : "Criar mÃ­dia"}
+                      ? "Salvar mídia"
+                      : "Criar mídia"}
                   </button>
 
                   <button
@@ -1252,7 +1104,7 @@ export default function SuperSitePage() {
                     className="jv-premium-btn-secondary"
                     onClick={resetMediaForm}
                   >
-                    Limpar formulÃ¡rio
+                    Limpar formulário
                   </button>
 
                   {mediaForm.url ? (
@@ -1266,7 +1118,7 @@ export default function SuperSitePage() {
                         color: "#FCA5A5",
                       }}
                     >
-                      {removingPreviewFile ? "Removendo..." : "Remover mÃ­dia atual"}
+                      {removingPreviewFile ? "Removendo..." : "Remover mídia atual"}
                     </button>
                   ) : null}
                 </div>
@@ -1282,7 +1134,7 @@ export default function SuperSitePage() {
                 }}
               >
                 <div style={{ color: "#F8FAFC", fontSize: 18, fontWeight: 800 }}>
-                  Preview da mÃ­dia
+                  Preview da mídia
                 </div>
 
                 {!mediaForm.url ? (
@@ -1315,7 +1167,7 @@ export default function SuperSitePage() {
                 ) : (
                   <img
                     src={mediaForm.url}
-                    alt={mediaForm.alt || mediaForm.title || "PrÃ©via"}
+                    alt={mediaForm.alt || mediaForm.title || "Prévia"}
                     style={{
                       width: "100%",
                       maxHeight: 320,
@@ -1342,11 +1194,11 @@ export default function SuperSitePage() {
             >
               <div className="jv-glass" style={{ borderRadius: 22, padding: 18, display: "grid", gap: 12 }}>
                 <div style={{ color: "#F8FAFC", fontSize: 18, fontWeight: 800 }}>
-                  MÃ­dias do hero ({heroMedia.length})
+                  Mídias do hero ({heroMedia.length})
                 </div>
 
                 {heroMedia.length === 0 ? (
-                  <div style={{ color: "#94A3B8" }}>Nenhuma mÃ­dia de hero cadastrada ainda.</div>
+                  <div style={{ color: "#94A3B8" }}>Nenhuma mídia de hero cadastrada ainda.</div>
                 ) : (
                   heroMedia.map((item) => (
                     <div
@@ -1362,7 +1214,7 @@ export default function SuperSitePage() {
                     >
                       <div style={{ color: "#F8FAFC", fontWeight: 800 }}>{item.title}</div>
                       <div style={{ color: "#64748B", fontSize: 12 }}>
-                        ordem {item.sortOrder} Â· {item.type}
+                        ordem {item.sortOrder} · {item.type}
                       </div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <button
@@ -1392,11 +1244,11 @@ export default function SuperSitePage() {
 
               <div className="jv-glass" style={{ borderRadius: 22, padding: 18, display: "grid", gap: 12 }}>
                 <div style={{ color: "#F8FAFC", fontSize: 18, fontWeight: 800 }}>
-                  MÃ­dias da showcase ({showcaseMedia.length})
+                  Mídias da showcase ({showcaseMedia.length})
                 </div>
 
                 {showcaseMedia.length === 0 ? (
-                  <div style={{ color: "#94A3B8" }}>Nenhuma mÃ­dia de showcase cadastrada ainda.</div>
+                  <div style={{ color: "#94A3B8" }}>Nenhuma mídia de showcase cadastrada ainda.</div>
                 ) : (
                   showcaseMedia.map((item) => (
                     <div
@@ -1412,7 +1264,7 @@ export default function SuperSitePage() {
                     >
                       <div style={{ color: "#F8FAFC", fontWeight: 800 }}>{item.title}</div>
                       <div style={{ color: "#64748B", fontSize: 12 }}>
-                        ordem {item.sortOrder} Â· {item.type}
+                        ordem {item.sortOrder} · {item.type}
                       </div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <button
@@ -1444,7 +1296,7 @@ export default function SuperSitePage() {
         </SectionCard>
 
         <SectionCard
-          title="Pagamento do site pÃºblico"
+          title="Pagamento do site público"
           description="Configure o Mercado Pago global da landing para vender os planos do sistema."
         >
           <div style={{ display: "grid", gap: 18 }}>
@@ -1481,7 +1333,7 @@ export default function SuperSitePage() {
                   />
                 </Field>
 
-                <Field label="Pagamento pÃºblico ativo">
+                <Field label="Pagamento público ativo">
                   <label
                     style={{
                       display: "flex",
@@ -1501,7 +1353,7 @@ export default function SuperSitePage() {
                         setPaymentConfigForm((prev) => ({ ...prev, isActive: e.target.checked }))
                       }
                     />
-                    Ativar Mercado Pago no site pÃºblico
+                    Ativar Mercado Pago no site público
                   </label>
                 </Field>
 
@@ -1535,7 +1387,7 @@ export default function SuperSitePage() {
                         showToast("Pagamento do site configurado com sucesso.", "success");
                         await loadSiteData();
                       } catch {
-                        showToast("NÃ£o foi possÃ­vel salvar o pagamento do site.", "error");
+                        showToast("Não foi possível salvar o pagamento do site.", "error");
                       } finally {
                         setSavingPaymentConfig(false);
                       }
@@ -1575,15 +1427,15 @@ export default function SuperSitePage() {
                 </div>
 
                 <div style={{ color: "#94A3B8", fontSize: 14, lineHeight: 1.7 }}>
-                  Access Token salvo: {paymentConfigInfo?.hasAccessToken ? "Sim" : "NÃ£o"}
+                  Access Token salvo: {paymentConfigInfo?.hasAccessToken ? "Sim" : "Não"}
                 </div>
 
                 <div style={{ color: "#94A3B8", fontSize: 14, lineHeight: 1.7 }}>
-                  Public Key salva: {paymentConfigInfo?.hasPublicKey ? "Sim" : "NÃ£o"}
+                  Public Key salva: {paymentConfigInfo?.hasPublicKey ? "Sim" : "Não"}
                 </div>
 
                 <div style={{ color: "#64748B", fontSize: 13, lineHeight: 1.7 }}>
-                  Esta configuraÃ§Ã£o serÃ¡ usada nas prÃ³ximas etapas para gerar o checkout dos planos do site pÃºblico.
+                  Esta configuração será usada nas próximas etapas para gerar o checkout dos planos do site público.
                 </div>
               </div>
             </div>
@@ -1591,8 +1443,8 @@ export default function SuperSitePage() {
         </SectionCard>
 
         <SectionCard
-          title="Planos pÃºblicos"
-          description="Cadastre os planos exibidos no site pÃºblico com imagem, preÃ§o, descriÃ§Ã£o e botÃ£o de aÃ§Ã£o."
+          title="Planos públicos"
+          description="Cadastre os planos exibidos no site público com imagem, preço, descrição e botão de ação."
         >
           <div style={{ display: "grid", gap: 18 }}>
             <div
@@ -1615,7 +1467,7 @@ export default function SuperSitePage() {
                     />
                   </Field>
 
-                  <Field label="PreÃ§o">
+                  <Field label="Preço">
                     <input
                       type="text"
                       value={planForm.priceLabel}
@@ -1625,13 +1477,13 @@ export default function SuperSitePage() {
                     />
                   </Field>
 
-                  <Field label="PerÃ­odo">
+                  <Field label="Período">
                     <input
                       type="text"
                       value={planForm.billingPeriod}
                       onChange={(e) => setPlanForm((prev) => ({ ...prev, billingPeriod: e.target.value }))}
                       style={inputStyle}
-                      placeholder="/mÃªs"
+                      placeholder="/mês"
                     />
                   </Field>
 
@@ -1645,7 +1497,7 @@ export default function SuperSitePage() {
                     />
                   </Field>
 
-                  <Field label="Texto do botÃ£o">
+                  <Field label="Texto do botão">
                     <input
                       type="text"
                       value={planForm.ctaText}
@@ -1665,21 +1517,21 @@ export default function SuperSitePage() {
                   </Field>
                 </div>
 
-                <Field label="Legenda / descriÃ§Ã£o">
+                <Field label="Legenda / descrição">
                   <textarea
                     value={planForm.description}
                     onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))}
                     style={textAreaStyle}
-                    placeholder="Plano ideal para escritÃ³rios que buscam organizaÃ§Ã£o e presenÃ§a premium."
+                    placeholder="Plano ideal para escritórios que buscam organização e presença premium."
                   />
                 </Field>
 
-                <Field label="BenefÃ­cios">
+                <Field label="Benefícios">
                   <textarea
                     value={planForm.featuresText}
                     onChange={(e) => setPlanForm((prev) => ({ ...prev, featuresText: e.target.value }))}
                     style={textAreaStyle}
-                    placeholder={"â€¢ AtÃ© 100 clientes`nâ€¢ Ãrea do cliente`nâ€¢ Controle de prazos"}
+                    placeholder={"• Até 100 clientes`n• Área do cliente`n• Controle de prazos"}
                   />
                 </Field>
 
@@ -1766,7 +1618,7 @@ export default function SuperSitePage() {
                     </label>
                   </Field>
 
-                  <Field label="Plano comprÃ¡vel">
+                  <Field label="Plano comprável">
                     <label
                       style={{
                         display: "flex",
@@ -1799,7 +1651,7 @@ export default function SuperSitePage() {
                   }}
                 >
                   <div style={{ color: "#F8FAFC", fontSize: 16, fontWeight: 800 }}>
-                    MÃ³dulos liberados no plano
+                    Módulos liberados no plano
                   </div>
 
                   <div
@@ -1816,8 +1668,8 @@ export default function SuperSitePage() {
                       ["moduleDeadlines", "Prazos"],
                       ["moduleAppointments", "Agendamentos"],
                       ["moduleAvailability", "Abertura de agenda"],
-                      ["moduleUsers", "UsuÃ¡rios"],
-                      ["moduleCharges", "CobranÃ§as"],
+                      ["moduleUsers", "Usuários"],
+                      ["moduleCharges", "Cobranças"],
                     ].map(([key, label]) => (
                       <label
                         key={key}
@@ -1867,7 +1719,7 @@ export default function SuperSitePage() {
                     className="jv-premium-btn-secondary"
                     onClick={resetPlanForm}
                   >
-                    Limpar formulÃ¡rio
+                    Limpar formulário
                   </button>
                 </div>
               </div>
@@ -1929,12 +1781,12 @@ export default function SuperSitePage() {
                       marginLeft: 6,
                     }}
                   >
-                    {planForm.billingPeriod || "/mÃªs"}
+                    {planForm.billingPeriod || "/mês"}
                   </span>
                 </div>
 
                 <div style={{ color: "#94A3B8", lineHeight: 1.7, fontSize: 14 }}>
-                  {planForm.description || "DescriÃ§Ã£o resumida do plano."}
+                  {planForm.description || "Descrição resumida do plano."}
                 </div>
 
                 <div
@@ -1945,7 +1797,7 @@ export default function SuperSitePage() {
                     fontSize: 14,
                   }}
                 >
-                  {planForm.featuresText || "BenefÃ­cios do plano"}
+                  {planForm.featuresText || "Benefícios do plano"}
                 </div>
               </div>
             </div>
@@ -2015,7 +1867,7 @@ export default function SuperSitePage() {
                     </div>
 
                     <div style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1.7 }}>
-                      {item.description || "Sem descriÃ§Ã£o."}
+                      {item.description || "Sem descrição."}
                     </div>
 
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -2064,7 +1916,7 @@ export default function SuperSitePage() {
                           fontWeight: 900,
                         }}
                       >
-                        {item.isPurchasable ? "ComprÃ¡vel" : "Somente vitrine"}
+                        {item.isPurchasable ? "Comprável" : "Somente vitrine"}
                       </span>
                     </div>
 
@@ -2100,4 +1952,3 @@ export default function SuperSitePage() {
     </SuperAdminShell>
   );
 }
-
