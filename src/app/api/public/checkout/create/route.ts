@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { createPublicPlanCheckout } from "@/services/subscription/public-subscription.service";
 
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   const planId = (body?.planId ?? "").toString().trim();
+  const couponCode = (body?.couponCode ?? "").toString().trim();
 
   if (!planId) {
     return NextResponse.json(
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
     const result = await createPublicPlanCheckout({
       userId: user.id,
       planId,
+      couponCode,
     });
 
     return NextResponse.json({

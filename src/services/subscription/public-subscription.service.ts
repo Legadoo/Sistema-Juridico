@@ -1,10 +1,12 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { decryptText } from "@/lib/crypto";
+import { validateAndCalculatePublicCoupon } from "@/services/public-site/coupon.service";
 import {
   createMercadoPagoPreference,
   getMercadoPagoPaymentById,
   parseMercadoPagoWebhook,
 } from "@/services/mercado-pago.service";
+
 function parsePlanAmount(priceLabel: string) {
   const normalized = (priceLabel || "")
     .replace(/\s/g, "")
@@ -24,6 +26,7 @@ function parsePlanAmount(priceLabel: string) {
 export async function createPublicPlanCheckout(params: {
   userId: string;
   planId: string;
+  couponCode?: string;
 }) {
   const [user, plan, paymentConfig] = await Promise.all([
     prisma.user.findUnique({
@@ -61,6 +64,8 @@ export async function createPublicPlanCheckout(params: {
     throw new Error("Pagamento do site público ainda não está configurado.");
   }
 
+  const couponCode = (params.couponCode || "").trim().toUpperCase();
+
   const activeSubscription = await prisma.saaSSubscription.findFirst({
     where: {
       userId: user.id,
@@ -68,6 +73,7 @@ export async function createPublicPlanCheckout(params: {
       status: {
         in: ["PENDING", "PAID"],
       },
+      couponCodeSnapshot: couponCode || null,
     },
     orderBy: {
       createdAt: "desc",
@@ -90,7 +96,17 @@ export async function createPublicPlanCheckout(params: {
     };
   }
 
-  const amount = parsePlanAmount(plan.priceLabel);
+  const originalAmount = parsePlanAmount(plan.priceLabel);
+
+  const couponResult = await validateAndCalculatePublicCoupon({
+    code: couponCode,
+    amount: originalAmount,
+  });
+
+  const amount = couponResult.finalAmount;
+  const discountAmount = couponResult.discountAmount;
+  const coupon = couponResult.coupon;
+
   const accessToken = decryptText(paymentConfig.accessTokenEnc);
   const externalReference = `site_plan_${user.id}_${plan.id}_${Date.now()}`;
 
@@ -102,11 +118,15 @@ export async function createPublicPlanCheckout(params: {
         : null,
     },
     {
-      title: `Plano ${plan.name} - JuridicVas`,
+      title: coupon
+        ? `Plano ${plan.name} - JuridicVas (${coupon.code})`
+        : `Plano ${plan.name} - JuridicVas`,
       amount,
       externalReference,
       payerEmail: user.email ?? null,
-      description: plan.description || `Assinatura do plano ${plan.name}`,
+      description: coupon
+        ? `${plan.description || `Assinatura do plano ${plan.name}`} | Cupom ${coupon.code}`
+        : plan.description || `Assinatura do plano ${plan.name}`,
     }
   );
 
@@ -126,8 +146,23 @@ export async function createPublicPlanCheckout(params: {
       providerPreferenceId: preference.providerPreferenceId,
       externalReference,
       checkoutUrl,
+      originalAmount,
+      discountAmount,
+      finalAmount: amount,
+      couponCodeSnapshot: coupon?.code ?? null,
     },
   });
+
+  if (coupon) {
+    await prisma.publicCoupon.update({
+      where: { id: coupon.id },
+      data: {
+        usedCount: {
+          increment: 1,
+        },
+      },
+    });
+  }
 
   await prisma.user.update({
     where: { id: user.id },
@@ -332,6 +367,7 @@ export async function getPublicSubscriptionStatusForUser(userId: string) {
         : "BUY_PLAN",
   };
 }
+
 function slugifyFirmName(value: string) {
   return (value || "")
     .normalize("NFD")

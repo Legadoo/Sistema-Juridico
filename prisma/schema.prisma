@@ -383,23 +383,23 @@ model RecurringChargeInstallment {
 model LandingPageConfig {
   id                      String   @id @default("global-public-site")
   brandName               String   @default("JURIDICVAS")
-  heroTitle               String   @default("Gestão jurídica premium para escritórios que querem crescer com organização.")
-  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessível.")
+  heroTitle               String   @default("GestÃ£o jurÃ­dica premium para escritÃ³rios que querem crescer com organizaÃ§Ã£o.")
+  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranÃ§as em uma plataforma moderna, profissional e acessÃ­vel.")
   heroPrimaryButtonText   String   @default("Entrar")
   heroSecondaryButtonText String   @default("Acompanhar")
   aboutTitle              String   @default("Sobre o sistema")
-  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operação jurídica com mais controle, imagem profissional e praticidade no dia a dia.")
+  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operaÃ§Ã£o jurÃ­dica com mais controle, imagem profissional e praticidade no dia a dia.")
   featuresTitle           String   @default("Funcionalidades")
-  featuresSubtitle        String   @default("Tudo o que seu escritório precisa para operar com segurança e organização.")
-  mediaTitle              String   @default("Veja o sistema em ação")
+  featuresSubtitle        String   @default("Tudo o que seu escritÃ³rio precisa para operar com seguranÃ§a e organizaÃ§Ã£o.")
+  mediaTitle              String   @default("Veja o sistema em aÃ§Ã£o")
   mediaSubtitle           String   @default("")
   plansTitle              String   @default("Planos")
   plansSubtitle           String   @default("Escolha o plano ideal para o seu momento.")
-  updatesTitle            String   @default("Atualizações")
-  updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lançamentos do sistema.")
-  ctaTitle                String   @default("Pronto para elevar o nível da sua operação jurídica?")
+  updatesTitle            String   @default("AtualizaÃ§Ãµes")
+  updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lanÃ§amentos do sistema.")
+  ctaTitle                String   @default("Pronto para elevar o nÃ­vel da sua operaÃ§Ã£o jurÃ­dica?")
   ctaSubtitle             String   @default("Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.")
-  footerText              String   @default("JURIDICVAS - Plataforma jurídica premium.")
+  footerText              String   @default("JURIDICVAS - Plataforma jurÃ­dica premium.")
   loginUrl                String   @default("/login")
   trackUrl                String   @default("/acompanhar")
   isPublished             Boolean  @default(true)
@@ -438,11 +438,29 @@ model LandingMedia {
   @@index([isActive])
 }
 
+model PublicCoupon {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  description   String?
+  discountType  String    @default("PERCENT") // PERCENT | FIXED
+  discountValue Float
+  isActive      Boolean   @default(true)
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  maxUses       Int?
+  usedCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
 model PublicPlan {
   id                 String   @id @default(cuid())
   name               String
   priceLabel         String
-  billingPeriod      String   @default("/mês")
+  billingPeriod      String   @default("/mÃªs")
   description        String?
   featuresText       String
   badgeText          String?
@@ -496,6 +514,10 @@ model SaaSSubscription {
   providerPaymentId    String?
   externalReference    String    @unique
   checkoutUrl          String?
+  originalAmount       Float?
+  discountAmount       Float?
+  finalAmount          Float?
+  couponCodeSnapshot   String?
   paidAt               DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -506,3 +528,4 @@ model SaaSSubscription {
   @@index([userId, status])
   @@index([publicPlanId])
 }
+

@@ -108,6 +108,11 @@ export default function SuperAdminShell({
       subItem: true,
     },
     {
+      href: "/admin/super/site/planos/cupons",
+      label: "Cupons de desconto",
+      subItem: true,
+    },
+    {
       href: "/admin/super/site/pagamento",
       label: "Pagamento público",
       subItem: true,
@@ -248,4 +253,6 @@ export default function SuperAdminShell({
     </div>
   );
 }
+
+
 
