@@ -15,7 +15,7 @@ function parsePlanAmount(priceLabel: string) {
 
   const amount = Number(normalized);
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("PreÃ§o do plano invÃ¡lido para checkout.");
+    throw new Error("Preço do plano inválido para checkout.");
   }
 
   return amount;
@@ -46,19 +46,19 @@ export async function createPublicPlanCheckout(params: {
   ]);
 
   if (!user || !user.active) {
-    throw new Error("UsuÃ¡rio invÃ¡lido para checkout.");
+    throw new Error("Usuário inválido para checkout.");
   }
 
   if (!plan || !plan.isActive) {
-    throw new Error("Plano nÃ£o encontrado ou inativo.");
+    throw new Error("Plano não encontrado ou inativo.");
   }
 
   if (!plan.isPurchasable) {
-    throw new Error("Este plano ainda nÃ£o estÃ¡ disponÃ­vel para compra.");
+    throw new Error("Este plano ainda não está disponível para compra.");
   }
 
   if (!paymentConfig || !paymentConfig.isActive || !paymentConfig.accessTokenEnc) {
-    throw new Error("Pagamento do site pÃºblico ainda nÃ£o estÃ¡ configurado.");
+    throw new Error("Pagamento do site público ainda não está configurado.");
   }
 
   const activeSubscription = await prisma.saaSSubscription.findFirst({
@@ -114,7 +114,7 @@ export async function createPublicPlanCheckout(params: {
     preference.paymentUrl ?? preference.initPoint ?? preference.sandboxInitPoint ?? null;
 
   if (!checkoutUrl) {
-    throw new Error("O Mercado Pago nÃ£o retornou uma URL de checkout.");
+    throw new Error("O Mercado Pago não retornou uma URL de checkout.");
   }
 
   const subscription = await prisma.saaSSubscription.create({
@@ -287,7 +287,7 @@ export async function getPublicSubscriptionStatusForUser(userId: string) {
   });
 
   if (!user || !user.active) {
-    throw new Error("UsuÃ¡rio invÃ¡lido.");
+    throw new Error("Usuário inválido.");
   }
 
   const subscription = await prisma.saaSSubscription.findFirst({
@@ -368,7 +368,7 @@ export async function createFirmForPaidUser(params: {
   const firmName = (params.firmName || "").trim();
 
   if (!firmName) {
-    throw new Error("Nome da advocacia e obrigatorio.");
+    throw new Error("Nome da advocacia é obrigatório.");
   }
 
   const user = await prisma.user.findUnique({
@@ -387,19 +387,19 @@ export async function createFirmForPaidUser(params: {
   });
 
   if (!user || !user.active) {
-    throw new Error("Usuario invalido.");
+    throw new Error("Usuário inválido.");
   }
 
   if (user.role === "SUPERADMIN") {
-    throw new Error("SUPERADMIN nao pode criar advocacia por este fluxo.");
+    throw new Error("SUPERADMIN não pode criar advocacia por este fluxo.");
   }
 
   if (user.firmId) {
-    throw new Error("Usuario ja possui advocacia vinculada.");
+    throw new Error("Usuário já possui advocacia vinculada.");
   }
 
   if (user.onboardingStatus !== "FIRM_REQUIRED") {
-    throw new Error("O usuario ainda nao esta liberado para criar a advocacia.");
+    throw new Error("O usuário ainda não está liberado para criar a advocacia.");
   }
 
   let planToUse = null;
@@ -428,7 +428,7 @@ export async function createFirmForPaidUser(params: {
   }
 
   if (!planToUse) {
-    throw new Error("Nenhum plano valido encontrado para este usuario.");
+    throw new Error("Nenhum plano válido encontrado para este usuário.");
   }
 
   const slug = await buildUniqueFirmSlug(firmName);

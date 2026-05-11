@@ -181,7 +181,7 @@ export default function SuperUsersPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        setMessage(data?.message || "Não foi possí­vel atualizar o usuário.");
+        setMessage(data?.message || "Não foi possível atualizar o usuário.");
         return;
       }
 
