@@ -120,7 +120,7 @@ export default function AccountPage() {
   const [successMessage, setSuccessMessage] = useState("");
   
   const [showCancelPendingModal, setShowCancelPendingModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -325,7 +325,6 @@ export default function AccountPage() {
   }
 
   function cancelPendingPayment() {
-    console.log("[JuridicVas] Clique em cancelar pagamento pendente detectado.");
     setMessage("");
     setSuccessMessage("");
     setShowCancelPendingModal(true);
@@ -390,10 +389,8 @@ export default function AccountPage() {
   }
 
   const activePendingCheckout =
-    subscriptionStatus?.subscription?.status === "PENDING";
-
-  const pendingCheckoutUrl =
-    subscriptionStatus?.subscription?.checkoutUrl || "";
+    subscriptionStatus?.subscription?.status === "PENDING" &&
+    subscriptionStatus?.subscription?.checkoutUrl;
 
   return (
     <AccountShell userName={me.name || "Usuário"} statusLabel={statusLabel(me.onboardingStatus)}>
@@ -733,7 +730,7 @@ export default function AccountPage() {
                   {activePendingCheckout ? (
                     <>
                       <a
-                        href={pendingCheckoutUrl || "#"}
+                        href={subscriptionStatus?.subscription?.checkoutUrl || "#"}
                         className="jv-premium-btn"
                         style={{ textDecoration: "none", textAlign: "center", justifyContent: "center" }}
                       >
@@ -775,118 +772,6 @@ export default function AccountPage() {
         </section>
       </div>
 
-
-      {showCancelPendingModal ? (
-        <div
-          className="modal-cancel-pending-payment"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 99999,
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-            background: "rgba(2,6,23,0.85)",
-            backdropFilter: "blur(12px)",
-          }}
-          onClick={closeCancelPendingModal}
-        >
-          <div
-            className="jv-glass"
-            style={{
-              width: "min(100%, 520px)",
-              borderRadius: 28,
-              padding: accountIsMobile ? 20 : 26,
-              display: "grid",
-              gap: 18,
-              background: "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
-              border: "1px solid rgba(255,255,255,0.16)",
-              boxShadow: "0 28px 90px rgba(0,0,0,0.55)",
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div style={{ display: "grid", gap: 8 }}>
-              <div
-                style={{
-                  width: "fit-content",
-                  borderRadius: 999,
-                  padding: "7px 10px",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: "0.08em",
-                  color: "#FDE68A",
-                  background: "rgba(245,158,11,0.12)",
-                  border: "1px solid rgba(245,158,11,0.24)",
-                }}
-              >
-                PAGAMENTO PENDENTE
-              </div>
-
-              <h2
-                style={{
-                  margin: 0,
-                  color: "#F8FAFC",
-                  fontSize: accountIsMobile ? 24 : 28,
-                  lineHeight: 1.1,
-                  letterSpacing: "-0.04em",
-                  fontWeight: 950,
-                }}
-              >
-                Cancelar pagamento pendente?
-              </h2>
-
-              <p style={{ margin: 0, color: "#CBD5E1", lineHeight: 1.75 }}>
-                Essa ação vai cancelar o pagamento pendente atual e liberar sua conta para escolher outro plano.
-              </p>
-            </div>
-
-            <div
-              style={{
-                borderRadius: 18,
-                padding: 14,
-                background: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.18)",
-                color: "#FDE68A",
-                fontSize: 13,
-                lineHeight: 1.65,
-              }}
-            >
-              Se você já realizou o pagamento, não cancele agora. Aguarde a confirmação do pagamento.
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: accountIsMobile ? "1fr" : "1fr 1fr",
-                gap: 10,
-              }}
-            >
-              <button
-                type="button"
-                className="jv-premium-btn-secondary"
-                onClick={closeCancelPendingModal}
-                disabled={cancelLoading}
-                style={{ justifyContent: "center" }}
-              >
-                Voltar
-              </button>
-
-              <button
-                type="button"
-                className="jv-premium-btn"
-                onClick={confirmCancelPendingPayment}
-                disabled={cancelLoading}
-                style={{
-                  justifyContent: "center",
-                  background: "linear-gradient(135deg, rgba(239,68,68,0.95), rgba(245,158,11,0.92))",
-                }}
-              >
-                {cancelLoading ? "Cancelando..." : "Sim, cancelar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
       <style>{`
         @media (max-width: 900px) {
           .account-plan-cart-grid {
@@ -939,6 +824,5 @@ export default function AccountPage() {
     </AccountShell>
   );
 }
-
 
 
