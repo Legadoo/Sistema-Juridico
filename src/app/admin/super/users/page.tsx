@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import SuperAdminShell from "@/components/SuperAdminShell";
@@ -46,6 +46,14 @@ type EditForm = {
   firmId: string;
 };
 
+type UserCategory =
+  | "ALL"
+  | "PLAN_REQUIRED"
+  | "PLAN_PENDING_PAYMENT"
+  | "FIRM_REQUIRED"
+  | "ACTIVE"
+  | "INACTIVE";
+
 const emptyEditForm: EditForm = {
   id: "",
   name: "",
@@ -58,6 +66,24 @@ const emptyEditForm: EditForm = {
   firmId: "",
 };
 
+function categoryLabel(category: UserCategory) {
+  if (category === "ALL") return "Todos";
+  if (category === "PLAN_REQUIRED") return "Aguardando plano";
+  if (category === "PLAN_PENDING_PAYMENT") return "Pagamento pendente";
+  if (category === "FIRM_REQUIRED") return "Aguardando advocacia";
+  if (category === "ACTIVE") return "Clientes ativos";
+  if (category === "INACTIVE") return "Inativos";
+  return category;
+}
+
+function statusColor(status?: string | null, active = true) {
+  if (!active) return "#FCA5A5";
+  if (status === "ACTIVE") return "#A7F3D0";
+  if (status === "PLAN_PENDING_PAYMENT") return "#FDE68A";
+  if (status === "FIRM_REQUIRED") return "#93C5FD";
+  return "#CBD5E1";
+}
+
 export default function SuperUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [firms, setFirms] = useState<FirmOption[]>([]);
@@ -67,6 +93,7 @@ export default function SuperUsersPage() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<UserCategory>("ALL");
   const [editForm, setEditForm] = useState<EditForm>(emptyEditForm);
 
   const currentUser = useMemo(
@@ -74,24 +101,46 @@ export default function SuperUsersPage() {
     [users, editForm.id]
   );
 
+  const counts = useMemo(() => {
+    return {
+      ALL: users.length,
+      PLAN_REQUIRED: users.filter((u) => u.active && (u.onboardingStatus ?? "PLAN_REQUIRED") === "PLAN_REQUIRED").length,
+      PLAN_PENDING_PAYMENT: users.filter((u) => u.active && u.onboardingStatus === "PLAN_PENDING_PAYMENT").length,
+      FIRM_REQUIRED: users.filter((u) => u.active && u.onboardingStatus === "FIRM_REQUIRED").length,
+      ACTIVE: users.filter((u) => u.active && u.onboardingStatus === "ACTIVE").length,
+      INACTIVE: users.filter((u) => !u.active).length,
+    };
+  }, [users]);
+
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return users;
 
     return users.filter((user) => {
+      const status = user.onboardingStatus ?? "PLAN_REQUIRED";
+
+      const categoryMatch =
+        category === "ALL" ||
+        (category === "INACTIVE" && !user.active) ||
+        (category !== "INACTIVE" && user.active && status === category);
+
+      if (!categoryMatch) return false;
+
+      if (!q) return true;
+
       const haystack = [
         user.name || "",
         user.email || "",
         user.phone || "",
         user.firm?.name || "",
         user.selectedPlanNameSnapshot || "",
+        status,
       ]
         .join(" ")
         .toLowerCase();
 
       return haystack.includes(q);
     });
-  }, [users, search]);
+  }, [users, search, category]);
 
   useEffect(() => {
     let ignore = false;
@@ -194,17 +243,54 @@ export default function SuperUsersPage() {
     }
   }
 
+  const categories: UserCategory[] = [
+    "ALL",
+    "PLAN_REQUIRED",
+    "PLAN_PENDING_PAYMENT",
+    "FIRM_REQUIRED",
+    "ACTIVE",
+    "INACTIVE",
+  ];
+
   return (
     <SuperAdminShell userName={userName}>
       <div style={{ display: "grid", gap: 20 }}>
-        <div className="jv-glass" style={{ padding: 20, borderRadius: 20 }}>
-          <div style={{ fontSize: 26, fontWeight: 900, color: "#F8FAFC" }}>
+        <section className="jv-glass" style={{ padding: 22, borderRadius: 24 }}>
+          <div style={{ fontSize: 28, fontWeight: 950, color: "#F8FAFC", letterSpacing: "-0.04em" }}>
             Usuários
           </div>
-          <div style={{ color: "#94A3B8", marginTop: 6 }}>
-            Gestão global de usuários do SaaS
+          <div style={{ color: "#94A3B8", marginTop: 6, lineHeight: 1.7 }}>
+            Gestão global de usuários do SaaS, separados por etapa da conta.
           </div>
-        </div>
+        </section>
+
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          {categories.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setCategory(item)}
+              className="jv-premium-card"
+              style={{
+                borderRadius: 20,
+                padding: 16,
+                textAlign: "left",
+                cursor: "pointer",
+                border:
+                  category === item
+                    ? "1px solid rgba(34,211,238,0.45)"
+                    : "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 900 }}>
+                {categoryLabel(item)}
+              </div>
+              <div style={{ color: "#F8FAFC", fontSize: 26, fontWeight: 950, marginTop: 6 }}>
+                {counts[item]}
+              </div>
+            </button>
+          ))}
+        </section>
 
         <div
           style={{
@@ -215,75 +301,74 @@ export default function SuperUsersPage() {
           }}
         >
           <div style={{ display: "grid", gap: 16 }}>
-  <div className="jv-glass" style={{ padding: 16, borderRadius: 20, display: "grid", gap: 10 }}>
-    <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 16 }}>
-      Buscar advogado
-    </div>
-    <input
-      className="jv-premium-input"
-      placeholder="Pesquisar por nome, e-mail, telefone..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-    />
-    <div style={{ color: "#94A3B8", fontSize: 13 }}>
-      Resultados: {filteredUsers.length}
-    </div>
-  </div>
+            <div className="jv-glass" style={{ padding: 16, borderRadius: 20, display: "grid", gap: 10 }}>
+              <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 16 }}>
+                Buscar usuário
+              </div>
+              <input
+                className="jv-premium-input"
+                placeholder="Pesquisar por nome, e-mail, telefone, plano ou status..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <div style={{ color: "#94A3B8", fontSize: 13 }}>
+                Categoria: {categoryLabel(category)} · Resultados: {filteredUsers.length}
+              </div>
+            </div>
+
             {loading ? (
               <div className="jv-glass" style={{ padding: 20, borderRadius: 20 }}>
                 Carregando usuários...
               </div>
             ) : filteredUsers.length === 0 ? (
               <div className="jv-glass" style={{ padding: 20, borderRadius: 20 }}>
-                Nenhum usuário encontrado.
+                Nenhum usuário encontrado nesta categoria.
               </div>
             ) : (
-              filteredUsers.map((user) => (
-                <button
-                  key={user.id}
-                  type="button"
-                  onClick={() => openEditor(user)}
-                  className="jv-glass"
-                  style={{
-                    padding: 20,
-                    borderRadius: 20,
-                    display: "grid",
-                    gap: 8,
-                    textAlign: "left",
-                    border:
-                      editForm.id === user.id
-                        ? "1px solid rgba(99,102,241,0.45)"
-                        : "1px solid rgba(255,255,255,0.08)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 800 }}>
-                    {user.name}
-                  </div>
-                  <div style={{ color: "#94A3B8" }}>{user.email}</div>
-                  <div style={{ color: "#94A3B8" }}>
-                    Telefone: {user.phone || "Não informado"}
-                  </div>
-                  <div style={{ color: "#94A3B8" }}>Perfil: {user.role}</div>
-                  <div style={{ color: "#94A3B8" }}>
-                    Plano: {user.selectedPlanNameSnapshot || "Nenhum"}
-                  </div>
-                  <div style={{ color: "#94A3B8" }}>
-                    Onboarding: {user.onboardingStatus ?? "null"}
-                  </div>
-                  <div style={{ color: "#94A3B8" }}>
-                    Advocacia: {user.firm?.name || "Nenhuma"}
-                  </div>
-                  <div
+              filteredUsers.map((user) => {
+                const currentStatus = user.onboardingStatus ?? "PLAN_REQUIRED";
+
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => openEditor(user)}
+                    className="jv-glass"
                     style={{
-                      color: user.active ? "#6EE7B7" : "#FCA5A5",
-                      fontWeight: 700,
+                      padding: 20,
+                      borderRadius: 20,
+                      display: "grid",
+                      gap: 8,
+                      textAlign: "left",
+                      border:
+                        editForm.id === user.id
+                          ? "1px solid rgba(99,102,241,0.45)"
+                          : "1px solid rgba(255,255,255,0.08)",
+                      cursor: "pointer",
                     }}
                   >
-                    {user.active ? "Ativo" : "Inativo"}
-                  </div>
-                </button>
-              ))
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 800 }}>
+                        {user.name}
+                      </div>
+                      <div style={{ color: statusColor(currentStatus, user.active), fontWeight: 900, fontSize: 12 }}>
+                        {!user.active ? "INATIVO" : currentStatus}
+                      </div>
+                    </div>
+
+                    <div style={{ color: "#94A3B8" }}>{user.email}</div>
+                    <div style={{ color: "#94A3B8" }}>
+                      Telefone: {user.phone || "Não informado"}
+                    </div>
+                    <div style={{ color: "#94A3B8" }}>
+                      Plano: {user.selectedPlanNameSnapshot || "Nenhum"}
+                    </div>
+                    <div style={{ color: "#94A3B8" }}>
+                      Advocacia: {user.firm?.name || "Nenhuma"}
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
 
@@ -332,21 +417,10 @@ export default function SuperUsersPage() {
                       firmId: e.target.value === "SUPERADMIN" ? "" : prev.firmId,
                     }))
                   }
-                  style={{
-                    colorScheme: "dark",
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    color: "#F8FAFC",
-                  }}
                 >
-                  <option value="SECRETARY" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                    SECRETARY
-                  </option>
-                  <option value="MASTER" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                    MASTER
-                  </option>
-                  <option value="SUPERADMIN" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                    SUPERADMIN
-                  </option>
+                  <option value="SECRETARY">SECRETARY</option>
+                  <option value="MASTER">MASTER</option>
+                  <option value="SUPERADMIN">SUPERADMIN</option>
                 </select>
 
                 {editForm.role !== "SUPERADMIN" ? (
@@ -360,21 +434,10 @@ export default function SuperUsersPage() {
                           selectedPlanId: e.target.value,
                         }))
                       }
-                      style={{
-                        colorScheme: "dark",
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        color: "#F8FAFC",
-                      }}
                     >
-                      <option value="" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        Sem plano vinculado
-                      </option>
+                      <option value="">Sem plano vinculado</option>
                       {plans.map((plan) => (
-                        <option
-                          key={plan.id}
-                          value={plan.id}
-                          style={{ background: "#0F172A", color: "#F8FAFC" }}
-                        >
+                        <option key={plan.id} value={plan.id}>
                           {plan.name}
                         </option>
                       ))}
@@ -389,21 +452,10 @@ export default function SuperUsersPage() {
                           firmId: e.target.value,
                         }))
                       }
-                      style={{
-                        colorScheme: "dark",
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        color: "#F8FAFC",
-                      }}
                     >
-                      <option value="" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        Sem advocacia vinculada
-                      </option>
+                      <option value="">Sem advocacia vinculada</option>
                       {firms.map((firm) => (
-                        <option
-                          key={firm.id}
-                          value={firm.id}
-                          style={{ background: "#0F172A", color: "#F8FAFC" }}
-                        >
+                        <option key={firm.id} value={firm.id}>
                           {firm.name}
                         </option>
                       ))}
@@ -418,24 +470,11 @@ export default function SuperUsersPage() {
                           onboardingStatus: e.target.value,
                         }))
                       }
-                      style={{
-                        colorScheme: "dark",
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        color: "#F8FAFC",
-                      }}
                     >
-                      <option value="PLAN_REQUIRED" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        PLAN_REQUIRED
-                      </option>
-                      <option value="PLAN_PENDING_PAYMENT" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        PLAN_PENDING_PAYMENT
-                      </option>
-                      <option value="FIRM_REQUIRED" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        FIRM_REQUIRED
-                      </option>
-                      <option value="ACTIVE" style={{ background: "#0F172A", color: "#F8FAFC" }}>
-                        ACTIVE
-                      </option>
+                      <option value="PLAN_REQUIRED">PLAN_REQUIRED</option>
+                      <option value="PLAN_PENDING_PAYMENT">PLAN_PENDING_PAYMENT</option>
+                      <option value="FIRM_REQUIRED">FIRM_REQUIRED</option>
+                      <option value="ACTIVE">ACTIVE</option>
                     </select>
                   </>
                 ) : null}
@@ -488,6 +527,14 @@ export default function SuperUsersPage() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          div[style*="minmax(320px, 1.2fr)"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </SuperAdminShell>
   );
 }

@@ -1,0 +1,825 @@
+﻿"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import AccountShell from "@/components/AccountShell";
+
+type MeResponse = {
+  ok?: boolean;
+  suggestedRedirect?: string;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    firmId?: string | null;
+    onboardingStatus?: string | null;
+    selectedPlanId?: string | null;
+    selectedPlanNameSnapshot?: string | null;
+    canAccessAdmin?: boolean;
+  };
+};
+
+type PublicPlan = {
+  id: string;
+  name: string;
+  priceLabel: string;
+  billingPeriod: string;
+  description?: string | null;
+  featuresText: string;
+  badgeText?: string | null;
+  ctaText: string;
+  isPurchasable: boolean;
+  isHighlighted: boolean;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+type SubscriptionStatusResponse = {
+  ok?: boolean;
+  data?: {
+    nextStep?: string;
+    subscription?: {
+      id?: string;
+      status?: string;
+      checkoutUrl?: string | null;
+      paidAt?: string | null;
+      plan?: {
+        id?: string;
+        name?: string;
+        priceLabel?: string;
+        billingPeriod?: string;
+      } | null;
+    } | null;
+  };
+};
+
+type CartPreview = {
+  planId: string;
+  planName: string;
+  couponCode: string | null;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+};
+
+function statusLabel(value?: string | null) {
+  if (value === "PLAN_PENDING_PAYMENT") return "Pagamento pendente";
+  if (value === "PLAN_REQUIRED") return "Escolha de plano";
+  if (value === "FIRM_REQUIRED") return "Criar advocacia";
+  if (value === "ACTIVE") return "Conta ativa";
+  return "Conta em configuração";
+}
+
+function statusText(value?: string | null) {
+  if (value === "PLAN_PENDING_PAYMENT") {
+    return "Você já iniciou uma assinatura. Finalize o pagamento ou cancele o pagamento pendente para escolher outro plano.";
+  }
+
+  if (value === "PLAN_REQUIRED") {
+    return "Escolha um plano, revise o carrinho, aplique um cupom se tiver e confirme o pagamento.";
+  }
+
+  if (value === "FIRM_REQUIRED") {
+    return "Pagamento aprovado. Agora falta criar sua advocacia para acessar o sistema.";
+  }
+
+  if (value === "ACTIVE") {
+    return "Sua conta está ativa. Você já pode acessar o painel administrativo.";
+  }
+
+  return "Configure sua conta para continuar.";
+}
+
+function money(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+function parsePlanAmount(priceLabel: string) {
+  const normalized = (priceLabel || "")
+    .replace(/\s/g, "")
+    .replace("R$", "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .trim();
+
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+export default function AccountPage() {
+  const [me, setMe] = useState<MeResponse["user"] | null>(null);
+  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [cartPreview, setCartPreview] = useState<CartPreview | null>(null);
+  const [message, setMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [accountViewportWidth, setAccountViewportWidth] = useState(1280);
+  const [subscriptionStatus, setSubscriptionStatus] =
+    useState<SubscriptionStatusResponse["data"] | null>(null);
+
+  useEffect(() => {
+    function updateAccountViewportWidth() {
+      setAccountViewportWidth(window.innerWidth);
+    }
+
+    updateAccountViewportWidth();
+    window.addEventListener("resize", updateAccountViewportWidth);
+
+    return () => {
+      window.removeEventListener("resize", updateAccountViewportWidth);
+    };
+  }, []);
+
+  const accountIsMobile = accountViewportWidth < 900;
+
+  const selectedPlan = useMemo(() => {
+    if (!selectedPlanId) return null;
+    return plans.find((plan) => plan.id === selectedPlanId) ?? null;
+  }, [plans, selectedPlanId]);
+
+  const fallbackOriginalAmount = selectedPlan ? parsePlanAmount(selectedPlan.priceLabel) : 0;
+  const originalAmount = cartPreview?.originalAmount ?? fallbackOriginalAmount;
+  const discountAmount = cartPreview?.discountAmount ?? 0;
+  const finalAmount = cartPreview?.finalAmount ?? originalAmount;
+
+  async function loadAccountData(ignore = false) {
+    setLoading(true);
+
+    try {
+      const [meResponse, siteResponse, statusResponse] = await Promise.all([
+        fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch("/api/public/site", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch("/api/public/subscription/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (ignore) return;
+
+      if (!meResponse?.ok || !meResponse.user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (meResponse.user.role === "SUPERADMIN") {
+        window.location.href = "/admin/super";
+        return;
+      }
+
+      if (meResponse.user.onboardingStatus === "ACTIVE" && meResponse.user.firmId) {
+        window.location.href = "/admin";
+        return;
+      }
+
+      setMe(meResponse.user);
+
+      const publicPlans = Array.isArray(siteResponse?.data?.plans)
+        ? siteResponse.data.plans.filter((plan: PublicPlan) => plan.isActive && plan.isPurchasable)
+        : [];
+
+      const sortedPlans = publicPlans.sort(
+        (a: PublicPlan, b: PublicPlan) => a.sortOrder - b.sortOrder
+      );
+
+      setPlans(sortedPlans);
+
+      const currentStatus = statusResponse?.ok ? statusResponse.data ?? null : null;
+      setSubscriptionStatus(currentStatus);
+
+      const pendingPlanId =
+        currentStatus?.subscription?.plan?.id ||
+        meResponse.user.selectedPlanId ||
+        "";
+
+      if (pendingPlanId) {
+        setSelectedPlanId(pendingPlanId);
+      } else if (sortedPlans[0]?.id) {
+        setSelectedPlanId(sortedPlans[0].id);
+      }
+    } finally {
+      if (!ignore) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let ignore = false;
+
+    void loadAccountData(ignore);
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  function selectPlan(planId: string) {
+    setSelectedPlanId(planId);
+    setCouponCode("");
+    setAppliedCouponCode("");
+    setCartPreview(null);
+    setMessage("");
+    setSuccessMessage("");
+  }
+
+  function removePlanFromCart() {
+    setSelectedPlanId("");
+    setCouponCode("");
+    setAppliedCouponCode("");
+    setCartPreview(null);
+    setMessage("Plano removido do carrinho. Escolha outro plano para continuar.");
+    setSuccessMessage("");
+  }
+
+  async function applyCoupon() {
+    if (!selectedPlanId) {
+      setMessage("Escolha um plano antes de aplicar o cupom.");
+      return;
+    }
+
+    setPreviewLoading(true);
+    setMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/public/checkout/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          planId: selectedPlanId,
+          couponCode: couponCode.trim().toUpperCase(),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setCartPreview(null);
+        setAppliedCouponCode("");
+        setMessage(data?.message || "Não foi possível aplicar o cupom.");
+        return;
+      }
+
+      setCartPreview(data.data);
+      setAppliedCouponCode(data.data?.couponCode || "");
+
+      if (data.data?.couponCode) {
+        setSuccessMessage("Cupom aplicado com sucesso.");
+      } else {
+        setSuccessMessage("Valor calculado sem cupom.");
+      }
+    } catch {
+      setMessage("Falha ao aplicar cupom.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function paySelectedPlan() {
+    if (!selectedPlanId) {
+      setMessage("Escolha um plano antes de continuar.");
+      return;
+    }
+
+    setCheckoutLoading(true);
+    setMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/public/checkout/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          planId: selectedPlanId,
+          couponCode: appliedCouponCode || couponCode.trim().toUpperCase(),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setMessage(data?.message || "Não foi possível iniciar o pagamento.");
+        return;
+      }
+
+      const checkoutUrl = data?.data?.checkoutUrl;
+
+      if (!checkoutUrl) {
+        setMessage("Checkout não disponível.");
+        return;
+      }
+
+      window.location.href = checkoutUrl;
+    } catch {
+      setMessage("Falha ao iniciar pagamento.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
+
+  function cancelPendingPayment() {
+    setMessage("");
+    setSuccessMessage("");
+    setShowCancelPendingModal(true);
+  }
+
+  function closeCancelPendingModal() {
+    if (cancelLoading) return;
+    setShowCancelPendingModal(false);
+  }
+
+  async function confirmCancelPendingPayment() {
+    setCancelLoading(true);
+    setMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/public/checkout/cancel", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setShowCancelPendingModal(false);
+        setMessage(data?.message || "Não foi possível cancelar o pagamento pendente.");
+        return;
+      }
+
+      setSelectedPlanId("");
+      setCouponCode("");
+      setAppliedCouponCode("");
+      setCartPreview(null);
+      setSubscriptionStatus(null);
+      setShowCancelPendingModal(false);
+      setSuccessMessage(data.message || "Pagamento pendente cancelado.");
+      await loadAccountData();
+    } catch {
+      setShowCancelPendingModal(false);
+      setMessage("Falha ao cancelar pagamento pendente.");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  if (loading || !me) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: "#07070a",
+          color: "#F8FAFC",
+          padding: 24,
+          textAlign: "center",
+        }}
+      >
+        Carregando sua conta...
+      </div>
+    );
+  }
+
+  const activePendingCheckout =
+    subscriptionStatus?.subscription?.status === "PENDING" &&
+    subscriptionStatus?.subscription?.checkoutUrl;
+
+  return (
+    <AccountShell userName={me.name || "Usuário"} statusLabel={statusLabel(me.onboardingStatus)}>
+      <div style={{ display: "grid", gap: 22 }}>
+        <section
+          className="jv-glass"
+          style={{
+            borderRadius: 28,
+            padding: 24,
+            display: "grid",
+            gap: 12,
+            background:
+              "linear-gradient(135deg, rgba(139,92,246,0.16), rgba(15,23,42,0.94) 45%, rgba(34,211,238,0.10))",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              width: "fit-content",
+              borderRadius: 999,
+              padding: "7px 10px",
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: "0.08em",
+              color: "#C4B5FD",
+              background: "rgba(139,92,246,0.12)",
+              border: "1px solid rgba(139,92,246,0.24)",
+            }}
+          >
+            CONTA
+          </div>
+
+          <h1
+            style={{
+              margin: 0,
+              color: "#F8FAFC",
+              fontSize: accountIsMobile ? 28 : 34,
+              lineHeight: 1.05,
+              letterSpacing: "-0.05em",
+              fontWeight: 950,
+            }}
+          >
+            Configure sua assinatura
+          </h1>
+
+          <p style={{ margin: 0, color: "#94A3B8", lineHeight: 1.8, maxWidth: 920 }}>
+            {statusText(me.onboardingStatus)}
+          </p>
+
+          {me.onboardingStatus === "FIRM_REQUIRED" ? (
+            <div>
+              <a href="/onboarding/firm" className="jv-premium-btn" style={{ textDecoration: "none" }}>
+                Criar minha advocacia
+              </a>
+            </div>
+          ) : null}
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: accountIsMobile ? "1fr" : "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 14,
+          }}
+        >
+          <div className="jv-premium-card" style={{ borderRadius: 22, padding: 18 }}>
+            <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 900, letterSpacing: "0.10em" }}>
+              STATUS
+            </div>
+            <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 950, marginTop: 8 }}>
+              {statusLabel(me.onboardingStatus)}
+            </div>
+          </div>
+
+          <div className="jv-premium-card" style={{ borderRadius: 22, padding: 18 }}>
+            <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 900, letterSpacing: "0.10em" }}>
+              PLANO SELECIONADO
+            </div>
+            <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 950, marginTop: 8 }}>
+              {selectedPlan?.name || me.selectedPlanNameSnapshot || "Nenhum"}
+            </div>
+          </div>
+
+          <div className="jv-premium-card" style={{ borderRadius: 22, padding: 18 }}>
+            <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 900, letterSpacing: "0.10em" }}>
+              PAGAMENTO
+            </div>
+            <div style={{ color: activePendingCheckout ? "#FDE68A" : "#CBD5E1", fontSize: 22, fontWeight: 950, marginTop: 8 }}>
+              {activePendingCheckout ? "Pendente" : "Aguardando confirmação"}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="account-plan-cart-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: accountIsMobile ? "1fr" : "minmax(0, 1.15fr) minmax(320px, 0.85fr)",
+            gap: 18,
+            alignItems: "start",
+          }}
+        >
+          <div
+            className="jv-glass account-plans-panel"
+            style={{
+              borderRadius: 28,
+              padding: accountIsMobile ? 16 : 22,
+              display: "grid",
+              gap: 18,
+              minWidth: 0,
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, color: "#F8FAFC", fontSize: 24, fontWeight: 950 }}>
+                Escolha seu plano
+              </h2>
+              <p style={{ margin: "8px 0 0", color: "#94A3B8", lineHeight: 1.7 }}>
+                Escolha o plano, revise no carrinho e confirme o pagamento com segurança.
+              </p>
+            </div>
+
+            {plans.length === 0 ? (
+              <div className="jv-premium-card" style={{ borderRadius: 20, padding: 18, color: "#CBD5E1" }}>
+                Nenhum plano disponível no momento.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: accountIsMobile ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+                {plans.map((plan) => {
+                  const selected = selectedPlanId === plan.id;
+                  const features = plan.featuresText
+                    .split("\n")
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                    .slice(0, 8);
+
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => selectPlan(plan.id)}
+                      className="jv-premium-card"
+                      style={{
+                        borderRadius: 24,
+                        padding: 18,
+                        textAlign: "left",
+                        display: "grid",
+                        gap: 14,
+                        border: selected
+                          ? "1px solid rgba(139,92,246,0.60)"
+                          : "1px solid rgba(255,255,255,0.08)",
+                        cursor: "pointer",
+                        width: "100%",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                        <div>
+                          <strong style={{ color: "#F8FAFC", fontSize: 20 }}>
+                            {plan.name}
+                          </strong>
+                          <p style={{ margin: "8px 0 0", color: "#94A3B8", fontSize: 13, lineHeight: 1.6 }}>
+                            {plan.description || "Plano do JuridicVas"}
+                          </p>
+                        </div>
+
+                        {selected ? (
+                          <span style={{ color: "#A7F3D0", fontSize: 12, fontWeight: 900 }}>
+                            Selecionado
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div style={{ color: "#A5F3FC", fontSize: 28, fontWeight: 950, letterSpacing: "-0.05em" }}>
+                        {plan.priceLabel}
+                        <span style={{ color: "#94A3B8", fontSize: 13, marginLeft: 4 }}>
+                          {plan.billingPeriod}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gap: 7 }}>
+                        {features.map((feature) => (
+                          <div key={feature} style={{ color: "#CBD5E1", fontSize: 13 }}>
+                            ✓ {feature}
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <aside
+            className="jv-glass account-cart-panel"
+            style={{
+              borderRadius: 28,
+              padding: accountIsMobile ? 16 : 22,
+              display: "grid",
+              gap: 18,
+              position: accountIsMobile ? "static" : "sticky",
+              top: accountIsMobile ? "auto" : 24,
+              minWidth: 0,
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, color: "#F8FAFC", fontSize: 24, fontWeight: 950 }}>
+                Carrinho
+              </h2>
+              <p style={{ margin: "8px 0 0", color: "#94A3B8", lineHeight: 1.7 }}>
+                Aplique cupom, confira o valor final e confirme antes de ir ao Mercado Pago.
+              </p>
+            </div>
+
+            {!selectedPlan ? (
+              <div className="jv-premium-card" style={{ borderRadius: 20, padding: 18, color: "#CBD5E1" }}>
+                Nenhum plano no carrinho.
+              </div>
+            ) : (
+              <div className="jv-premium-card" style={{ borderRadius: 22, padding: 18, display: "grid", gap: 14 }}>
+                <div>
+                  <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 950 }}>
+                    {selectedPlan.name}
+                  </div>
+                  <div style={{ color: "#94A3B8", fontSize: 13, marginTop: 6 }}>
+                    {selectedPlan.description || "Assinatura JuridicVas"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    borderRadius: 18,
+                    padding: 14,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ color: "#94A3B8" }}>Preço original</span>
+                    <strong style={{ color: "#F8FAFC" }}>{money(originalAmount)}</strong>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ color: "#94A3B8" }}>Desconto</span>
+                    <strong style={{ color: discountAmount > 0 ? "#A7F3D0" : "#CBD5E1" }}>
+                      {discountAmount > 0 ? `- ${money(discountAmount)}` : money(0)}
+                    </strong>
+                  </div>
+
+                  {appliedCouponCode ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <span style={{ color: "#94A3B8" }}>Cupom aplicado</span>
+                      <strong style={{ color: "#A5F3FC" }}>{appliedCouponCode}</strong>
+                    </div>
+                  ) : null}
+
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                    <span style={{ color: "#F8FAFC", fontWeight: 900 }}>Total</span>
+                    <strong style={{ color: "#A5F3FC", fontSize: 28, fontWeight: 950, letterSpacing: "-0.05em" }}>
+                      {money(finalAmount)}
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 8 }}>
+                  <label style={{ color: "#CBD5E1", fontSize: 13, fontWeight: 800 }}>
+                    Cupom de desconto
+                  </label>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: accountIsMobile ? "1fr" : "1fr auto",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      className="jv-premium-input"
+                      placeholder="Ex: DESCONTO20"
+                      value={couponCode}
+                      onChange={(event) => {
+                        setCouponCode(event.target.value.toUpperCase().replace(/\s+/g, ""));
+                        setAppliedCouponCode("");
+                        setCartPreview(null);
+                        setSuccessMessage("");
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      className="jv-premium-btn-secondary"
+                      onClick={applyCoupon}
+                      disabled={previewLoading}
+                      style={{ justifyContent: "center" }}
+                    >
+                      {previewLoading ? "Aplicando..." : "Aplicar cupom"}
+                    </button>
+                  </div>
+                </div>
+
+                {message ? (
+                  <div
+                    style={{
+                      color: "#FCA5A5",
+                      background: "rgba(239,68,68,0.10)",
+                      border: "1px solid rgba(239,68,68,0.18)",
+                      borderRadius: 16,
+                      padding: "10px 12px",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {message}
+                  </div>
+                ) : null}
+
+                {successMessage ? (
+                  <div
+                    style={{
+                      color: "#A7F3D0",
+                      background: "rgba(16,185,129,0.10)",
+                      border: "1px solid rgba(16,185,129,0.18)",
+                      borderRadius: 16,
+                      padding: "10px 12px",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {successMessage}
+                  </div>
+                ) : null}
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {activePendingCheckout ? (
+                    <>
+                      <a
+                        href={subscriptionStatus?.subscription?.checkoutUrl || "#"}
+                        className="jv-premium-btn"
+                        style={{ textDecoration: "none", textAlign: "center", justifyContent: "center" }}
+                      >
+                        Abrir link de pagamento
+                      </a>
+
+                      <button
+                        type="button"
+                        className="jv-premium-btn-secondary"
+                        onClick={cancelPendingPayment}
+                        disabled={cancelLoading}
+                      >
+                        {cancelLoading ? "Cancelando..." : "Cancelar pagamento pendente"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="jv-premium-btn"
+                      onClick={paySelectedPlan}
+                      disabled={checkoutLoading || previewLoading}
+                    >
+                      {checkoutLoading ? "Gerando pagamento..." : "Confirmar e gerar pagamento"}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="jv-premium-btn-secondary"
+                    onClick={removePlanFromCart}
+                    disabled={checkoutLoading || cancelLoading}
+                  >
+                    Remover plano do carrinho
+                  </button>
+                </div>
+              </div>
+            )}
+          </aside>
+        </section>
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .account-plan-cart-grid {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: 100% !important;
+            gap: 18px !important;
+          }
+
+          .account-plans-panel {
+            order: 1 !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          .account-cart-panel {
+            order: 2 !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            position: static !important;
+          }
+
+          .account-plan-cart-grid > * {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .account-plans-panel,
+          .account-cart-panel {
+            border-radius: 22px !important;
+          }
+
+          .account-plans-panel .jv-premium-card,
+          .account-cart-panel .jv-premium-card {
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 20px !important;
+          }
+
+          .account-cart-panel button,
+          .account-cart-panel a.jv-premium-btn,
+          .account-cart-panel a.jv-premium-btn-secondary {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+        }
+      `}</style>
+    </AccountShell>
+  );
+}
+

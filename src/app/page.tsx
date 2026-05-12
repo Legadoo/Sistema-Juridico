@@ -174,7 +174,7 @@ export default function HomePage() {
       } | null;
     } | null;
   } | null>(null);
-  const [showPlansModal, setShowPlansModal] = useState(false);
+  const [showPlansModal] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [pendingCheckoutPlanId, setPendingCheckoutPlanId] = useState<string | null>(null);
   const [couponCodeInput, setCouponCodeInput] = useState("");
@@ -247,34 +247,29 @@ export default function HomePage() {
   if (!sessionUser) return;
 
   if (sessionUser.role === "SUPERADMIN") {
-    setShowPlansModal(false);
     window.location.href = "/admin/super";
     return;
   }
 
   if (sessionUser.firmId && sessionUser.onboardingStatus === "ACTIVE") {
-    setShowPlansModal(false);
     window.location.href = "/admin";
     return;
   }
 
   if (sessionUser.onboardingStatus === "FIRM_REQUIRED") {
-    setShowPlansModal(false);
     window.location.href = "/onboarding/firm";
     return;
   }
 
   if (sessionUser.onboardingStatus === "PLAN_REQUIRED") {
-    setShowPlansModal(true);
+    window.location.href = "/conta";
     return;
   }
 
   if (sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT") {
-    setShowPlansModal(true);
+    window.location.href = "/conta";
     return;
   }
-
-  setShowPlansModal(false);
 }, [sessionUser]);
 
   useEffect(() => {
@@ -502,11 +497,11 @@ export default function HomePage() {
       sessionUser.onboardingStatus === "PLAN_REQUIRED" ||
       sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
     ) {
-      setShowPlansModal(true);
+      window.location.href = "/conta";
       return;
     }
 
-    setShowPlansModal(true);
+    window.location.href = "/conta";
   }
 
   return (
@@ -2342,273 +2337,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-      {/* COUPON_MODAL_START */}
-      {showCouponModal ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Confirmar assinatura"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 160,
-            display: "grid",
-            placeItems: "center",
-            padding: isMobile ? 16 : 24,
-            background: "rgba(2,6,23,0.78)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <button
-            type="button"
-            aria-label="Fechar confirmação"
-            onClick={closeCouponModal}
-            disabled={Boolean(checkoutLoadingPlanId)}
-            style={{
-              position: "absolute",
-              inset: 0,
-              border: "none",
-              background: "transparent",
-              cursor: checkoutLoadingPlanId ? "default" : "pointer",
-            }}
-          />
-
-          <div
-            className="jv-premium-card"
-            style={{
-              position: "relative",
-              width: "100%",
-              maxWidth: 540,
-              borderRadius: isMobile ? 24 : 30,
-              padding: isMobile ? 20 : 28,
-              display: "grid",
-              gap: 18,
-              background:
-                "linear-gradient(135deg, rgba(34,211,238,0.12), rgba(15,23,42,0.96) 42%, rgba(99,102,241,0.14))",
-              border: "1px solid rgba(255,255,255,0.10)",
-              boxShadow: "0 28px 80px rgba(0,0,0,0.55)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
-              <div style={{ display: "grid", gap: 8 }}>
-                <div
-                  style={{
-                    width: "fit-content",
-                    borderRadius: 999,
-                    padding: "7px 10px",
-                    color: "#A5F3FC",
-                    background: "rgba(34,211,238,0.10)",
-                    border: "1px solid rgba(34,211,238,0.18)",
-                    fontSize: 11,
-                    fontWeight: 900,
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  CONFIRMAR ASSINATURA
-                </div>
-
-                <h2
-                  style={{
-                    margin: 0,
-                    color: "#F8FAFC",
-                    fontSize: isMobile ? 24 : 30,
-                    lineHeight: 1.08,
-                    fontWeight: 950,
-                    letterSpacing: "-0.05em",
-                  }}
-                >
-                  Finalizar escolha do plano
-                </h2>
-
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#94A3B8",
-                    fontSize: 14,
-                    lineHeight: 1.7,
-                  }}
-                >
-                  Confirme seu plano e, se possuir um cupom de desconto, informe abaixo antes de ir para o pagamento.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeCouponModal}
-                disabled={Boolean(checkoutLoadingPlanId)}
-                aria-label="Fechar"
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 14,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "#E2E8F0",
-                  cursor: checkoutLoadingPlanId ? "not-allowed" : "pointer",
-                  fontWeight: 900,
-                  flex: "0 0 auto",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {pendingCheckoutPlan ? (
-              <div
-                style={{
-                  borderRadius: 20,
-                  padding: 14,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <div style={{ color: "#F8FAFC", fontWeight: 900 }}>
-                    {pendingCheckoutPlan.name}
-                  </div>
-                  <div style={{ color: "#94A3B8", fontSize: 13, marginTop: 4 }}>
-                    Plano selecionado
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    color: "#A5F3FC",
-                    fontWeight: 950,
-                    fontSize: 20,
-                    letterSpacing: "-0.04em",
-                  }}
-                >
-                  {pendingCheckoutPlan.priceLabel}
-                  <span style={{ color: "#94A3B8", fontSize: 12, marginLeft: 4 }}>
-                    {pendingCheckoutPlan.billingPeriod}
-                  </span>
-                </div>
-              </div>
-            ) : null}
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <label
-                htmlFor="coupon-code-input"
-                style={{
-                  color: "#CBD5E1",
-                  fontSize: 13,
-                  fontWeight: 800,
-                }}
-              >
-                Cupom de desconto
-              </label>
-
-              <input
-                id="coupon-code-input"
-                value={couponCodeInput}
-                onChange={(event) =>
-                  setCouponCodeInput(event.target.value.toUpperCase().replace(/\s+/g, ""))
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void confirmPlanCheckout(true);
-                  }
-
-                  if (event.key === "Escape") {
-                    closeCouponModal();
-                  }
-                }}
-                placeholder="Ex: DESCONTO20"
-                disabled={Boolean(checkoutLoadingPlanId)}
-                style={{
-                  width: "100%",
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "#F8FAFC",
-                  outline: "none",
-                  padding: "15px 16px",
-                  fontSize: 16,
-                  fontWeight: 800,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                }}
-              />
-            </div>
-
-            {checkoutMessage ? (
-              <div
-                style={{
-                  borderRadius: 18,
-                  padding: "12px 14px",
-                  color: "#FCA5A5",
-                  background: "rgba(239,68,68,0.10)",
-                  border: "1px solid rgba(239,68,68,0.18)",
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                  fontWeight: 700,
-                }}
-              >
-                {checkoutMessage}
-              </div>
-            ) : null}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                gap: 10,
-              }}
-            >
-              <button
-                type="button"
-                className="jv-premium-btn"
-                onClick={() => void confirmPlanCheckout(true)}
-                disabled={Boolean(checkoutLoadingPlanId)}
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                }}
-              >
-                {checkoutLoadingPlanId ? "Preparando checkout..." : "Aplicar cupom e pagar"}
-              </button>
-
-              <button
-                type="button"
-                className="jv-premium-btn-secondary"
-                onClick={() => void confirmPlanCheckout(false)}
-                disabled={Boolean(checkoutLoadingPlanId)}
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                }}
-              >
-                Pagar sem cupom
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={closeCouponModal}
-              disabled={Boolean(checkoutLoadingPlanId)}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#94A3B8",
-                cursor: checkoutLoadingPlanId ? "not-allowed" : "pointer",
-                fontSize: 13,
-                fontWeight: 700,
-                textAlign: "center",
-              }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {/* COUPON_MODAL_END */}
 
       {/* FLOATING_WHATSAPP_BUTTON_START */}
       <a
@@ -2675,6 +2403,7 @@ export default function HomePage() {
     </div>
   );
 }
+
 
 
 

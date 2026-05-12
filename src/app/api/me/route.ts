@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, destroySession } from "@/lib/session";
 
@@ -9,8 +9,9 @@ function getSuggestedRedirect(params: {
 }) {
   if (params.role === "SUPERADMIN") return "/admin/super";
   if (params.canAccessAdmin) return "/admin";
+  if (params.onboardingStatus === "PLAN_REQUIRED") return "/conta";
   if (params.onboardingStatus === "FIRM_REQUIRED") return "/onboarding/firm";
-  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") return "/";
+  if (params.onboardingStatus === "PLAN_PENDING_PAYMENT") return "/conta";
   return "/";
 }
 
@@ -95,3 +96,5 @@ export async function GET() {
     suggestedRedirect,
   });
 }
+
+
