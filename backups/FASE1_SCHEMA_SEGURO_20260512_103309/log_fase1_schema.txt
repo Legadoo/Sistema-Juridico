@@ -1,0 +1,216 @@
+﻿**********************
+Início da transcrição do Windows PowerShell
+Hora de início: 20260512103309
+Nome de Usuário: LEGADO\Legado
+Executar como Usuário: LEGADO\Legado
+Nome da Configuração: 
+Computador: LEGADO (Microsoft Windows NT 10.0.26200.0)
+Aplicativo Host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+ID do Processo: 4220
+PSVersion: 5.1.26100.8115
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
+BuildVersion: 10.0.26100.8115
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcrição iniciada, o arquivo de saída é backups\FASE1_SCHEMA_SEGURO_20260512_103309\log_fase1_schema.txt
+PS A:\git\Sistema Juridico> try {
+    Write-Host ""
+    Write-Host "=== 1. VALIDANDO ARQUIVOS ===" -ForegroundColor Cyan
+
+    if (!(Test-Path "prisma\dev.db")) {
+        throw "ERRO: prisma\dev.db não encontrado."
+    }
+
+    if (!(Test-Path "prisma\schema.prisma")) {
+        throw "ERRO: prisma\schema.prisma não encontrado."
+    }
+
+    Write-Host "Banco encontrado: prisma\dev.db" -ForegroundColor Green
+    Write-Host "Schema encontrado: prisma\schema.prisma" -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "=== 2. BACKUP FISICO ===" -ForegroundColor Cyan
+
+    Copy-Item "prisma\dev.db" "$backupDir\dev_antes_schema.db" -Force
+    Copy-Item "prisma\schema.prisma" "$backupDir\schema_antes_schema.prisma" -Force
+
+    if (Test-Path "prisma\dev.db-journal") {
+        Copy-Item "prisma\dev.db-journal" "$backupDir\dev_antes_schema.db-journal" -Force
+    }
+
+    Write-Host "Backup criado em: $backupDir" -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "=== 3. ATUALIZANDO schema.prisma ===" -ForegroundColor Cyan
+
+    $schemaPath = "prisma\schema.prisma"
+    $schema = Get-Content $schemaPath -Raw
+
+    function Add-AfterLineIfMissing {
+        param(
+            [string]$Content,
+            [string]$MissingToken,
+            [string]$AfterPattern,
+            [string]$InsertText
+        )
+
+        if ($Content -match [regex]::Escape($MissingToken)) {
+            return $Content
+        }
+
+        return [regex]::Replace(
+            $Content,
+            $AfterPattern,
+            "`$0`r`n$InsertText",
+            1
+        )
+    }
+
+    $chargeInsertAfterAmount = @'
+  originalAmount      Decimal?
+  currentAmount       Decimal?
+  paymentValidityDays Int?
+  expiresAt           DateTime?
+  expiredAt           DateTime?
+'@
+
+    $schema = Add-AfterLineIfMissing `
+        -Content $schema `
+        -MissingToken "paymentValidityDays Int?" `
+        -AfterPattern "amount\s+Decimal" `
+        -InsertText $chargeInsertAfterAmount
+
+    $chargeLateFeeInsert = @'
+  lateFeeType        String?  // NONE | PERCENT | FIXED
+  lateFeeValue       Float?
+  lateFeeApplied     Boolean  @default(false)
+  lateFeeAppliedAt   DateTime?
+  previousChargeId   String?
+  replacedByChargeId String?
+'@
+
+    $schema = Add-AfterLineIfMissing `
+        -Content $schema `
+        -MissingToken "previousChargeId   String?" `
+        -AfterPattern "sandboxInitPoint\s+String\?" `
+        -InsertText $chargeLateFeeInsert
+
+    $recurringInsert = @'
+  paymentValidityDays Int    @default(3)
+  lateFeeType         String @default("NONE") // NONE | PERCENT | FIXED
+  lateFeeValue        Float?
+'@
+
+    $schema = Add-AfterLineIfMissing `
+        -Content $schema `
+        -MissingToken "paymentValidityDays Int    @default(3)" `
+        -AfterPattern "interestStartsAtInstallment\s+Int\?" `
+        -InsertText $recurringInsert
+
+    $installmentValidityInsert = @'
+  expiresAt DateTime?
+  expiredAt DateTime?
+'@
+
+    $schema = Add-AfterLineIfMissing `
+        -Content $schema `
+        -MissingToken "expiresAt DateTime?" `
+        -AfterPattern "dueDate\s+DateTime" `
+        -InsertText $installmentValidityInsert
+
+    $installmentLateFeeInsert = @'
+  lateFeeType              String?  // NONE | PERCENT | FIXED
+  lateFeeValue             Float?
+  lateFeeAmount            Float?
+  lateFeeApplied           Boolean  @default(false)
+  lateFeeAppliedAt         DateTime?
+  previousInstallmentId    String?
+  replacedByInstallmentId  String?
+'@
+
+    $schema = Add-AfterLineIfMissing `
+        -Content $schema `
+        -MissingToken "previousInstallmentId    String?" `
+        -AfterPattern "mercadoPagoInitPoint\s+String\?" `
+        -InsertText $installmentLateFeeInsert
+
+    Set-Content -Path $schemaPath -Value $schema -Encoding UTF8
+
+    Write-Host "schema.prisma atualizado sem formatar ainda." -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "=== 4. STATUS DO GIT ===" -ForegroundColor Cyan
+    git status
+
+    Write-Host ""
+    Write-Host "FASE 1.1 / 1.2 CONCLUIDA." -ForegroundColor Green
+    Write-Host "Backup e log em: $backupDir" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "ERRO CAPTURADO:" -ForegroundColor Red
+    Write-Host $_ -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Restaurando schema anterior..." -ForegroundColor Yellow
+
+    if (Test-Path "$backupDir\schema_antes_schema.prisma") {
+        Copy-Item "$backupDir\schema_antes_schema.prisma" "prisma\schema.prisma" -Force
+        Write-Host "Schema restaurado." -ForegroundColor Green
+    }
+
+    Write-Host "Log salvo em: $logPath" -ForegroundColor Yellow
+}
+
+=== 1. VALIDANDO ARQUIVOS ===
+Banco encontrado: prisma\dev.db
+Schema encontrado: prisma\schema.prisma
+
+=== 2. BACKUP FISICO ===
+Backup criado em: backups\FASE1_SCHEMA_SEGURO_20260512_103309
+
+=== 3. ATUALIZANDO schema.prisma ===
+schema.prisma atualizado sem formatar ainda.
+
+=== 4. STATUS DO GIT ===
+
+
+FASE 1.1 / 1.2 CONCLUIDA.
+Backup e log em: backups\FASE1_SCHEMA_SEGURO_20260512_103309
+PS A:\git\Sistema Juridico> finally {
+    Stop-Transcript
+    Write-Host ""
+    Write-Host "PowerShell nao sera fechado. Se houve erro, me envie o texto acima." -ForegroundColor Cyan
+}
+finally : O termo 'finally' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável. 
+Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+No linha:1 caractere:1
++ finally {
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (finally:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+finally : O termo 'finally' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável.
+Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+No linha:1 caractere:1
++ finally {
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (finally:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS A:\git\Sistema Juridico> cd "A:\git\Sistema Juridico"
+PS A:\git\Sistema Juridico> Write-Host "=== FASE 1.2.1 - FECHAR LOG E FORMATAR SCHEMA COM SEGURANCA ===" -ForegroundColor Cyan
+=== FASE 1.2.1 - FECHAR LOG E FORMATAR SCHEMA COM SEGURANCA ===
+PS A:\git\Sistema Juridico> # Fecha transcript caso tenha ficado aberto
+PS A:\git\Sistema Juridico> try {
+    Stop-Transcript | Out-Null
+    Write-Host "Transcript anterior encerrado." -ForegroundColor Green
+} catch {
+    Write-Host "Nenhum transcript aberto ou já encerrado. Seguindo." -ForegroundColor Yellow
+}
+**********************
+Fim da transcrição do Windows PowerShell
+Hora de término: 20260512103758
+**********************

@@ -1,0 +1,11 @@
+﻿
+FullName                                                                                     Length LastWriteTime      
+--------                                                                                     ------ -------------      
+A:\git\Sistema Juridico\prisma\dev.db-journal                                                 41552 12/05/2026 10:17:36
+A:\git\Sistema Juridico\prisma\dev.db                                                        450560 12/05/2026 10:17:36
+A:\git\Sistema Juridico\node_modules\@prisma\client\runtime\query_engine_bg.sqlite.wasm     1986352 06/04/2026 22:21:07
+A:\git\Sistema Juridico\node_modules\@prisma\client\runtime\query_engine_bg.sqlite.js         16229 06/04/2026 22:21:04
+A:\git\Sistema Juridico\node_modules\prisma\prisma-client\runtime\query_engine_bg.sqlite.js   16229 06/04/2026 22:20:58
+
+
+

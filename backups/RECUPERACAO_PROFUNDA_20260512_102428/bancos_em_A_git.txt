@@ -1,0 +1,13 @@
+﻿
+FullName                                                                                                               
+--------                                                                                                               
+A:\git\Sistema Juridico\prisma\dev.db                                                                                  
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_prisma_dev.db       
+A:\git\Sistema Juridico\backups\RECUPERACAO_PROFUNDA_20260512_102428\dev_atual_copia.db                                
+A:\git\engenharia-estoque-saas\dev.db                                                                                  
+A:\git\Sistema Juridico\prisma\dev.db-journal                                                                          
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_prisma_dev.db-jou...
+A:\git\Sistema Juridico\backups\RECUPERACAO_PROFUNDA_20260512_102428\dev_atual_copia.db-journal                        
+
+
+

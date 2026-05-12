@@ -1,0 +1,137 @@
+﻿**********************
+Início da transcrição do Windows PowerShell
+Hora de início: 20260512103817
+Nome de Usuário: LEGADO\Legado
+Executar como Usuário: LEGADO\Legado
+Nome da Configuração: 
+Computador: LEGADO (Microsoft Windows NT 10.0.26200.0)
+Aplicativo Host: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+ID do Processo: 4220
+PSVersion: 5.1.26100.8115
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
+BuildVersion: 10.0.26100.8115
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcrição iniciada, o arquivo de saída é backups\FASE1_FORMAT_SCHEMA_20260512_103817\log_format_schema.txt
+PS A:\git\Sistema Juridico> try {
+    Write-Host ""
+    Write-Host "=== 1. BACKUP DO SCHEMA ATUAL ===" -ForegroundColor Cyan
+
+    if (!(Test-Path "prisma\schema.prisma")) {
+        throw "ERRO: prisma\schema.prisma não encontrado."
+    }
+
+    Copy-Item "prisma\schema.prisma" "$backupDir\schema_antes_format.prisma" -Force
+
+    Write-Host "Backup criado em: $backupDir" -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "=== 2. RODANDO PRISMA FORMAT ===" -ForegroundColor Cyan
+
+    npx prisma format
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "ERRO: prisma format falhou."
+    }
+
+    Write-Host ""
+    Write-Host "=== 3. VALIDANDO CAMPOS NO SCHEMA ===" -ForegroundColor Cyan
+
+    $schema = Get-Content "prisma\schema.prisma" -Raw
+
+    $requiredTokens = @(
+        "originalAmount",
+        "currentAmount",
+        "paymentValidityDays",
+        "expiresAt",
+        "expiredAt",
+        "lateFeeType",
+        "lateFeeValue",
+        "lateFeeApplied",
+        "lateFeeAppliedAt",
+        "previousChargeId",
+        "replacedByChargeId"
+    )
+
+    foreach ($token in $requiredTokens) {
+        if ($schema -notmatch $token) {
+            throw "ERRO: campo/token não encontrado no schema: $token"
+        }
+    }
+
+    Write-Host "Schema validado com sucesso." -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "=== 4. STATUS DO GIT ===" -ForegroundColor Cyan
+    git status
+
+    Write-Host ""
+    Write-Host "FASE 1.2.1 CONCLUIDA." -ForegroundColor Green
+    Write-Host "Log salvo em: $logPath" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "ERRO CAPTURADO:" -ForegroundColor Red
+    Write-Host $_ -ForegroundColor Red
+
+    Write-Host ""
+    Write-Host "Restaurando schema anterior desta etapa..." -ForegroundColor Yellow
+
+    if (Test-Path "$backupDir\schema_antes_format.prisma") {
+        Copy-Item "$backupDir\schema_antes_format.prisma" "prisma\schema.prisma" -Force
+        Write-Host "Schema restaurado." -ForegroundColor Green
+    }
+
+    Write-Host "Log salvo em: $logPath" -ForegroundColor Yellow
+}
+
+=== 1. BACKUP DO SCHEMA ATUAL ===
+Backup criado em: backups\FASE1_FORMAT_SCHEMA_20260512_103817
+
+=== 2. RODANDO PRISMA FORMAT ===
+
+
+ERRO CAPTURADO:
+ERRO: prisma format falhou.
+
+Restaurando schema anterior desta etapa...
+Schema restaurado.
+Log salvo em: backups\FASE1_FORMAT_SCHEMA_20260512_103817\log_format_schema.txt
+PS A:\git\Sistema Juridico> finally {
+    try {
+        Stop-Transcript | Out-Null
+    } catch {}
+
+    Write-Host ""
+    Write-Host "PowerShell mantido aberto." -ForegroundColor Cyan
+}
+finally : O termo 'finally' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável. 
+Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+No linha:1 caractere:1
++ finally {
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (finally:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+finally : O termo 'finally' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável.
+Verifique a grafia do nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+No linha:1 caractere:1
++ finally {
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (finally:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS A:\git\Sistema Juridico> cd "A:\git\Sistema Juridico"
+PS A:\git\Sistema Juridico> Write-Host "=== CORRECAO DO SCHEMA - REMOVER BOM UTF-8 ===" -ForegroundColor Cyan
+=== CORRECAO DO SCHEMA - REMOVER BOM UTF-8 ===
+PS A:\git\Sistema Juridico> Write-Host "Este bloco NAO mexe no banco e NAO usa migrate." -ForegroundColor Yellow
+Este bloco NAO mexe no banco e NAO usa migrate.
+PS A:\git\Sistema Juridico> # Fechar transcript se ficou aberto
+PS A:\git\Sistema Juridico> try { Stop-Transcript | Out-Null } catch {}
+**********************
+Fim da transcrição do Windows PowerShell
+Hora de término: 20260512104131
+**********************

@@ -24,12 +24,12 @@ function normalizePhone(phone?: string | null) {
 }
 
 function chargeTitle(clientName: string) {
-  return `Cobrança Jurídica - ${clientName}`;
+  return `CobranÃ§a JurÃ­dica - ${clientName}`;
 }
 
 function chargeMessageOrDefault(message?: string | null) {
   const value = message?.trim();
-  return value || "Cobrança gerada pela plataforma.";
+  return value || "CobranÃ§a gerada pela plataforma.";
 }
 
 function formatCurrency(value: number) {
@@ -45,7 +45,7 @@ async function getActiveGatewayCredentials(firmId: string) {
   });
 
   if (!config || !config.isActive || !config.enabledBySuperadmin) {
-    throw new Error("Cobrança ainda indisponível - Contate o suporte para saber mais");
+    throw new Error("CobranÃ§a ainda indisponÃ­vel - Contate o suporte para saber mais");
   }
 
   return {
@@ -149,7 +149,7 @@ export async function createChargeForFirm(params: {
   message?: string | null;
 }) {
   if (!Number.isFinite(params.amount) || params.amount <= 0) {
-    throw new Error("Valor da cobrança inválido.");
+    throw new Error("Valor da cobranÃ§a invÃ¡lido.");
   }
 
   const [client, actor] = await Promise.all([
@@ -169,11 +169,11 @@ export async function createChargeForFirm(params: {
   ]);
 
   if (!client) {
-    throw new Error("Cliente não encontrado para esta advocacia.");
+    throw new Error("Cliente nÃ£o encontrado para esta advocacia.");
   }
 
   if (!actor) {
-    throw new Error("Usuário inválido para criar a cobrança.");
+    throw new Error("UsuÃ¡rio invÃ¡lido para criar a cobranÃ§a.");
   }
 
   if (params.processId) {
@@ -186,7 +186,7 @@ export async function createChargeForFirm(params: {
     });
 
     if (!process) {
-      throw new Error("Processo inválido para esta advocacia.");
+      throw new Error("Processo invÃ¡lido para esta advocacia.");
     }
   }
 
@@ -202,7 +202,7 @@ export async function createChargeForFirm(params: {
   });
 
   if (!preference.paymentUrl) {
-    throw new Error("O Mercado Pago não retornou uma URL de pagamento.");
+    throw new Error("O Mercado Pago nÃ£o retornou uma URL de pagamento.");
   }
 
   const created = await prisma.charge.create({
@@ -362,11 +362,11 @@ export async function cancelChargeForFirm(params: {
   });
 
   if (!charge) {
-    throw new Error("Cobrança não encontrada.");
+    throw new Error("CobranÃ§a nÃ£o encontrada.");
   }
 
   if (charge.status === CHARGE_STATUS.PAID) {
-    throw new Error("Não foi possível cancelar uma cobrança que foi paga.");
+    throw new Error("NÃ£o foi possÃ­vel cancelar uma cobranÃ§a que foi paga.");
   }
 
   if (charge.status === CHARGE_STATUS.CANCELLED) {
@@ -382,38 +382,100 @@ export async function cancelChargeForFirm(params: {
   });
 }
 
-export async function processMercadoPagoWebhook(body: unknown) {
-  const parsed = parseMercadoPagoWebhook(body);
 
-  if (!parsed.dataId || parsed.type !== "payment") {
+async function markRecurringInstallmentAsPaidFromCharge(params: {
+  chargeId: string;
+  providerPaymentId: string;
+  paidAt: Date;
+}) {
+  const paidCharge = await prisma.charge.findUnique({
+    where: { id: params.chargeId },
+  });
+
+  if (!paidCharge) {
     return {
-      ok: true,
-      ignored: true,
-      parsed,
+      recurringInstallmentPaid: false,
+      reason: "PAID_CHARGE_NOT_FOUND",
     };
   }
 
-  const configs = await prisma.paymentGatewayConfig.findMany({
+  let installmentExternalReference = paidCharge.externalReference;
+
+  if (paidCharge.previousChargeId) {
+    const previousCharge = await prisma.charge.findUnique({
+      where: { id: paidCharge.previousChargeId },
+    });
+
+    if (previousCharge?.externalReference) {
+      installmentExternalReference = previousCharge.externalReference;
+    }
+  }
+
+  const installment = await prisma.recurringChargeInstallment.findFirst({
     where: {
-      provider: PAYMENT_PROVIDER,
-      isActive: true,
-      enabledBySuperadmin: true,
+      id: installmentExternalReference,
     },
   });
 
-  for (const config of configs) {
+  if (!installment) {
+    return {
+      recurringInstallmentPaid: false,
+      reason: "RECURRING_INSTALLMENT_NOT_FOUND",
+    };
+  }
+
+  await prisma.recurringChargeInstallment.update({
+    where: { id: installment.id },
+    data: {
+      status: "PAID",
+      paidAt: params.paidAt,
+      mercadoPagoPaymentId: params.providerPaymentId,
+    },
+  });
+
+  return {
+    recurringInstallmentPaid: true,
+    recurringInstallmentId: installment.id,
+  };
+}
+
+export async function processMercadoPagoWebhook(body: unknown) {
+  const parsed = parseMercadoPagoWebhook(body);
+
+  if (!parsed.dataId) {
+    return {
+      ignored: true,
+      reason: "NO_PAYMENT_ID",
+    };
+  }
+
+  const firmsWithGateway = await prisma.paymentGatewayConfig.findMany({
+    where: {
+      isActive: true,
+      enabledBySuperadmin: true,
+
+    },
+    select: {
+      firmId: true,
+      accessTokenEnc: true,
+      publicKeyEnc: true,
+    },
+  });
+
+  for (const gateway of firmsWithGateway) {
+    if (!gateway.accessTokenEnc) continue;
+
     try {
       const credentials = {
-        accessToken: decryptText(config.accessTokenEnc),
-        publicKey: config.publicKeyEnc ? decryptText(config.publicKeyEnc) : null,
+        accessToken: decryptText(gateway.accessTokenEnc),
+        publicKey: gateway.publicKeyEnc ? decryptText(gateway.publicKeyEnc) : null,
       };
 
       const payment = await getMercadoPagoPaymentById(credentials, parsed.dataId);
 
-      const externalReference =
-        typeof payment?.external_reference === "string"
-          ? payment.external_reference
-          : null;
+      const status = String(payment?.status ?? "");
+      const externalReference = String(payment?.external_reference ?? "");
+      const providerPaymentId = String(payment?.id ?? parsed.dataId);
 
       if (!externalReference) {
         continue;
@@ -421,8 +483,8 @@ export async function processMercadoPagoWebhook(body: unknown) {
 
       const charge = await prisma.charge.findFirst({
         where: {
+          firmId: gateway.firmId,
           externalReference,
-          firmId: config.firmId,
         },
       });
 
@@ -430,63 +492,63 @@ export async function processMercadoPagoWebhook(body: unknown) {
         continue;
       }
 
-      const paymentStatus =
-        typeof payment?.status === "string" ? payment.status : null;
-
-      if (paymentStatus === "approved") {
-        const paidAt = new Date();
-
+      if (status !== "approved") {
         await prisma.charge.update({
           where: { id: charge.id },
           data: {
-            status: CHARGE_STATUS.PAID,
-            providerPaymentId: String(payment.id),
-            paidAt,
-            lastWebhookAt: paidAt,
-          },
-        });
-
-        const recurringInstallment =
-          await prisma.recurringChargeInstallment.findUnique({
-            where: {
-              id: charge.externalReference,
-            },
-          });
-
-        if (recurringInstallment) {
-          await prisma.recurringChargeInstallment.update({
-            where: { id: recurringInstallment.id },
-            data: {
-              status: "PAID",
-              paidAt,
-            },
-          });
-        }
-      } else {
-        await prisma.charge.update({
-          where: { id: charge.id },
-          data: {
-            providerPaymentId: payment?.id ? String(payment.id) : charge.providerPaymentId,
             lastWebhookAt: new Date(),
+            providerPaymentId,
           },
         });
+
+        return {
+          ignored: true,
+          reason: "PAYMENT_NOT_APPROVED",
+          status,
+          chargeId: charge.id,
+        };
       }
 
+      const paidAt = payment?.date_approved
+        ? new Date(payment.date_approved)
+        : new Date();
+
+      const updatedCharge = await prisma.charge.update({
+        where: { id: charge.id },
+        data: {
+          status: "PAID",
+          providerPaymentId,
+          paidAt,
+          lastWebhookAt: new Date(),
+        },
+      });
+
+      const installmentResult = await markRecurringInstallmentAsPaidFromCharge({
+        chargeId: updatedCharge.id,
+        providerPaymentId,
+        paidAt,
+      });
+
       return {
-        ok: true,
         ignored: false,
-        chargeId: charge.id,
-        parsed,
+        chargeId: updatedCharge.id,
+        status: "PAID",
+        providerPaymentId,
+        recurringInstallmentPaid: installmentResult.recurringInstallmentPaid,
+        recurringInstallmentId: installmentResult.recurringInstallmentId ?? null,
+        recurringInstallmentReason: installmentResult.reason ?? null,
       };
     } catch (error) {
-      console.error("processMercadoPagoWebhook config error:", error);
+      console.error("processMercadoPagoWebhook firm attempt error:", {
+        firmId: gateway.firmId,
+        error,
+      });
     }
   }
 
   return {
-    ok: true,
     ignored: true,
-    parsed,
+    reason: "CHARGE_NOT_FOUND_FOR_PAYMENT",
   };
 }
 

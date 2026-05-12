@@ -1,0 +1,101 @@
+﻿=== RESULTADO DA BUSCA FASE 3 ===
+
+### PADRAO: paymentValidityDays
+Linha 134:   const [paymentValidityDays, setPaymentValidityDays] = useState("3");
+Linha 204:     const validityDays = Number(paymentValidityDays);
+Linha 245:     paymentValidityDays,
+
+### PADRAO: lateFeePreview
+Linha 199:   const lateFeePreview = useMemo(() => {
+
+### PADRAO: lateFeeType
+Linha 135:   const [lateFeeType, setLateFeeType] = useState<"NONE" | "PERCENT" | "FIXED">("NONE");
+Linha 219:     if (lateFeeType === "PERCENT") {
+Linha 225:     if (lateFeeType === "FIXED") {
+Linha 235:       lateFeeType,
+Linha 240:       hasLateFee: lateFeeType !== "NONE" && safeFeeValue > 0,
+Linha 246:     lateFeeType,
+
+### PADRAO: lateFeeValue
+Linha 136:   const [lateFeeValue, setLateFeeValue] = useState("");
+Linha 210:     const feeValue = Number(lateFeeValue.replace(",", "."));
+Linha 236:       lateFeeValue: safeFeeValue,
+Linha 247:     lateFeeValue,
+
+### PADRAO: interestStartsAtInstallment
+Linha 133:   const [interestStartsAtInstallment, setInterestStartsAtInstallment] = useState("2");
+Linha 158:     const interestStart = Number(interestStartsAtInstallment);
+Linha 196:     interestStartsAtInstallment,
+Linha 443:             interestStartsAtInstallment:
+Linha 444:               hasInterest && interestStartsAtInstallment.trim()
+Linha 445:                 ? Number(interestStartsAtInstallment)
+Linha 490:       setInterestStartsAtInstallment("2");
+Linha 801:                             value={interestStartsAtInstallment}
+Linha 802:                             onChange={(e) => setInterestStartsAtInstallment(e.target.value)}
+
+### PADRAO: /api/admin/charges/recurring
+Linha 425:         response = await fetch("/api/admin/charges/recurring", {
+
+### PADRAO: body: JSON.stringify
+Linha 430:           body: JSON.stringify({
+Linha 455:           body: JSON.stringify({
+
+### PADRAO: setInterestStartsAtInstallment
+Linha 133:   const [interestStartsAtInstallment, setInterestStartsAtInstallment] = useState("2");
+Linha 490:       setInterestStartsAtInstallment("2");
+Linha 802:                             onChange={(e) => setInterestStartsAtInstallment(e.target.value)}
+
+### PADRAO: recurringPreview
+Linha 154:   const recurringPreview = useMemo(() => {
+Linha 200:     if (!isRecurring || !recurringPreview) {
+Linha 215:       recurringPreview.installmentWithInterest || recurringPreview.firstInstallmentValue;
+Linha 244:     recurringPreview,
+Linha 812:                     {recurringPreview ? (
+Linha 824:                               {formatCurrency(recurringPreview.total)}
+Linha 833:                               {formatCurrency(recurringPreview.firstInstallmentValue)}
+Linha 839:                           {recurringPreview.totalInstallments} parcela(s) no total.
+Linha 840:                           {recurringPreview.lastBaseInstallmentValue !== recurringPreview.firstInstallmentValue ? (
+Linha 845:                         {recurringPreview.hasInterest ? (
+Linha 847:                             Parcela com juros: <strong>{formatCurrency(recurringPreview.installmentWithInterest)}</strong>
+Linha 848:                             {recurringPreview.interestStart ? (
+Linha 849:                               <> a partir da parcela {recurringPreview.interestStart}.</>
+
+### PADRAO: Resumo da recorrência
+
+### PADRAO: Criar cobrança recorrente
+
+### PADRAO: Gerar pagamento recorrente
+Linha 738:                   Gerar pagamento recorrente
+
+### PADRAO: isRecurring
+Linha 128:   const [isRecurring, setIsRecurring] = useState(false);
+Linha 160:     if (!isRecurring || !Number.isFinite(total) || total <= 0 || !Number.isFinite(totalInstallments) || totalInstallments < 2) {
+Linha 193:     isRecurring,
+Linha 200:     if (!isRecurring || !recurringPreview) {
+Linha 243:     isRecurring,
+Linha 424:       if (isRecurring) {
+Linha 469:             (isRecurring
+Linha 476:         isRecurring
+Linha 485:       setIsRecurring(false);
+Linha 735:                     checked={isRecurring}
+Linha 736:                     onChange={(e) => setIsRecurring(e.target.checked)}
+Linha 741:                 {isRecurring ? (
+Linha 753:                           required={isRecurring}
+Linha 766:                           required={isRecurring}
+Linha 864:                 {submitting ? "Enviando..." : isRecurring ? "Criar cobranÃ§a recorrente" : "Criar e enviar cobranÃ§a"}
+
+### PADRAO: setHasInterest
+Linha 131:   const [hasInterest, setHasInterest] = useState(false);
+Linha 488:       setHasInterest(false);
+Linha 775:                         onChange={(e) => setHasInterest(e.target.checked)}
+
+### PADRAO: handleSubmit
+
+### PADRAO: fetch(
+Linha 304:         const response = await fetch("/api/me", {
+Linha 347:         fetch("/api/admin/clients", { cache: "no-store" }),
+Linha 348:         fetch("/api/admin/processes", { cache: "no-store" }),
+Linha 349:         fetch("/api/admin/charges", { cache: "no-store" }),
+Linha 425:         response = await fetch("/api/admin/charges/recurring", {
+Linha 450:         response = await fetch("/api/admin/charges", {
+Linha 511:       const response = await fetch(`/api/admin/charges/${chargeId}/cancel`, {

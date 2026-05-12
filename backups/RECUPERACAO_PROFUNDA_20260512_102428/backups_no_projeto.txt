@@ -1,0 +1,53 @@
+﻿
+FullName                                                                                                               
+--------                                                                                                               
+A:\git\Sistema Juridico\backups\RECUPERACAO_PROFUNDA_20260512_102428\bancos_em_A_git.txt                               
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_files_encontrados.txt                              
+A:\git\Sistema Juridico\backups\RECUPERACAO_PROFUNDA_20260512_102428\dev_atual_copia.db-journal                        
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_prisma_dev.db-jou...
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_prisma_dev.db       
+A:\git\Sistema Juridico\backups\RECUPERACAO_PROFUNDA_20260512_102428\dev_atual_copia.db                                
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\schema.prisma.copia                                   
+A:\git\Sistema Juridico\.next\dev\cache\webpack\client-development\index.pack.gz.old                                   
+A:\git\Sistema Juridico\.next\dev\cache\webpack\server-development\index.pack.gz.old                                   
+A:\git\Sistema Juridico\backups\fase1_pagamento_recorrente_20260512_101351\schema.prisma.bak                           
+A:\git\Sistema Juridico\backups\fase1_pagamento_recorrente_20260512_101423\schema.prisma.bak                           
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\prisma__schema.prisma                             
+A:\git\Sistema Juridico\backups\fase1_pagamento_recorrente_20260512_101336\schema.prisma.bak                           
+A:\git\Sistema Juridico\backups\fase1_pagamento_recorrente_20260512_101317\schema.prisma.bak                           
+A:\git\Sistema Juridico\backups\fase1_pagamento_recorrente_20260512_101329\schema.prisma.bak                           
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_modal_corrigido_20260511_212803                                     
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_modal_fix_20260511_212636                                           
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_modal_fix_20260511_212701                                           
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_modal_20260511_212409                                               
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_modal_20260511_212348                                               
+A:\git\Sistema Juridico\src\app\conta\page.tsx.bak_20260511_212108                                                     
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__services__recurring-charge.service.ts        
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__services__recurring-charge-processor.servi...
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__services__mercado-pago.service.ts            
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__services__charge.service.ts                  
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__app__api__webhooks__mercado-pago__route.ts   
+A:\git\Sistema Juridico\src\app\api\super\firms\[id]\users\update\route.step-phone-complete.backup.ts                  
+A:\git\Sistema Juridico\src\app\api\super\firms\[id]\users\route.step-phone-complete.backup.ts                         
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__app__api__internal__recurring__process-due...
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__app__api__admin__charges__recurring__route.ts
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__app__admin__charges__page.tsx                
+A:\git\Sistema Juridico\_backup_pre_sprint1\clients-update-route.ts.bak                                                
+A:\git\Sistema Juridico\_backup_pre_sprint1\clients-page.tsx.bak                                                       
+A:\git\Sistema Juridico\prisma\schema.step-charge-message.backup.prisma                                                
+A:\git\Sistema Juridico\prisma\schema.prisma.bak                                                                       
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\.env.copia                                            
+A:\git\Sistema Juridico\backups\pagamento_recorrente_20260512_101119\src__app__api__admin__charges__recurring__proce...
+A:\git\Sistema Juridico\prisma\schema.prisma.bak_fase1_billing                                                         
+A:\git\Sistema Juridico\scripts\reset-password.cjs.bak                                                                 
+A:\git\Sistema Juridico\scripts\list-users.cjs.bak                                                                     
+A:\git\Sistema Juridico\scripts\make-superadmin.cjs.bak                                                                
+A:\git\Sistema Juridico\scripts\backfill-firm.ts.bak                                                                   
+A:\git\Sistema Juridico\scripts\backfill-firm.js.bak                                                                   
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_node_modules_@pri...
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_node_modules_@pri...
+A:\git\Sistema Juridico\backups\EMERGENCIA_BANCO_20260512_102154\db_copias\A__git_Sistema_Juridico_node_modules_pris...
+A:\git\Sistema Juridico\_backup_pre_sprint1\next.config.js.bak                                                         
+
+
+

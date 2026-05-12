@@ -15,6 +15,9 @@ type CreateRecurringChargeInput = {
   hasInterest: boolean;
   interestPercent?: number | null;
   interestStartsAtInstallment?: number | null;
+  paymentValidityDays?: number | null;
+  lateFeeType?: string | null;
+  lateFeeValue?: number | null;
 };
 
 function toDateAtChargeDay(chargeDay: number) {
@@ -39,16 +42,14 @@ function addMonths(date: Date, months: number) {
 function calculateRawInstallmentAmount(
   totalAmount: number,
   installments: number,
-  installmentNumber: number
+  installmentNumber: number,
 ) {
   const totalCents = Math.round(totalAmount * 100);
   const baseCents = Math.floor(totalCents / installments);
   const remainder = totalCents - baseCents * installments;
 
   const cents =
-    installmentNumber === installments
-      ? baseCents + remainder
-      : baseCents;
+    installmentNumber === installments ? baseCents + remainder : baseCents;
 
   return cents / 100;
 }
@@ -59,12 +60,12 @@ function calculateInstallmentAmount(
   installmentNumber: number,
   hasInterest: boolean,
   interestPercent?: number | null,
-  interestStartsAtInstallment?: number | null
+  interestStartsAtInstallment?: number | null,
 ) {
   const baseInstallment = calculateRawInstallmentAmount(
     totalAmount,
     installments,
-    installmentNumber
+    installmentNumber,
   );
 
   if (!hasInterest) return Number(baseInstallment.toFixed(2));
@@ -93,6 +94,34 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function normalizePaymentValidityDays(value?: number | null) {
+  const numeric = Number(value ?? 3);
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return 3;
+  }
+
+  return Math.max(1, Math.floor(numeric));
+}
+
+function normalizeLateFeeType(value?: string | null) {
+  return value === "PERCENT" || value === "FIXED" ? value : "NONE";
+}
+
+function normalizeLateFeeValue(type: string, value?: number | null) {
+  if (type === "NONE") return null;
+
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
+
+function calculateExpiresAt(baseDate: Date, paymentValidityDays: number) {
+  const expiresAt = new Date(baseDate);
+  expiresAt.setDate(expiresAt.getDate() + paymentValidityDays);
+  expiresAt.setHours(23, 59, 59, 999);
+  return expiresAt;
+}
+
 export function buildRecurringInstallmentsPreview(input: {
   baseAmount: number;
   installments: number;
@@ -119,7 +148,7 @@ export function buildRecurringInstallmentsPreview(input: {
         i,
         input.hasInterest,
         input.interestPercent,
-        input.interestStartsAtInstallment
+        input.interestStartsAtInstallment,
       ),
       dueDate,
     });
@@ -131,11 +160,11 @@ export function buildRecurringInstallmentsPreview(input: {
 export async function createRecurringCharge(input: CreateRecurringChargeInput) {
   const [client, actor] = await Promise.all([
     prisma.client.findFirst({
-    where: {
-      id: input.clientId,
-      firmId: input.firmId,
-      archived: false,
-    },
+      where: {
+        id: input.clientId,
+        firmId: input.firmId,
+        archived: false,
+      },
     }),
     prisma.user.findFirst({
       where: {
@@ -189,7 +218,17 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
     1,
     input.hasInterest,
     input.interestPercent,
-    input.interestStartsAtInstallment
+    input.interestStartsAtInstallment,
+  );
+
+  const paymentValidityDays = normalizePaymentValidityDays(
+    input.paymentValidityDays,
+  );
+  const lateFeeType = normalizeLateFeeType(input.lateFeeType);
+  const lateFeeValue = normalizeLateFeeValue(lateFeeType, input.lateFeeValue);
+  const firstExpiresAt = calculateExpiresAt(
+    firstChargeDate,
+    paymentValidityDays,
   );
 
   const recurring = await prisma.recurringCharge.create({
@@ -205,6 +244,9 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
       hasInterest: input.hasInterest,
       interestPercent: input.interestPercent ?? null,
       interestStartsAtInstallment: input.interestStartsAtInstallment ?? null,
+      paymentValidityDays,
+      lateFeeType,
+      lateFeeValue,
       nextChargeDate: addMonths(firstChargeDate, 1),
       status: "ACTIVE",
     },
@@ -216,6 +258,10 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
       installmentNumber: 1,
       amount: firstAmount,
       dueDate: firstChargeDate,
+      expiresAt: firstExpiresAt,
+      lateFeeType,
+      lateFeeValue,
+      lateFeeApplied: false,
       status: "PENDING",
     },
   });
@@ -226,6 +272,7 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
     externalReference: firstInstallment.id,
     payerEmail: client.email ?? null,
     description: input.description,
+    expiresAt: firstExpiresAt,
   });
 
   const paymentUrl =
@@ -236,6 +283,9 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
     data: {
       mercadoPagoPaymentId: preference.providerPreferenceId,
       mercadoPagoInitPoint: paymentUrl,
+      expiresAt: firstExpiresAt,
+      lateFeeType,
+      lateFeeValue,
     },
   });
 
@@ -249,12 +299,19 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
       providerPreferenceId: preference.providerPreferenceId,
       externalReference: firstInstallment.id,
       amount: new Prisma.Decimal(firstAmount),
+      originalAmount: new Prisma.Decimal(firstAmount),
+      currentAmount: new Prisma.Decimal(firstAmount),
       dueDate: firstChargeDate,
+      paymentValidityDays,
+      expiresAt: firstExpiresAt,
       message: `${input.description} - Parcela 1/${input.installments}`,
       status: "PENDING",
       paymentUrl,
       initPoint: preference.initPoint,
       sandboxInitPoint: preference.sandboxInitPoint,
+      lateFeeType,
+      lateFeeValue,
+      lateFeeApplied: false,
       emailTarget: client.email ?? null,
       phoneTarget: normalizePhone(client.phone ?? null),
     },
