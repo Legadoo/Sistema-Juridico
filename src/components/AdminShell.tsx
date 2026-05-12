@@ -231,15 +231,15 @@ export default function AdminShell({
     ? [{ href: "/admin/availability", label: "Abertura de agenda" }]
     : []),
   ...(role === "SUPERADMIN" || firmModules.moduleUsers
-    ? [{ href: "/admin/users", label: "UsuÃ¡rios" }]
+    ? [{ href: "/admin/users", label: "Usuários" }]
     : []),
   ...(role === "SUPERADMIN" || firmModules.moduleCharges
-    ? [{ href: "/admin/charges", label: "CobranÃ§as" }]
+    ? [{ href: "/admin/charges", label: "Cobranças" }]
     : []),
 ];
 
   if (role === "SUPERADMIN") {
-    navItems.push({ href: "/admin/settings", label: "ConfiguraÃ§Ãµes" });
+    navItems.push({ href: "/admin/settings", label: "Configurações" });
     navItems.push({ href: "/admin/super/site", label: "Site pÃºblico" });
   }
 
