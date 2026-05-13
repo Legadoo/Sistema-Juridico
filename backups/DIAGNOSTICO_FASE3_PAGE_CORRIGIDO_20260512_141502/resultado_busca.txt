@@ -82,7 +82,7 @@ Linha 736:                     onChange={(e) => setIsRecurring(e.target.checked)
 Linha 741:                 {isRecurring ? (
 Linha 753:                           required={isRecurring}
 Linha 766:                           required={isRecurring}
-Linha 864:                 {submitting ? "Enviando..." : isRecurring ? "Criar cobranÃ§a recorrente" : "Criar e enviar cobranÃ§a"}
+Linha 864:                 {submitting ? "Enviando..." : isRecurring ? "Criar cobrança recorrente" : "Criar e enviar cobrança"}
 
 ### PADRAO: setHasInterest
 Linha 131:   const [hasInterest, setHasInterest] = useState(false);

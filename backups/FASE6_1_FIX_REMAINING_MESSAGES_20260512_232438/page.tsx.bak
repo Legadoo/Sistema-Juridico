@@ -532,10 +532,10 @@ export default function ChargesPage() {
         throw new Error(data?.message || "Falha ao excluir cobrança expirada.");
       }
 
-      setFeedback(data.message || "Cobrança expirada excluída.");
+      setSuccessMessage(data.message || "Cobrança expirada excluída.");
       await loadData();
     } catch (error) {
-      setError(
+      setMessage(
         error instanceof Error
           ? error.message
           : "Falha ao excluir cobrança expirada.",
@@ -764,7 +764,7 @@ export default function ChargesPage() {
                 </label>
                 <textarea
                   value={message}
-                  onChange={(e) => setError(e.target.value)}
+                  onChange={(e) => setMessage(e.target.value)}
                   rows={4}
                   placeholder="Ex.: honorários referentes ao atendimento e análise do caso."
                   className={`${fieldClassName} min-h-[116px] resize-y`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}

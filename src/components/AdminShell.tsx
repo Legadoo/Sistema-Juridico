@@ -44,7 +44,7 @@ type MeResponse = {
 
 function roleLabel(role: string) {
   if (role === "MASTER") return "Advogado";
-  if (role === "SECRETARY") return "EstagiÃ¡rio";
+  if (role === "SECRETARY") return "Estagiário";
   if (role === "SUPERADMIN") return "Super Admin";
   return role;
 }
@@ -240,7 +240,7 @@ export default function AdminShell({
 
   if (role === "SUPERADMIN") {
     navItems.push({ href: "/admin/settings", label: "Configurações" });
-    navItems.push({ href: "/admin/super/site", label: "Site pÃºblico" });
+    navItems.push({ href: "/admin/super/site", label: "Site público" });
   }
 
   return (
@@ -307,7 +307,7 @@ export default function AdminShell({
             <div className="border-t border-white/10 p-4">
               <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                  SessÃ£o ativa
+                  Sessão ativa
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">
                   {userName}
@@ -353,7 +353,7 @@ export default function AdminShell({
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-white"
                 onClick={() => setMobileMenuOpen(true)}
               >
-                â˜°
+                ☰
               </button>
             </div>
           </header>

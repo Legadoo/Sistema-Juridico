@@ -106,31 +106,31 @@ type MeResponse = {
 const fallbackConfig: LandingConfig = {
   brandName: "JURIDICVAS",
 
-  heroTitle: "GestÃ£o jurÃ­dica inteligente para escritÃ³rios modernos",
-  heroSubtitle: "Organize processos, clientes e tarefas em um Ãºnico sistema simples e poderoso.",
+  heroTitle: "Gestão jurídica inteligente para escritórios modernos",
+  heroSubtitle: "Organize processos, clientes e tarefas em um único sistema simples e poderoso.",
 
-  heroPrimaryButtonText: "ComeÃ§ar agora",
-  heroSecondaryButtonText: "Ver demonstraÃ§Ã£o",
+  heroPrimaryButtonText: "Começar agora",
+  heroSecondaryButtonText: "Ver demonstração",
 
   aboutTitle: "Sobre o JuridicVas",
-  aboutText: "O JuridicVas Ã© uma plataforma completa para advogados e escritÃ³rios que desejam otimizar sua rotina e aumentar a produtividade.",
+  aboutText: "O JuridicVas é uma plataforma completa para advogados e escritórios que desejam otimizar sua rotina e aumentar a produtividade.",
 
   featuresTitle: "Funcionalidades",
-  featuresSubtitle: "Tudo que vocÃª precisa para gerenciar seu escritÃ³rio em um sÃ³ lugar.",
+  featuresSubtitle: "Tudo que você precisa para gerenciar seu escritório em um só lugar.",
 
-  mediaTitle: "Veja na prÃ¡tica",
+  mediaTitle: "Veja na prática",
   mediaSubtitle: "Explore como o sistema funciona no dia a dia.",
 
   plansTitle: "Planos",
-  plansSubtitle: "Escolha o plano ideal para vocÃª ou seu escritÃ³rio.",
+  plansSubtitle: "Escolha o plano ideal para você ou seu escritório.",
 
-  updatesTitle: "AtualizaÃ§Ãµes",
+  updatesTitle: "Atualizações",
   updatesSubtitle: "Fique por dentro das novidades do sistema.",
 
-  ctaTitle: "Pronto para transformar sua gestÃ£o?",
-  ctaSubtitle: "Comece agora e leve seu escritÃ³rio para o prÃ³ximo nÃ­vel.",
+  ctaTitle: "Pronto para transformar sua gestão?",
+  ctaSubtitle: "Comece agora e leve seu escritório para o próximo nível.",
 
-  footerText: "Â© 2026 JuridicVas. Todos os direitos reservados.",
+  footerText: "© 2026 JuridicVas. Todos os direitos reservados.",
 
   loginUrl: "/login",
   trackUrl: "/dashboard",
@@ -285,7 +285,7 @@ export default function HomePage() {
 
         if (!response.ok || !data?.ok || !data.data) {
           if (!ignore) {
-            setErrorMessage(data?.message || "NÃ£o foi possÃ­vel carregar a pÃ¡gina inicial.");
+            setErrorMessage(data?.message || "Não foi possível carregar a página inicial.");
           }
           return;
         }
@@ -301,7 +301,7 @@ export default function HomePage() {
         }
       } catch {
         if (!ignore) {
-          setErrorMessage("Falha ao carregar o conteÃºdo pÃºblico do sistema.");
+          setErrorMessage("Falha ao carregar o conteúdo público do sistema.");
         }
       } finally {
         if (!ignore) {
@@ -362,15 +362,15 @@ export default function HomePage() {
     : null;
 
   const officeHref = sessionUser ? sessionSuggestedRedirect : "/login";
-  const officeLabel = sessionUser ? "EscritÃ³rio" : "Login";
+  const officeLabel = sessionUser ? "Escritório" : "Login";
 
   const navItems = [
-    ["#inicio", "InÃ­cio"],
+    ["#inicio", "Início"],
     ["#sobre", "Sobre"],
     ["#recursos", "Recursos"],
-    ["#midias", "DemonstraÃ§Ãµes"],
+    ["#midias", "Demonstrações"],
     ["#planos", "Planos"],
-    ["#atualizacoes", "AtualizaÃ§Ãµes"],
+    ["#atualizacoes", "Atualizações"],
   ] as const;
 
   const containerMaxWidth = 1360;
@@ -435,13 +435,13 @@ export default function HomePage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        setCheckoutMessage(data?.message || "NÃ£o foi possÃ­vel iniciar a assinatura.");
+        setCheckoutMessage(data?.message || "Não foi possível iniciar a assinatura.");
         return;
       }
 
       const checkoutUrl = data?.data?.checkoutUrl;
       if (!checkoutUrl) {
-        setCheckoutMessage("Checkout nÃ£o disponÃ­vel.");
+        setCheckoutMessage("Checkout não disponível.");
         return;
       }
 
@@ -1076,7 +1076,7 @@ export default function HomePage() {
                   fontWeight: 900,
                 }}
               >
-                SISTEMA JURÃDICO
+                SISTEMA JURÍDICO
               </div>
 
               <h1
@@ -1126,7 +1126,7 @@ export default function HomePage() {
                       ? "Cadastrar advocacia"
                       : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
                       ? "Continuar pagamento"
-                      : "EscritÃ³rio"
+                      : "Escritório"
                     : site.config.heroPrimaryButtonText || "Entrar"}
                 </button>
 
@@ -1187,9 +1187,9 @@ export default function HomePage() {
                 }}
               >
                 {[
-                  ["Clientes", "OrganizaÃ§Ã£o total"],
+                  ["Clientes", "Organização total"],
                   ["Processos", "Fluxo moderno"],
-                  ["CobranÃ§as", "OperaÃ§Ã£o premium"],
+                  ["Cobranças", "Operação premium"],
                 ].map(([title, value]) => (
                   <div
                     key={title}
@@ -1266,7 +1266,7 @@ export default function HomePage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 900 }}>DemonstraÃ§Ã£o do sistema</div>
+                      <div style={{ fontWeight: 900 }}>Demonstração do sistema</div>
                       <div style={{ marginTop: 8, color: "#94A3B8", lineHeight: 1.7 }}>
                         Cadastre uma Conta.
                       </div>
@@ -1357,7 +1357,7 @@ export default function HomePage() {
                 fontSize: isMobile ? 13 : 14,
               }}
             >
-              Carregando a landing pÃºblica...
+              Carregando a landing pública...
             </div>
           ) : null}
 
@@ -1527,7 +1527,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhuma mÃ­dia de showcase publicada ainda.
+                  Nenhuma mídia de showcase publicada ainda.
                 </div>
               ) : (
                 showcaseMedia.map((item) => (
@@ -1680,7 +1680,7 @@ export default function HomePage() {
                           padding: 16,
                         }}
                       >
-                        PrÃ©via do plano
+                        Prévia do plano
                       </div>
                     )}
 
@@ -1712,7 +1712,7 @@ export default function HomePage() {
                             fontSize: isMobile ? 13 : 14,
                           }}
                         >
-                          {item.description || "Plano ideal para operaÃ§Ã£o jurÃ­dica profissional."}
+                          {item.description || "Plano ideal para operação jurídica profissional."}
                         </div>
                       </div>
 
@@ -1811,7 +1811,7 @@ export default function HomePage() {
                           lineHeight: 1.6,
                         }}
                       >
-                        Este plano estÃ¡ visÃ­vel no site, mas ainda nÃ£o estÃ¡ liberado para compra.
+                        Este plano está visível no site, mas ainda não está liberado para compra.
                       </div>
                     ) : null}
                   </div>
@@ -1852,7 +1852,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhuma atualizaÃ§Ã£o pÃºblica cadastrada ainda.
+                  Nenhuma atualização pública cadastrada ainda.
                 </div>
               ) : (
                 site.updates.map((item) => (
@@ -1976,7 +1976,7 @@ export default function HomePage() {
                     ? "Cadastrar advocacia"
                     : sessionUser.onboardingStatus === "PLAN_PENDING_PAYMENT"
                     ? "Continuar pagamento"
-                    : "EscritÃ³rio"
+                    : "Escritório"
                   : site.config.heroPrimaryButtonText || "Entrar"}
               </button>
 
@@ -2064,7 +2064,7 @@ export default function HomePage() {
                     lineHeight: 1.05,
                   }}
                 >
-                  Ative sua experiÃªncia no JuridicVas
+                  Ative sua experiência no JuridicVas
                 </div>
 
                 <div
@@ -2075,7 +2075,7 @@ export default function HomePage() {
                     maxWidth: 760,
                   }}
                 >
-                  Escolha um plano para liberar o seu acesso. Se vocÃª iniciou um pagamento,
+                  Escolha um plano para liberar o seu acesso. Se você iniciou um pagamento,
                   pode continuar exatamente de onde parou.
                 </div>
               </div>
@@ -2105,7 +2105,7 @@ export default function HomePage() {
                 }}
               >
                 <div>
-                  VocÃª ainda tem um pagamento pendente.
+                  Você ainda tem um pagamento pendente.
                 </div>
 
                 <button
@@ -2144,7 +2144,7 @@ export default function HomePage() {
                     gridColumn: "1 / -1",
                   }}
                 >
-                  Nenhum plano disponÃ­vel no momento.
+                  Nenhum plano disponível no momento.
                 </div>
               ) : (
                 site.plans.map((item) => (
@@ -2287,7 +2287,7 @@ export default function HomePage() {
                           lineHeight: 1.6,
                         }}
                       >
-                        Este plano estÃ¡ visÃ­vel, mas ainda nÃ£o estÃ¡ liberado para compra.
+                        Este plano está visível, mas ainda não está liberado para compra.
                       </div>
                     ) : null}
                   </div>
@@ -2394,7 +2394,7 @@ export default function HomePage() {
             lineHeight: 1,
           }}
         >
-          ðŸ’¬
+          💬
         </span>
 
         {!isMobile ? <span>Falar no WhatsApp</span> : null}

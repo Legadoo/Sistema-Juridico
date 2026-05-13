@@ -552,48 +552,6 @@ export async function processMercadoPagoWebhook(body: unknown) {
   };
 }
 
-
-export async function deleteExpiredChargeForFirm(params: {
-  firmId: string;
-  chargeId: string;
-}) {
-  const charge = await prisma.charge.findFirst({
-    where: {
-      id: params.chargeId,
-      firmId: params.firmId,
-      status: CHARGE_STATUS.EXPIRED,
-    },
-  });
-
-  if (!charge) {
-    throw new Error("Cobrança expirada não encontrada.");
-  }
-
-  if (!charge.replacedByChargeId) {
-    throw new Error("Esta cobrança expirada não possui cobrança substituta.");
-  }
-
-  const replacement = await prisma.charge.findFirst({
-    where: {
-      id: charge.replacedByChargeId,
-      firmId: params.firmId,
-    },
-  });
-
-  if (!replacement) {
-    throw new Error("Cobrança substituta não encontrada.");
-  }
-
-  if (![CHARGE_STATUS.PAID, CHARGE_STATUS.CANCELLED].includes(replacement.status as typeof CHARGE_STATUS.PAID | typeof CHARGE_STATUS.CANCELLED)) {
-    throw new Error("Só é possível excluir a expirada quando a nova cobrança estiver paga ou cancelada.");
-  }
-
-  return prisma.charge.delete({
-    where: {
-      id: charge.id,
-    },
-  });
-}
 export const BillingConstants = {
   PAYMENT_PROVIDER,
   CHARGE_STATUS,

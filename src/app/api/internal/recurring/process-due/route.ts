@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "RecorrÃªncias processadas com sucesso.",
+      message: "Recorrências processadas com sucesso.",
       data: result.data,
     });
   } catch (error) {
     console.error("[POST /api/internal/recurring/process-due]", error);
 
     return NextResponse.json(
-      { ok: false, message: "Erro ao processar recorrÃªncias automÃ¡ticas." },
+      { ok: false, message: "Erro ao processar recorrências automáticas." },
       { status: 500 },
     );
   }

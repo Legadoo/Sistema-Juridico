@@ -404,23 +404,23 @@ model RecurringChargeInstallment {
 model LandingPageConfig {
   id                      String   @id @default("global-public-site")
   brandName               String   @default("JURIDICVAS")
-  heroTitle               String   @default("GestÃƒÂ£o jurÃƒÂ­dica premium para escritÃƒÂ³rios que querem crescer com organizaÃ§Ã£o.")
-  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranÃ§as em uma plataforma moderna, profissional e acessÃƒÂ­vel.")
+  heroTitle               String   @default("Gestão jurídica premium para escritórios que querem crescer com organização.")
+  heroSubtitle            String   @default("Centralize clientes, processos, prazos, agendamentos e cobranças em uma plataforma moderna, profissional e acessível.")
   heroPrimaryButtonText   String   @default("Entrar")
   heroSecondaryButtonText String   @default("Acompanhar")
   aboutTitle              String   @default("Sobre o sistema")
-  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operaÃ§Ã£o jurÃƒÂ­dica com mais controle, imagem profissional e praticidade no dia a dia.")
+  aboutText               String   @default("O JURIDICVAS foi criado para profissionalizar a operação jurídica com mais controle, imagem profissional e praticidade no dia a dia.")
   featuresTitle           String   @default("Funcionalidades")
-  featuresSubtitle        String   @default("Tudo o que seu escritÃƒÂ³rio precisa para operar com seguranÃ§a e organizaÃ§Ã£o.")
-  mediaTitle              String   @default("Veja o sistema em aÃ§Ã£o")
+  featuresSubtitle        String   @default("Tudo o que seu escritório precisa para operar com segurança e organização.")
+  mediaTitle              String   @default("Veja o sistema em ação")
   mediaSubtitle           String   @default("")
   plansTitle              String   @default("Planos")
   plansSubtitle           String   @default("Escolha o plano ideal para o seu momento.")
-  updatesTitle            String   @default("AtualizaÃ§Ãµes")
-  updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lanÃ§amentos do sistema.")
-  ctaTitle                String   @default("Pronto para elevar o nÃƒÂ­vel da sua operaÃ§Ã£o jurÃƒÂ­dica?")
+  updatesTitle            String   @default("Atualizações")
+  updatesSubtitle         String   @default("Acompanhe novidades, melhorias e lançamentos do sistema.")
+  ctaTitle                String   @default("Pronto para elevar o nível da sua operação jurídica?")
   ctaSubtitle             String   @default("Entre agora ou acompanhe seu processo em um ambiente moderno, seguro e profissional.")
-  footerText              String   @default("JURIDICVAS - Plataforma jurÃƒÂ­dica premium.")
+  footerText              String   @default("JURIDICVAS - Plataforma jurídica premium.")
   loginUrl                String   @default("/login")
   trackUrl                String   @default("/acompanhar")
   isPublished             Boolean  @default(true)
@@ -481,7 +481,7 @@ model PublicPlan {
   id                 String   @id @default(cuid())
   name               String
   priceLabel         String
-  billingPeriod      String   @default("/mÃƒÂªs")
+  billingPeriod      String   @default("/mês")
   description        String?
   featuresText       String
   badgeText          String?
