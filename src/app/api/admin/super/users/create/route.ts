@@ -28,7 +28,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  const id = (body?.id ?? "").toString().trim();
   const name = (body?.name ?? "").toString().trim();
   const email = (body?.email ?? "").toString().trim().toLowerCase();
   const phone = (body?.phone ?? "").toString().trim();
@@ -36,18 +35,18 @@ export async function POST(req: Request) {
   const password = (body?.password ?? "").toString();
   const role = normalizeRole(body?.role);
   const firmId = (body?.firmId ?? "").toString().trim();
-  const active = Boolean(body?.active);
+  const active = body?.active === undefined ? true : Boolean(body?.active);
 
-  if (!id || !name || !email || !role) {
+  if (!name || !email || !password) {
     return NextResponse.json(
-      { ok: false, message: "Preencha os campos obrigatórios." },
+      { ok: false, message: "Nome, e-mail e senha são obrigatórios." },
       { status: 400 }
     );
   }
 
-  if (password && password.length < 6) {
+  if (password.length < 6) {
     return NextResponse.json(
-      { ok: false, message: "A nova senha precisa ter pelo menos 6 caracteres." },
+      { ok: false, message: "A senha precisa ter pelo menos 6 caracteres." },
       { status: 400 }
     );
   }
@@ -59,32 +58,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const target = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
-
-  if (!target) {
-    return NextResponse.json(
-      { ok: false, message: "Usuário não encontrado." },
-      { status: 404 }
-    );
-  }
-
-  const existingEmail = await prisma.user.findFirst({
-    where: {
-      email,
-      NOT: { id },
-    },
+  const existingEmail = await prisma.user.findUnique({
+    where: { email },
     select: { id: true },
   });
 
   if (existingEmail) {
     return NextResponse.json(
-      { ok: false, message: "Já existe outro usuário com este e-mail." },
+      { ok: false, message: "Já existe usuário com este e-mail." },
       { status: 409 }
     );
   }
@@ -110,35 +91,25 @@ export async function POST(req: Request) {
     }
   }
 
-  const data: Record<string, unknown> = {
-    name,
-    email,
-    phone: phone || null,
-    document: document || null,
-    role,
-    active,
-    emailVerified: true,
-    emailVerificationToken: null,
-    emailVerificationExpiresAt: null,
-    selectedPlanId: null,
-    selectedPlanNameSnapshot: null,
-  };
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  if (role === "SUPERADMIN") {
-    data.firmId = null;
-    data.onboardingStatus = null;
-  } else {
-    data.firmId = firmId;
-    data.onboardingStatus = "ACTIVE";
-  }
-
-  if (password) {
-    data.password = await bcrypt.hash(password, 10);
-  }
-
-  const updated = await prisma.user.update({
-    where: { id },
-    data,
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      phone: phone || null,
+      document: document || null,
+      password: passwordHash,
+      role,
+      active,
+      emailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpiresAt: null,
+      onboardingStatus: role === "SUPERADMIN" ? null : "ACTIVE",
+      selectedPlanId: null,
+      selectedPlanNameSnapshot: null,
+      firmId: role === "SUPERADMIN" ? null : firmId,
+    },
     select: {
       id: true,
       name: true,
@@ -149,8 +120,6 @@ export async function POST(req: Request) {
       active: true,
       emailVerified: true,
       onboardingStatus: true,
-      selectedPlanId: true,
-      selectedPlanNameSnapshot: true,
       firmId: true,
       firm: {
         select: {
@@ -164,7 +133,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    message: "Usuário atualizado com sucesso.",
-    user: updated,
+    message: "Usuário criado com sucesso.",
+    user,
   });
 }

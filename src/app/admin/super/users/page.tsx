@@ -8,6 +8,7 @@ type UserRow = {
   name: string;
   email: string;
   phone?: string | null;
+  document?: string | null;
   role: string;
   active: boolean;
   emailVerified?: boolean;
@@ -15,9 +16,12 @@ type UserRow = {
   selectedPlanId?: string | null;
   selectedPlanNameSnapshot?: string | null;
   firmId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   firm?: {
     id: string;
     name: string;
+    active?: boolean;
   } | null;
 };
 
@@ -27,88 +31,112 @@ type FirmOption = {
   active: boolean;
 };
 
-type PlanOption = {
-  id: string;
-  name: string;
-  isActive: boolean;
-  isPurchasable: boolean;
-};
+type FormMode = "CREATE" | "EDIT";
+type UserCategory = "ALL" | "ACTIVE" | "INACTIVE" | "MASTER" | "SECRETARY" | "SUPERADMIN";
 
-type EditForm = {
+type UserForm = {
   id: string;
   name: string;
   email: string;
   phone: string;
+  document: string;
   role: string;
   active: boolean;
-  onboardingStatus: string;
-  selectedPlanId: string;
   firmId: string;
+  password: string;
 };
 
-type UserCategory =
-  | "ALL"
-  | "PLAN_REQUIRED"
-  | "PLAN_PENDING_PAYMENT"
-  | "FIRM_REQUIRED"
-  | "ACTIVE"
-  | "INACTIVE";
-
-const emptyEditForm: EditForm = {
+const emptyForm: UserForm = {
   id: "",
   name: "",
   email: "",
   phone: "",
-  role: "SECRETARY",
+  document: "",
+  role: "MASTER",
   active: true,
-  onboardingStatus: "PLAN_REQUIRED",
-  selectedPlanId: "",
   firmId: "",
+  password: "",
 };
+
+function onlyDigits(value: string) {
+  return (value || "").replace(/\D/g, "");
+}
+
+function formatCpfCnpj(value: string) {
+  const digits = onlyDigits(value).slice(0, 14);
+
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
+function roleLabel(role: string) {
+  if (role === "MASTER") return "Advogado / Administrador";
+  if (role === "SECRETARY") return "Secretário(a)";
+  if (role === "SUPERADMIN") return "Admin Geral";
+  return role;
+}
 
 function categoryLabel(category: UserCategory) {
   if (category === "ALL") return "Todos";
-  if (category === "PLAN_REQUIRED") return "Aguardando plano";
-  if (category === "PLAN_PENDING_PAYMENT") return "Pagamento pendente";
-  if (category === "FIRM_REQUIRED") return "Aguardando advocacia";
-  if (category === "ACTIVE") return "Clientes ativos";
+  if (category === "ACTIVE") return "Ativos";
   if (category === "INACTIVE") return "Inativos";
+  if (category === "MASTER") return "Advogados";
+  if (category === "SECRETARY") return "Secretários";
+  if (category === "SUPERADMIN") return "Admins gerais";
   return category;
 }
 
-function statusColor(status?: string | null, active = true) {
-  if (!active) return "#FCA5A5";
-  if (status === "ACTIVE") return "#A7F3D0";
-  if (status === "PLAN_PENDING_PAYMENT") return "#FDE68A";
-  if (status === "FIRM_REQUIRED") return "#93C5FD";
-  return "#CBD5E1";
+function statusText(user: UserRow) {
+  if (!user.active) return "INATIVO";
+  if (user.role === "SUPERADMIN") return "ADMIN GERAL";
+  if (!user.firmId) return "SEM ADVOCACIA";
+  return "LIBERADO";
+}
+
+function statusColor(user: UserRow) {
+  if (!user.active) return "#FCA5A5";
+  if (user.role === "SUPERADMIN") return "#C4B5FD";
+  if (!user.firmId) return "#FDE68A";
+  return "#A7F3D0";
 }
 
 export default function SuperUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [plans, setPlans] = useState<PlanOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "error" | "info">("info");
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<UserCategory>("ALL");
-  const [editForm, setEditForm] = useState<EditForm>(emptyEditForm);
+  const [formMode, setFormMode] = useState<FormMode>("CREATE");
+  const [form, setForm] = useState<UserForm>(emptyForm);
 
   const currentUser = useMemo(
-    () => users.find((item) => item.id === editForm.id) ?? null,
-    [users, editForm.id]
+    () => users.find((item) => item.id === form.id) ?? null,
+    [users, form.id]
   );
 
   const counts = useMemo(() => {
     return {
       ALL: users.length,
-      PLAN_REQUIRED: users.filter((u) => u.active && (u.onboardingStatus ?? "PLAN_REQUIRED") === "PLAN_REQUIRED").length,
-      PLAN_PENDING_PAYMENT: users.filter((u) => u.active && u.onboardingStatus === "PLAN_PENDING_PAYMENT").length,
-      FIRM_REQUIRED: users.filter((u) => u.active && u.onboardingStatus === "FIRM_REQUIRED").length,
-      ACTIVE: users.filter((u) => u.active && u.onboardingStatus === "ACTIVE").length,
+      ACTIVE: users.filter((u) => u.active).length,
       INACTIVE: users.filter((u) => !u.active).length,
+      MASTER: users.filter((u) => u.role === "MASTER").length,
+      SECRETARY: users.filter((u) => u.role === "SECRETARY").length,
+      SUPERADMIN: users.filter((u) => u.role === "SUPERADMIN").length,
     };
   }, [users]);
 
@@ -116,12 +144,11 @@ export default function SuperUsersPage() {
     const q = search.trim().toLowerCase();
 
     return users.filter((user) => {
-      const status = user.onboardingStatus ?? "PLAN_REQUIRED";
-
       const categoryMatch =
         category === "ALL" ||
+        (category === "ACTIVE" && user.active) ||
         (category === "INACTIVE" && !user.active) ||
-        (category !== "INACTIVE" && user.active && status === category);
+        user.role === category;
 
       if (!categoryMatch) return false;
 
@@ -131,9 +158,10 @@ export default function SuperUsersPage() {
         user.name || "",
         user.email || "",
         user.phone || "",
+        user.document || "",
+        user.role || "",
         user.firm?.name || "",
-        user.selectedPlanNameSnapshot || "",
-        status,
+        statusText(user),
       ]
         .join(" ")
         .toLowerCase();
@@ -142,68 +170,107 @@ export default function SuperUsersPage() {
     });
   }, [users, search, category]);
 
-  useEffect(() => {
-    let ignore = false;
+  const categories: UserCategory[] = [
+    "ALL",
+    "ACTIVE",
+    "INACTIVE",
+    "MASTER",
+    "SECRETARY",
+    "SUPERADMIN",
+  ];
 
-    async function load() {
-      try {
-        const me = await fetch("/api/me", { cache: "no-store" })
-          .then((r) => r.json())
-          .catch(() => null);
+  async function loadData() {
+    setLoading(true);
 
-        if (!ignore && me?.ok) {
-          setUserName(me.user?.name || "SuperAdmin");
-        }
+    try {
+      const me = await fetch("/api/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => null);
 
-        const [usersResponse, firmsResponse, plansResponse] = await Promise.all([
-          fetch("/api/admin/super/users", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
-          fetch("/api/admin/super/firms-list", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
-          fetch("/api/admin/users/plans", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
-        ]);
-
-        if (!ignore) {
-          setUsers(Array.isArray(usersResponse?.users) ? usersResponse.users : []);
-          setFirms(Array.isArray(firmsResponse?.firms) ? firmsResponse.firms : []);
-          setPlans(Array.isArray(plansResponse?.plans) ? plansResponse.plans : []);
-        }
-      } finally {
-        if (!ignore) setLoading(false);
+      if (me?.ok) {
+        setUserName(me.user?.name || "SuperAdmin");
       }
+
+      const [usersResponse, firmsResponse] = await Promise.all([
+        fetch("/api/admin/super/users", { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch("/api/admin/super/firms-list", { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => null),
+      ]);
+
+      setUsers(Array.isArray(usersResponse?.users) ? usersResponse.users : []);
+      setFirms(Array.isArray(firmsResponse?.firms) ? firmsResponse.firms : []);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    void load();
-
-    return () => {
-      ignore = true;
-    };
+  useEffect(() => {
+    void loadData();
   }, []);
 
-  function openEditor(user: UserRow) {
+  function showMessage(text: string, tone: "success" | "error" | "info" = "info") {
+    setMessage(text);
+    setMessageTone(tone);
+  }
+
+  function resetCreateForm() {
+    setFormMode("CREATE");
+    setForm(emptyForm);
     setMessage("");
-    setEditForm({
+  }
+
+  function openEditor(user: UserRow) {
+    setFormMode("EDIT");
+    setMessage("");
+    setForm({
       id: user.id,
       name: user.name || "",
       email: user.email || "",
       phone: user.phone || "",
+      document: formatCpfCnpj(user.document || ""),
       role: user.role || "SECRETARY",
       active: Boolean(user.active),
-      onboardingStatus: user.onboardingStatus ?? "PLAN_REQUIRED",
-      selectedPlanId: user.selectedPlanId || "",
       firmId: user.firmId || "",
+      password: "",
     });
   }
 
-  async function reloadUsers() {
-    const usersResponse = await fetch("/api/admin/super/users", { cache: "no-store" })
-      .then((r) => r.json())
-      .catch(() => null);
+  function updateForm<K extends keyof UserForm>(key: K, value: UserForm[K]) {
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        [key]: value,
+      };
 
-    setUsers(Array.isArray(usersResponse?.users) ? usersResponse.users : []);
+      if (key === "role" && value === "SUPERADMIN") {
+        next.firmId = "";
+      }
+
+      return next;
+    });
   }
 
   async function saveUser() {
-    if (!editForm.id || !editForm.name.trim() || !editForm.email.trim()) {
-      setMessage("Preencha os campos obrigatórios.");
+    if (!form.name.trim() || !form.email.trim()) {
+      showMessage("Preencha nome e e-mail.", "error");
+      return;
+    }
+
+    if (formMode === "CREATE" && !form.password.trim()) {
+      showMessage("Informe uma senha inicial para criar o usuário.", "error");
+      return;
+    }
+
+    if (form.password.trim() && form.password.trim().length < 6) {
+      showMessage("A senha precisa ter pelo menos 6 caracteres.", "error");
+      return;
+    }
+
+    if (form.role !== "SUPERADMIN" && !form.firmId) {
+      showMessage("Vincule o usuário a uma advocacia para liberar o acesso.", "error");
       return;
     }
 
@@ -211,71 +278,294 @@ export default function SuperUsersPage() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/admin/super/users/update", {
+      const endpoint =
+        formMode === "CREATE"
+          ? "/api/admin/super/users/create"
+          : "/api/admin/super/users/update";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          ...editForm,
-          name: editForm.name.trim(),
-          email: editForm.email.trim(),
-          phone: editForm.phone.trim(),
-          selectedPlanId: editForm.role === "SUPERADMIN" ? "" : editForm.selectedPlanId,
-          firmId: editForm.role === "SUPERADMIN" ? "" : editForm.firmId,
-          onboardingStatus: editForm.role === "SUPERADMIN" ? null : editForm.onboardingStatus,
+          id: form.id,
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          document: onlyDigits(form.document),
+          password: form.password.trim(),
+          role: form.role,
+          active: form.active,
+          firmId: form.role === "SUPERADMIN" ? "" : form.firmId,
         }),
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        setMessage(data?.message || "Não foi possível atualizar o usuário.");
+        showMessage(data?.message || "Não foi possível salvar o usuário.", "error");
         return;
       }
 
-      setMessage("Usuário atualizado com sucesso.");
-      await reloadUsers();
+      showMessage(data?.message || "Usuário salvo com sucesso.", "success");
+
+      await loadData();
+
+      if (formMode === "CREATE") {
+        setForm({
+          ...emptyForm,
+          role: form.role,
+          firmId: form.role === "SUPERADMIN" ? "" : form.firmId,
+        });
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          password: "",
+        }));
+      }
     } catch {
-      setMessage("Falha ao atualizar usuário.");
+      showMessage("Falha ao salvar usuário.", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  const categories: UserCategory[] = [
-    "ALL",
-    "PLAN_REQUIRED",
-    "PLAN_PENDING_PAYMENT",
-    "FIRM_REQUIRED",
-    "ACTIVE",
-    "INACTIVE",
-  ];
+  async function deleteOrDeactivateUser() {
+    if (!currentUser) {
+      showMessage("Selecione um usuário primeiro.", "error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Deseja excluir ou desativar a conta de ${currentUser.name}? Se houver vínculos no sistema, ela será apenas desativada.`
+    );
+
+    if (!confirmed) return;
+
+    setRemoving(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/super/users/delete", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          id: currentUser.id,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        showMessage(data?.message || "Não foi possível excluir/desativar.", "error");
+        return;
+      }
+
+      showMessage(data?.message || "Operação realizada com sucesso.", "success");
+      resetCreateForm();
+      await loadData();
+    } catch {
+      showMessage("Falha ao excluir/desativar usuário.", "error");
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   return (
     <SuperAdminShell userName={userName}>
-      <div style={{ display: "grid", gap: 20 }}>
-        <section className="jv-glass" style={{ padding: 22, borderRadius: 24 }}>
-          <div style={{ fontSize: 28, fontWeight: 950, color: "#F8FAFC", letterSpacing: "-0.04em" }}>
-            Usuários
-          </div>
-          <div style={{ color: "#94A3B8", marginTop: 6, lineHeight: 1.7 }}>
-            Gestão global de usuários do SaaS, separados por etapa da conta.
+      <div className="jv-users-module">
+        <style>{`
+          .jv-users-module {
+            display: grid;
+            gap: 20px;
+          }
+
+          .jv-users-header {
+            padding: 24px;
+            border-radius: 24px;
+          }
+
+          .jv-users-title {
+            color: #F8FAFC;
+            font-size: 30px;
+            font-weight: 950;
+            letter-spacing: -0.04em;
+          }
+
+          .jv-users-subtitle {
+            color: #94A3B8;
+            margin-top: 6px;
+            line-height: 1.7;
+          }
+
+          .jv-users-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+            gap: 12px;
+          }
+
+          .jv-users-category-card {
+            border-radius: 20px;
+            padding: 16px;
+            text-align: left;
+            cursor: pointer;
+          }
+
+          .jv-users-main-grid {
+            display: grid;
+            grid-template-columns: minmax(320px, 1.05fr) minmax(380px, 0.95fr);
+            gap: 20px;
+            align-items: start;
+          }
+
+          .jv-users-list {
+            display: grid;
+            gap: 16px;
+          }
+
+          .jv-users-search-card,
+          .jv-users-editor {
+            padding: 18px;
+            border-radius: 20px;
+            display: grid;
+            gap: 12px;
+          }
+
+          .jv-users-item {
+            padding: 18px;
+            border-radius: 20px;
+            display: grid;
+            gap: 8px;
+            text-align: left;
+            cursor: pointer;
+          }
+
+          .jv-users-two {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+
+          .jv-users-editor-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+
+          .jv-users-editor-title {
+            color: #F8FAFC;
+            font-size: 23px;
+            font-weight: 950;
+          }
+
+          .jv-users-help {
+            color: #94A3B8;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+
+          .jv-users-label {
+            color: #CBD5E1;
+            font-size: 13px;
+            font-weight: 800;
+          }
+
+          .jv-users-field {
+            display: grid;
+            gap: 6px;
+          }
+
+          .jv-users-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #E2E8F0;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+          }
+
+          .jv-users-message {
+            padding: 12px 14px;
+            border-radius: 14px;
+            line-height: 1.6;
+            font-size: 14px;
+          }
+
+          .jv-users-danger {
+            border: 1px solid rgba(248,113,113,0.26);
+            background: rgba(127,29,29,0.18);
+            color: #FECACA;
+          }
+
+          .jv-users-success {
+            border: 1px solid rgba(52,211,153,0.24);
+            background: rgba(6,78,59,0.18);
+            color: #A7F3D0;
+          }
+
+          .jv-users-info {
+            border: 1px solid rgba(56,189,248,0.22);
+            background: rgba(14,116,144,0.12);
+            color: #BAE6FD;
+          }
+
+          .jv-users-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+
+          .jv-users-delete-btn {
+            width: 100%;
+            border: 1px solid rgba(248,113,113,0.34);
+            background: rgba(127,29,29,0.18);
+            color: #FECACA;
+            border-radius: 14px;
+            padding: 13px 16px;
+            font-weight: 900;
+            cursor: pointer;
+          }
+
+          @media (max-width: 1000px) {
+            .jv-users-main-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .jv-users-two {
+              grid-template-columns: 1fr;
+            }
+
+            .jv-users-title {
+              font-size: 25px;
+            }
+          }
+        `}</style>
+
+        <section className="jv-glass jv-users-header">
+          <div className="jv-users-title">Usuários</div>
+          <div className="jv-users-subtitle">
+            Controle total das contas do sistema. Agora somente o Admin Geral cria, edita,
+            vincula, ativa, desativa ou exclui usuários.
           </div>
         </section>
 
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+        <section className="jv-users-cards">
           {categories.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setCategory(item)}
-              className="jv-premium-card"
+              className="jv-premium-card jv-users-category-card"
               style={{
-                borderRadius: 20,
-                padding: 16,
-                textAlign: "left",
-                cursor: "pointer",
                 border:
                   category === item
                     ? "1px solid rgba(34,211,238,0.45)"
@@ -292,28 +582,27 @@ export default function SuperUsersPage() {
           ))}
         </section>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(320px, 1.2fr) minmax(360px, 0.8fr)",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
-          <div style={{ display: "grid", gap: 16 }}>
-            <div className="jv-glass" style={{ padding: 16, borderRadius: 20, display: "grid", gap: 10 }}>
-              <div style={{ color: "#F8FAFC", fontWeight: 800, fontSize: 16 }}>
+        <div className="jv-users-main-grid">
+          <div className="jv-users-list">
+            <div className="jv-glass jv-users-search-card">
+              <div style={{ color: "#F8FAFC", fontWeight: 900, fontSize: 17 }}>
                 Buscar usuário
               </div>
+
               <input
                 className="jv-premium-input"
-                placeholder="Pesquisar por nome, e-mail, telefone, plano ou status..."
+                placeholder="Pesquisar por nome, e-mail, telefone, CPF/CNPJ, advocacia ou função..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <div style={{ color: "#94A3B8", fontSize: 13 }}>
+
+              <div className="jv-users-help">
                 Categoria: {categoryLabel(category)} · Resultados: {filteredUsers.length}
               </div>
+
+              <button type="button" className="jv-premium-btn" onClick={resetCreateForm}>
+                Criar novo usuário
+              </button>
             </div>
 
             {loading ? (
@@ -322,219 +611,223 @@ export default function SuperUsersPage() {
               </div>
             ) : filteredUsers.length === 0 ? (
               <div className="jv-glass" style={{ padding: 20, borderRadius: 20 }}>
-                Nenhum usuário encontrado nesta categoria.
+                Nenhum usuário encontrado.
               </div>
             ) : (
-              filteredUsers.map((user) => {
-                const currentStatus = user.onboardingStatus ?? "PLAN_REQUIRED";
+              filteredUsers.map((user) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => openEditor(user)}
+                  className="jv-glass jv-users-item"
+                  style={{
+                    border:
+                      formMode === "EDIT" && form.id === user.id
+                        ? "1px solid rgba(99,102,241,0.55)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 900 }}>
+                      {user.name}
+                    </div>
+                    <div style={{ color: statusColor(user), fontWeight: 950, fontSize: 12 }}>
+                      {statusText(user)}
+                    </div>
+                  </div>
 
-                return (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => openEditor(user)}
-                    className="jv-glass"
-                    style={{
-                      padding: 20,
-                      borderRadius: 20,
-                      display: "grid",
-                      gap: 8,
-                      textAlign: "left",
-                      border:
-                        editForm.id === user.id
-                          ? "1px solid rgba(99,102,241,0.45)"
-                          : "1px solid rgba(255,255,255,0.08)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 800 }}>
-                        {user.name}
-                      </div>
-                      <div style={{ color: statusColor(currentStatus, user.active), fontWeight: 900, fontSize: 12 }}>
-                        {!user.active ? "INATIVO" : currentStatus}
-                      </div>
-                    </div>
-
-                    <div style={{ color: "#94A3B8" }}>{user.email}</div>
-                    <div style={{ color: "#94A3B8" }}>
-                      Telefone: {user.phone || "Não informado"}
-                    </div>
-                    <div style={{ color: "#94A3B8" }}>
-                      Plano: {user.selectedPlanNameSnapshot || "Nenhum"}
-                    </div>
-                    <div style={{ color: "#94A3B8" }}>
-                      Advocacia: {user.firm?.name || "Nenhuma"}
-                    </div>
-                  </button>
-                );
-              })
+                  <div style={{ color: "#94A3B8" }}>{user.email}</div>
+                  <div style={{ color: "#94A3B8" }}>
+                    Telefone: {user.phone || "Não informado"}
+                  </div>
+                  <div style={{ color: "#94A3B8" }}>
+                    CPF/CNPJ: {user.document ? formatCpfCnpj(user.document) : "Não informado"}
+                  </div>
+                  <div style={{ color: "#94A3B8" }}>
+                    Função: {roleLabel(user.role)}
+                  </div>
+                  <div style={{ color: "#94A3B8" }}>
+                    Advocacia: {user.firm?.name || "Nenhuma"}
+                  </div>
+                </button>
+              ))
             )}
           </div>
 
-          <div className="jv-glass" style={{ padding: 20, borderRadius: 20, display: "grid", gap: 14 }}>
-            <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 900 }}>
-              {currentUser ? "Editar usuário" : "Selecione um usuário"}
+          <div className="jv-glass jv-users-editor">
+            <div className="jv-users-editor-title-row">
+              <div className="jv-users-editor-title">
+                {formMode === "CREATE" ? "Criar usuário" : "Editar usuário"}
+              </div>
+
+              {formMode === "EDIT" ? (
+                <button
+                  type="button"
+                  className="jv-premium-card"
+                  style={{ padding: "10px 12px", borderRadius: 14, color: "#CBD5E1" }}
+                  onClick={resetCreateForm}
+                >
+                  Novo
+                </button>
+              ) : null}
             </div>
 
-            {!currentUser ? (
-              <div style={{ color: "#94A3B8" }}>
-                Escolha um usuário na lista ao lado para editar.
+            <div className="jv-users-help">
+              Usuários criados aqui já ficam com acesso controlado pelo Admin Geral.
+              Para advogado ou secretário acessar o sistema, vincule a uma advocacia ativa.
+            </div>
+
+            <div className="jv-users-two">
+              <div className="jv-users-field">
+                <label className="jv-users-label">Nome completo</label>
+                <input
+                  className="jv-premium-input"
+                  placeholder="Nome do usuário"
+                  value={form.name}
+                  onChange={(e) => updateForm("name", e.target.value)}
+                />
               </div>
-            ) : (
-              <>
+
+              <div className="jv-users-field">
+                <label className="jv-users-label">E-mail</label>
                 <input
                   className="jv-premium-input"
-                  placeholder="Nome"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="email@exemplo.com"
+                  value={form.email}
+                  onChange={(e) => updateForm("email", e.target.value)}
                 />
+              </div>
+            </div>
 
-                <input
-                  className="jv-premium-input"
-                  placeholder="E-mail"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
-                />
-
+            <div className="jv-users-two">
+              <div className="jv-users-field">
+                <label className="jv-users-label">Telefone</label>
                 <input
                   className="jv-premium-input"
                   placeholder="Telefone"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  value={form.phone}
+                  onChange={(e) => updateForm("phone", e.target.value)}
                 />
+              </div>
 
+              <div className="jv-users-field">
+                <label className="jv-users-label">CPF ou CNPJ</label>
+                <input
+                  className="jv-premium-input"
+                  placeholder="CPF ou CNPJ"
+                  value={form.document}
+                  onChange={(e) => updateForm("document", formatCpfCnpj(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="jv-users-two">
+              <div className="jv-users-field">
+                <label className="jv-users-label">Função</label>
                 <select
                   className="jv-premium-input"
-                  value={editForm.role}
-                  onChange={(e) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      role: e.target.value,
-                      onboardingStatus:
-                        e.target.value === "SUPERADMIN" ? "" : prev.onboardingStatus || "PLAN_REQUIRED",
-                      selectedPlanId: e.target.value === "SUPERADMIN" ? "" : prev.selectedPlanId,
-                      firmId: e.target.value === "SUPERADMIN" ? "" : prev.firmId,
-                    }))
-                  }
+                  value={form.role}
+                  onChange={(e) => updateForm("role", e.target.value)}
                 >
-                  <option value="SECRETARY">SECRETARY</option>
-                  <option value="MASTER">MASTER</option>
-                  <option value="SUPERADMIN">SUPERADMIN</option>
+                  <option value="MASTER">Advogado / Administrador</option>
+                  <option value="SECRETARY">Secretário(a)</option>
+                  <option value="SUPERADMIN">Admin Geral</option>
                 </select>
+              </div>
 
-                {editForm.role !== "SUPERADMIN" ? (
-                  <>
-                    <select
-                      className="jv-premium-input"
-                      value={editForm.selectedPlanId}
-                      onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          selectedPlanId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Sem plano vinculado</option>
-                      {plans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="jv-premium-input"
-                      value={editForm.firmId}
-                      onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          firmId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Sem advocacia vinculada</option>
-                      {firms.map((firm) => (
-                        <option key={firm.id} value={firm.id}>
-                          {firm.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="jv-premium-input"
-                      value={editForm.onboardingStatus}
-                      onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          onboardingStatus: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="PLAN_REQUIRED">PLAN_REQUIRED</option>
-                      <option value="PLAN_PENDING_PAYMENT">PLAN_PENDING_PAYMENT</option>
-                      <option value="FIRM_REQUIRED">FIRM_REQUIRED</option>
-                      <option value="ACTIVE">ACTIVE</option>
-                    </select>
-                  </>
-                ) : null}
-
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    color: "#E2E8F0",
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: "rgba(255,255,255,0.03)",
-                  }}
+              <div className="jv-users-field">
+                <label className="jv-users-label">Advocacia vinculada</label>
+                <select
+                  className="jv-premium-input"
+                  value={form.firmId}
+                  disabled={form.role === "SUPERADMIN"}
+                  onChange={(e) => updateForm("firmId", e.target.value)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={editForm.active}
-                    onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        active: e.target.checked,
-                      }))
-                    }
-                  />
-                  Usuário ativo
-                </label>
+                  <option value="">Selecione uma advocacia</option>
+                  {firms.map((firm) => (
+                    <option key={firm.id} value={firm.id}>
+                      {firm.name} {firm.active ? "" : "(inativa)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-                <div style={{ color: currentUser.emailVerified ? "#6EE7B7" : "#FCA5A5", fontWeight: 700 }}>
-                  {currentUser.emailVerified ? "E-mail verificado" : "E-mail pendente"}
-                </div>
+            <div className="jv-users-field">
+              <label className="jv-users-label">
+                {formMode === "CREATE" ? "Senha inicial" : "Nova senha"}
+              </label>
+              <input
+                className="jv-premium-input"
+                type="password"
+                placeholder={
+                  formMode === "CREATE"
+                    ? "Crie uma senha inicial"
+                    : "Preencha somente se quiser trocar a senha"
+                }
+                value={form.password}
+                onChange={(e) => updateForm("password", e.target.value)}
+              />
+            </div>
 
-                {message ? (
-                  <div style={{ color: "#94A3B8", lineHeight: 1.7 }}>
-                    {message}
-                  </div>
-                ) : null}
+            <label className="jv-users-check">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => updateForm("active", e.target.checked)}
+              />
+              Usuário ativo
+            </label>
 
+            {formMode === "EDIT" && currentUser ? (
+              <div style={{ color: "#94A3B8", lineHeight: 1.7, fontSize: 13 }}>
+                Status interno: {currentUser.onboardingStatus || "Sem onboarding"} ·
+                E-mail: {currentUser.emailVerified ? " verificado" : " pendente"}
+              </div>
+            ) : null}
+
+            {message ? (
+              <div
+                className={
+                  messageTone === "success"
+                    ? "jv-users-message jv-users-success"
+                    : messageTone === "error"
+                      ? "jv-users-message jv-users-danger"
+                      : "jv-users-message jv-users-info"
+                }
+              >
+                {message}
+              </div>
+            ) : null}
+
+            <div className="jv-users-actions">
+              <button
+                type="button"
+                className="jv-premium-btn"
+                disabled={saving}
+                onClick={saveUser}
+              >
+                {saving
+                  ? "Salvando..."
+                  : formMode === "CREATE"
+                    ? "Criar usuário"
+                    : "Salvar alterações"}
+              </button>
+
+              {formMode === "EDIT" && currentUser ? (
                 <button
                   type="button"
-                  className="jv-premium-btn"
-                  disabled={saving}
-                  onClick={saveUser}
+                  className="jv-users-delete-btn"
+                  disabled={removing}
+                  onClick={deleteOrDeactivateUser}
                 >
-                  {saving ? "Salvando..." : "Salvar alterações"}
+                  {removing ? "Processando..." : "Excluir ou desativar conta"}
                 </button>
-              </>
-            )}
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          div[style*="minmax(320px, 1.2fr)"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </SuperAdminShell>
   );
 }
