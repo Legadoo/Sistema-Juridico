@@ -1,95 +1,41 @@
-﻿import {
-  FaArrowRight,
-  FaBars,
-  FaBriefcase,
-  FaBuildingColumns,
-  FaChartLine,
-  FaCheck,
-  FaCirclePlay,
-  FaFileLines,
-  FaFolderOpen,
-  FaGaugeHigh,
-  FaLandmark,
-  FaLock,
-  FaRegCalendarCheck,
-  FaScaleBalanced,
-  FaShieldHalved,
-  FaUserCheck,
-  FaUserShield,
-  FaUsers,
-} from "react-icons/fa6";
-
-const benefits = [
+﻿const benefits = [
   {
     title: "Controle total",
     text: "Acompanhe processos, prazos, responsáveis e movimentações em tempo real.",
-    Icon: FaShieldHalved,
+    icon: "🛡️",
   },
   {
     title: "Documentos organizados",
     text: "Centralize pareceres, manifestações, contratos, ofícios e despachos.",
-    Icon: FaFolderOpen,
+    icon: "📁",
   },
   {
     title: "Permissões por usuário",
     text: "Defina níveis de acesso conforme a função de cada membro da equipe.",
-    Icon: FaUserShield,
+    icon: "👤",
   },
   {
     title: "Relatórios estratégicos",
     text: "Visualize indicadores e acompanhe a produtividade da operação jurídica.",
-    Icon: FaChartLine,
+    icon: "📊",
   },
 ];
 
 const modules = [
-  {
-    title: "Dashboard",
-    Icon: FaGaugeHigh,
-  },
-  {
-    title: "Processos",
-    Icon: FaFolderOpen,
-  },
-  {
-    title: "Clientes",
-    Icon: FaUsers,
-  },
-  {
-    title: "Documentos",
-    Icon: FaFileLines,
-  },
-  {
-    title: "Usuários",
-    Icon: FaUserCheck,
-  },
-  {
-    title: "Relatórios",
-    Icon: FaChartLine,
-  },
+  "Dashboard",
+  "Processos",
+  "Clientes",
+  "Documentos",
+  "Usuários",
+  "Relatórios",
 ];
 
 const audiences = [
-  {
-    title: "Escritórios de advocacia",
-    Icon: FaScaleBalanced,
-  },
-  {
-    title: "Assessorias jurídicas",
-    Icon: FaBriefcase,
-  },
-  {
-    title: "Procuradorias",
-    Icon: FaLandmark,
-  },
-  {
-    title: "Secretarias públicas",
-    Icon: FaBuildingColumns,
-  },
-  {
-    title: "Departamentos administrativos",
-    Icon: FaUsers,
-  },
+  "Escritórios de advocacia",
+  "Assessorias jurídicas",
+  "Procuradorias",
+  "Secretarias públicas",
+  "Departamentos administrativos",
 ];
 
 export default function HomePage() {
@@ -221,8 +167,7 @@ export default function HomePage() {
           border: 1px solid rgba(255,255,255,0.12);
           background: rgba(255,255,255,0.04);
           color: white;
-          font-size: 22px;
-          place-items: center;
+          font-size: 26px;
         }
 
         .jv-hero {
@@ -296,7 +241,7 @@ export default function HomePage() {
           border-radius: 14px;
           color: #dbeafe;
           background: linear-gradient(135deg, #1677ff, #0f3fb8);
-          font-size: 22px;
+          font-size: 24px;
         }
 
         .jv-restricted-card strong {
@@ -335,10 +280,6 @@ export default function HomePage() {
           display: inline-flex;
           gap: 8px;
           align-items: center;
-        }
-
-        .jv-mini-row svg {
-          color: #38bdf8;
         }
 
         .jv-product {
@@ -485,6 +426,10 @@ export default function HomePage() {
           margin-bottom: 28px;
         }
 
+        .jv-section-title center {
+          display: block;
+        }
+
         .jv-section small {
           display: block;
           margin-bottom: 8px;
@@ -529,10 +474,9 @@ export default function HomePage() {
           place-items: center;
           margin-bottom: 18px;
           border-radius: 15px;
-          color: #dbeafe;
           background: linear-gradient(135deg, rgba(22,119,255,.95), rgba(14,165,233,.58));
           box-shadow: 0 14px 36px rgba(22,119,255,.20);
-          font-size: 22px;
+          font-size: 23px;
         }
 
         .jv-card h3 {
@@ -565,10 +509,6 @@ export default function HomePage() {
           margin-top: 12px;
         }
 
-        .jv-module .jv-icon {
-          margin: 0 auto 10px;
-        }
-
         .jv-security {
           display: grid;
           grid-template-columns: 1fr 1.5fr;
@@ -599,14 +539,8 @@ export default function HomePage() {
         }
 
         .jv-security-item strong {
-          display: flex;
-          align-items: center;
-          gap: 10px;
+          display: block;
           margin-bottom: 6px;
-        }
-
-        .jv-security-item svg {
-          color: #38bdf8;
         }
 
         .jv-audience-grid {
@@ -616,10 +550,6 @@ export default function HomePage() {
         }
 
         .jv-audience {
-          min-height: 120px;
-          display: grid;
-          place-items: center;
-          gap: 12px;
           padding: 18px;
           border-radius: 16px;
           border: 1px solid rgba(255,255,255,.12);
@@ -628,11 +558,6 @@ export default function HomePage() {
           color: #e2e8f0;
           font-weight: 800;
           font-size: 14px;
-        }
-
-        .jv-audience svg {
-          color: #38bdf8;
-          font-size: 24px;
         }
 
         .jv-cta {
@@ -684,6 +609,7 @@ export default function HomePage() {
 
           .jv-menu {
             display: inline-grid;
+            place-items: center;
           }
 
           .jv-header-inner {
@@ -815,11 +741,11 @@ export default function HomePage() {
           </nav>
 
           <a className="jv-login-button" href="/login">
-            <FaLock /> Acessar sistema
+            🔒 Acessar sistema
           </a>
 
           <button className="jv-menu" type="button" aria-label="Menu">
-            <FaBars />
+            ☰
           </button>
         </div>
       </header>
@@ -827,9 +753,7 @@ export default function HomePage() {
       <section id="inicio" className="jv-hero">
         <div className="jv-container jv-hero-grid">
           <div>
-            <div className="jv-kicker">
-              <FaScaleBalanced /> Sistema de gestão jurídica
-            </div>
+            <div className="jv-kicker">Sistema de gestão jurídica</div>
 
             <h1>
               Organize processos, documentos e demandas jurídicas em uma <span>única plataforma.</span>
@@ -842,9 +766,7 @@ export default function HomePage() {
             </p>
 
             <div className="jv-restricted-card">
-              <div className="jv-lock">
-                <FaLock />
-              </div>
+              <div className="jv-lock">🔒</div>
               <div>
                 <strong>Acesso restrito</strong>
                 <span>
@@ -855,17 +777,17 @@ export default function HomePage() {
 
             <div className="jv-actions">
               <a className="jv-primary-button" href="#demonstracao">
-                <FaRegCalendarCheck /> Solicitar demonstração
+                📅 Solicitar demonstração
               </a>
               <a className="jv-secondary-button" href="#modulos">
-                <FaCirclePlay /> Conhecer o sistema
+                ▶ Conhecer o sistema
               </a>
             </div>
 
             <div className="jv-mini-row">
-              <span><FaCheck /> Mais controle</span>
-              <span><FaCheck /> Mais produtividade</span>
-              <span><FaCheck /> Mais segurança</span>
+              <span>✅ Mais controle</span>
+              <span>✅ Mais produtividade</span>
+              <span>✅ Mais segurança</span>
             </div>
           </div>
 
@@ -941,19 +863,13 @@ export default function HomePage() {
           </div>
 
           <div className="jv-card-grid">
-            {benefits.map((item) => {
-              const Icon = item.Icon;
-
-              return (
-                <article className="jv-card" key={item.title}>
-                  <div className="jv-icon">
-                    <Icon />
-                  </div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
-              );
-            })}
+            {benefits.map((item) => (
+              <article className="jv-card" key={item.title}>
+                <div className="jv-icon">{item.icon}</div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -967,18 +883,12 @@ export default function HomePage() {
           </div>
 
           <div className="jv-modules-grid">
-            {modules.map((item) => {
-              const Icon = item.Icon;
-
-              return (
-                <div className="jv-module" key={item.title}>
-                  <div className="jv-icon">
-                    <Icon />
-                  </div>
-                  <b>{item.title}</b>
-                </div>
-              );
-            })}
+            {modules.map((item) => (
+              <div className="jv-module" key={item}>
+                <div className="jv-icon" style={{ margin: "0 auto 10px" }}>✦</div>
+                <b>{item}</b>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -998,15 +908,15 @@ export default function HomePage() {
 
             <div className="jv-security-list">
               <div className="jv-security-item">
-                <strong><FaLock /> Acesso restrito</strong>
+                <strong>🔒 Acesso restrito</strong>
                 <p>Somente usuários cadastrados.</p>
               </div>
               <div className="jv-security-item">
-                <strong><FaUserCheck /> Login individual</strong>
+                <strong>👤 Login individual</strong>
                 <p>Cada usuário possui acesso único.</p>
               </div>
               <div className="jv-security-item">
-                <strong><FaShieldHalved /> Ambiente seguro</strong>
+                <strong>🛡️ Ambiente seguro</strong>
                 <p>Proteção de dados com alta performance.</p>
               </div>
             </div>
@@ -1022,16 +932,11 @@ export default function HomePage() {
           </div>
 
           <div className="jv-audience-grid">
-            {audiences.map((item) => {
-              const Icon = item.Icon;
-
-              return (
-                <div className="jv-audience" key={item.title}>
-                  <Icon />
-                  {item.title}
-                </div>
-              );
-            })}
+            {audiences.map((item) => (
+              <div className="jv-audience" key={item}>
+                {item}
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1045,7 +950,7 @@ export default function HomePage() {
             </div>
 
             <a className="jv-secondary-button" href="/login" style={{ background: "white", color: "#0f172a" }}>
-              <FaLock /> Acessar sistema <FaArrowRight />
+              🔒 Acessar sistema
             </a>
           </div>
         </div>

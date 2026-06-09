@@ -1,6 +1,31 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState, useEffect, FormEvent } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FaCalendarCheck,
+  FaCircleInfo,
+  FaClock,
+  FaFileLines,
+  FaFolderOpen,
+  FaIdCard,
+  FaLock,
+  FaMagnifyingGlass,
+  FaScaleBalanced,
+  FaShieldHalved,
+  FaUserShield,
+} from "react-icons/fa6";
+
+type ProcessItem = {
+  id: string;
+  cnj: string;
+  tribunal?: string | null;
+  vara?: string | null;
+  status: string;
+  updates: Array<{
+    date: string;
+    text: string;
+  }>;
+};
 
 type TrackResp = {
   ok: boolean;
@@ -8,18 +33,9 @@ type TrackResp = {
   client?: {
     name: string;
     document: string;
+    processes?: ProcessItem[];
   };
-  processes?: Array<{
-    id: string;
-    cnj: string;
-    tribunal?: string | null;
-    vara?: string | null;
-    status: string;
-    updates: Array<{
-      date: string;
-      text: string;
-    }>;
-  }>;
+  processes?: ProcessItem[];
 };
 
 type Slot = {
@@ -33,7 +49,7 @@ function onlyDigits(value: string) {
 }
 
 function formatDocument(value: string) {
-  const digits = onlyDigits(value);
+  const digits = onlyDigits(value).slice(0, 14);
 
   if (digits.length <= 11) {
     return digits
@@ -62,12 +78,12 @@ function formatDateTime(value: string) {
 }
 
 function getStatusTone(status: string) {
-  const s = status.toLowerCase();
+  const s = (status || "").toLowerCase();
 
   if (s.includes("andamento") || s.includes("ativo") || s.includes("tramita")) {
     return {
       background: "rgba(56,189,248,0.10)",
-      border: "1px solid rgba(56,189,248,0.18)",
+      border: "1px solid rgba(56,189,248,0.24)",
       color: "#BAE6FD",
     };
   }
@@ -75,7 +91,7 @@ function getStatusTone(status: string) {
   if (s.includes("conclu") || s.includes("baixad") || s.includes("encerr")) {
     return {
       background: "rgba(16,185,129,0.10)",
-      border: "1px solid rgba(16,185,129,0.18)",
+      border: "1px solid rgba(16,185,129,0.24)",
       color: "#A7F3D0",
     };
   }
@@ -83,40 +99,17 @@ function getStatusTone(status: string) {
   if (s.includes("aten") || s.includes("pend")) {
     return {
       background: "rgba(245,158,11,0.10)",
-      border: "1px solid rgba(245,158,11,0.18)",
+      border: "1px solid rgba(245,158,11,0.24)",
       color: "#FDE68A",
     };
   }
 
   return {
     background: "rgba(99,102,241,0.10)",
-    border: "1px solid rgba(99,102,241,0.18)",
+    border: "1px solid rgba(99,102,241,0.24)",
     color: "#C7D2FE",
   };
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.10)",
-  color: "#F8FAFC",
-  borderRadius: 16,
-  padding: "14px 16px",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const textareaStyle: React.CSSProperties = {
-  width: "100%",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.10)",
-  color: "#F8FAFC",
-  borderRadius: 16,
-  padding: "14px 16px",
-  outline: "none",
-  boxSizing: "border-box",
-  resize: "vertical",
-};
 
 export default function AcompanharPage() {
   const [document, setDocument] = useState("");
@@ -124,6 +117,7 @@ export default function AcompanharPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [data, setData] = useState<TrackResp | null>(null);
+
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotId, setSlotId] = useState("");
   const [bookingNotes, setBookingNotes] = useState("");
@@ -132,15 +126,23 @@ export default function AcompanharPage() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    function update() {
-      setIsMobile(window.innerWidth < 768);
+    function updateViewport() {
+      setIsMobile(window.innerWidth < 820);
     }
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+    };
   }, []);
 
-  const processCount = useMemo(() => data?.processes?.length ?? 0, [data]);
+  const processes = useMemo(() => {
+    return data?.processes || data?.client?.processes || [];
+  }, [data]);
+
+  const processCount = processes.length;
 
   async function carregarSlots(doc: string, codeValue: string) {
     const res = await fetch("/api/public/appointments/slots", {
@@ -244,564 +246,816 @@ export default function AcompanharPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(56,189,248,0.08), transparent 20%), radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 28%), linear-gradient(180deg, #0B1020 0%, #0F172A 100%)",
-        color: "#F8FAFC",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
+    <main className="jv-track-page">
+      <style>{`
+        :root {
+          --jv-blue: #1677ff;
+          --jv-cyan: #38bdf8;
+          --jv-text: #f8fafc;
+          --jv-muted: #94a3b8;
+          --jv-border: rgba(148, 163, 184, 0.22);
+          --jv-card: rgba(15, 23, 42, 0.62);
+        }
+
+        .jv-track-page {
+          min-height: 100vh;
+          position: relative;
+          overflow-x: hidden;
+          color: var(--jv-text);
+          font-family: Arial, Helvetica, sans-serif;
           background:
-            "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-          opacity: 0.18,
-          pointerEvents: "none",
-        }}
-      />
+            radial-gradient(circle at 85% 6%, rgba(22,119,255,.24), transparent 26%),
+            radial-gradient(circle at 7% 86%, rgba(22,119,255,.28), transparent 26%),
+            linear-gradient(135deg, #020617 0%, #07111f 46%, #020617 100%);
+        }
 
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "min(1180px, calc(100% - 32px))",
-          margin: "0 auto",
-          padding: "36px 0 56px",
-          display: "grid",
-          gap: 24,
-        }}
-      >
-        <section
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 30,
-            padding: 28,
-            background:
-              "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 24px 45px rgba(0,0,0,0.30)",
-            backdropFilter: "blur(16px)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: -40,
-              right: -10,
-              width: 180,
-              height: 180,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(124,58,237,0.28), transparent 70%)",
-              filter: "blur(16px)",
-            }}
-          />
+        .jv-track-page * {
+          box-sizing: border-box;
+        }
 
-          <div
-            style={{
-              position: "absolute",
-              bottom: -30,
-              left: -20,
-              width: 180,
-              height: 180,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%)",
-              filter: "blur(14px)",
-            }}
-          />
+        .jv-track-page::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: .36;
+          background-image:
+            linear-gradient(rgba(56,189,248,.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56,189,248,.035) 1px, transparent 1px);
+          background-size: 72px 72px;
+          mask-image: linear-gradient(to bottom, black, transparent 82%);
+        }
 
-          <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 12 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                width: "fit-content",
-                padding: "8px 12px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#BFDBFE",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-              }}
-            >
-              ÁREA DO CLIENTE
-            </div>
+        .jv-track-page::after {
+          content: "";
+          position: absolute;
+          width: 760px;
+          height: 760px;
+          right: -250px;
+          top: 140px;
+          border-radius: 999px;
+          border: 1px solid rgba(22,119,255,.16);
+          pointer-events: none;
+        }
 
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 36,
-                fontWeight: 900,
-                letterSpacing: "-0.05em",
-                color: "#F8FAFC",
-              }}
-            >
-              Acompanhar processo
-            </h1>
+        .jv-track-shell {
+          position: relative;
+          z-index: 1;
+          width: min(1460px, calc(100% - 72px));
+          margin: 0 auto;
+          padding: 34px 0 52px;
+          display: grid;
+          gap: 24px;
+        }
 
-            <p
-              style={{
-                margin: 0,
-                color: "#94A3B8",
-                fontSize: 15,
-                lineHeight: 1.7,
-                maxWidth: 780,
-              }}
-            >
-              Consulte suas informações com segurança usando o CPF/CNPJ e o código
-              fornecido pelo escritório.
-            </p>
+        .jv-hero {
+          min-height: 260px;
+          position: relative;
+          overflow: hidden;
+          padding: 38px 44px;
+          border-radius: 28px;
+          border: 1px solid rgba(22,119,255,.34);
+          background:
+            radial-gradient(circle at 88% 18%, rgba(14,165,233,.24), transparent 21%),
+            linear-gradient(135deg, rgba(7,17,31,.96), rgba(7,17,31,.74));
+          box-shadow: 0 32px 80px rgba(0,0,0,.38);
+        }
+
+        .jv-hero::before {
+          content: "";
+          position: absolute;
+          right: 70px;
+          top: 38px;
+          width: 360px;
+          height: 190px;
+          opacity: .24;
+          background:
+            radial-gradient(circle at 65% 56%, rgba(22,119,255,.9), transparent 12%),
+            linear-gradient(90deg, transparent, rgba(14,165,233,.36), transparent);
+          filter: blur(.2px);
+        }
+
+        .jv-hero::after {
+          content: "⚖";
+          position: absolute;
+          right: 150px;
+          top: 70px;
+          color: rgba(56,189,248,.44);
+          font-size: 112px;
+          text-shadow: 0 0 40px rgba(22,119,255,.42);
+        }
+
+        .jv-logo {
+          width: 300px;
+          height: auto;
+          display: block;
+          margin-bottom: 28px;
+        }
+
+        .jv-kicker {
+          width: fit-content;
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          padding: 9px 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(56,189,248,.30);
+          background: linear-gradient(135deg, rgba(22,119,255,.62), rgba(124,58,237,.40));
+          color: #e0f2fe;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: .04em;
+          text-transform: uppercase;
+        }
+
+        .jv-hero h1 {
+          max-width: 720px;
+          margin: 22px 0 0;
+          font-size: clamp(38px, 4.8vw, 58px);
+          line-height: 1.02;
+          letter-spacing: -0.06em;
+          font-weight: 950;
+        }
+
+        .jv-hero p {
+          max-width: 820px;
+          margin: 20px 0 0;
+          color: #cbd5e1;
+          font-size: 18px;
+          line-height: 1.7;
+        }
+
+        .jv-main-grid {
+          display: grid;
+          grid-template-columns: 560px 1fr;
+          gap: 26px;
+          align-items: start;
+        }
+
+        .jv-card {
+          border-radius: 28px;
+          border: 1px solid rgba(148,163,184,.20);
+          background:
+            radial-gradient(circle at top left, rgba(22,119,255,.10), transparent 24%),
+            linear-gradient(180deg, rgba(7,17,31,.88), rgba(3,7,18,.84));
+          box-shadow: 0 24px 60px rgba(0,0,0,.32);
+          backdrop-filter: blur(16px);
+        }
+
+        .jv-form-card {
+          padding: 28px;
+        }
+
+        .jv-card-title {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .jv-icon-box {
+          width: 56px;
+          height: 56px;
+          display: grid;
+          place-items: center;
+          flex: 0 0 auto;
+          border-radius: 16px;
+          color: #dbeafe;
+          background: linear-gradient(135deg, rgba(22,119,255,.96), rgba(14,165,233,.44));
+          box-shadow: 0 18px 45px rgba(22,119,255,.22);
+          font-size: 24px;
+        }
+
+        .jv-card-title h2 {
+          margin: 0;
+          font-size: 30px;
+          line-height: 1.08;
+          letter-spacing: -0.04em;
+          font-weight: 950;
+        }
+
+        .jv-card-title p {
+          margin: 8px 0 0;
+          color: #94a3b8;
+          font-size: 15px;
+          line-height: 1.5;
+        }
+
+        .jv-form {
+          display: grid;
+          gap: 18px;
+        }
+
+        .jv-field {
+          display: grid;
+          gap: 8px;
+        }
+
+        .jv-field label {
+          color: #f8fafc;
+          font-size: 15px;
+          font-weight: 900;
+        }
+
+        .jv-input-wrap,
+        .jv-select,
+        .jv-textarea {
+          border-radius: 14px;
+          border: 1px solid rgba(148,163,184,.25);
+          background: rgba(15,23,42,.72);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+        }
+
+        .jv-input-wrap {
+          min-height: 64px;
+          display: grid;
+          grid-template-columns: auto 1fr;
+          align-items: center;
+          gap: 14px;
+          padding: 0 18px;
+        }
+
+        .jv-input-wrap svg {
+          color: #94a3b8;
+          font-size: 20px;
+        }
+
+        .jv-input-wrap input {
+          width: 100%;
+          min-width: 0;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: #fff;
+          font-size: 17px;
+        }
+
+        .jv-input-wrap input::placeholder,
+        .jv-textarea::placeholder {
+          color: #94a3b8;
+        }
+
+        .jv-primary-button {
+          width: 100%;
+          min-height: 66px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          border: 0;
+          border-radius: 14px;
+          color: white;
+          cursor: pointer;
+          font-size: 17px;
+          font-weight: 950;
+          background: linear-gradient(135deg, #1677ff, #7c3aed);
+          box-shadow: 0 24px 55px rgba(22,119,255,.28);
+          transition: transform .2s ease, opacity .2s ease;
+        }
+
+        .jv-primary-button:hover {
+          transform: translateY(-2px);
+        }
+
+        .jv-primary-button:disabled {
+          opacity: .62;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .jv-note {
+          margin-top: 22px;
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 16px;
+          align-items: center;
+          padding: 18px;
+          border-radius: 16px;
+          border: 1px solid rgba(56,189,248,.18);
+          background: rgba(15,23,42,.56);
+          color: #bfdbfe;
+          font-size: 16px;
+          line-height: 1.55;
+        }
+
+        .jv-note svg {
+          color: #38bdf8;
+          font-size: 28px;
+        }
+
+        .jv-message {
+          padding: 14px 16px;
+          border-radius: 16px;
+          border: 1px solid rgba(56,189,248,.22);
+          background: rgba(14,165,233,.08);
+          color: #bae6fd;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .jv-result-card {
+          min-height: 472px;
+          padding: 30px;
+          display: grid;
+          align-content: center;
+        }
+
+        .jv-empty-state {
+          max-width: 720px;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .jv-scale-circle {
+          width: 112px;
+          height: 112px;
+          display: grid;
+          place-items: center;
+          margin: 0 auto 28px;
+          border-radius: 999px;
+          border: 1px solid rgba(56,189,248,.24);
+          background:
+            radial-gradient(circle at center, rgba(22,119,255,.36), transparent 70%),
+            rgba(15,23,42,.78);
+          box-shadow: 0 22px 50px rgba(22,119,255,.20);
+          color: #60a5fa;
+          font-size: 46px;
+        }
+
+        .jv-empty-state h2 {
+          margin: 0;
+          font-size: 32px;
+          letter-spacing: -0.04em;
+          font-weight: 950;
+        }
+
+        .jv-empty-state p {
+          max-width: 620px;
+          margin: 20px auto 0;
+          color: #cbd5e1;
+          font-size: 17px;
+          line-height: 1.7;
+        }
+
+        .jv-results {
+          display: grid;
+          gap: 20px;
+          align-content: start;
+        }
+
+        .jv-client-box {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 16px;
+          align-items: center;
+          padding: 20px;
+          border-radius: 20px;
+          border: 1px solid rgba(56,189,248,.20);
+          background: rgba(15,23,42,.62);
+        }
+
+        .jv-client-box h2 {
+          margin: 0;
+          font-size: 24px;
+          letter-spacing: -0.03em;
+        }
+
+        .jv-client-box p {
+          margin: 6px 0 0;
+          color: #94a3b8;
+        }
+
+        .jv-count {
+          padding: 10px 14px;
+          border-radius: 999px;
+          color: #bfdbfe;
+          font-size: 13px;
+          font-weight: 900;
+          background: rgba(22,119,255,.16);
+          border: 1px solid rgba(56,189,248,.24);
+          white-space: nowrap;
+        }
+
+        .jv-process-card {
+          padding: 20px;
+          border-radius: 20px;
+          border: 1px solid rgba(148,163,184,.18);
+          background: rgba(15,23,42,.56);
+        }
+
+        .jv-process-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+          margin-bottom: 14px;
+        }
+
+        .jv-process-head h3 {
+          margin: 0;
+          font-size: 18px;
+          letter-spacing: -0.02em;
+        }
+
+        .jv-process-head p {
+          margin: 8px 0 0;
+          color: #94a3b8;
+          font-size: 14px;
+          line-height: 1.55;
+        }
+
+        .jv-status-pill {
+          padding: 8px 12px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .jv-update-list {
+          display: grid;
+          gap: 10px;
+          margin-top: 14px;
+        }
+
+        .jv-update {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 12px;
+          padding: 12px;
+          border-radius: 14px;
+          background: rgba(2,6,23,.34);
+          border: 1px solid rgba(148,163,184,.10);
+        }
+
+        .jv-update svg {
+          color: #38bdf8;
+          margin-top: 2px;
+        }
+
+        .jv-update strong {
+          display: block;
+          color: #e2e8f0;
+          font-size: 13px;
+          margin-bottom: 4px;
+        }
+
+        .jv-update span {
+          color: #cbd5e1;
+          font-size: 14px;
+          line-height: 1.55;
+        }
+
+        .jv-booking-card {
+          padding: 22px;
+          border-radius: 22px;
+          border: 1px solid rgba(56,189,248,.18);
+          background: rgba(15,23,42,.54);
+        }
+
+        .jv-booking-card h3 {
+          margin: 0 0 14px;
+          font-size: 22px;
+          letter-spacing: -0.03em;
+        }
+
+        .jv-select,
+        .jv-textarea {
+          width: 100%;
+          color: white;
+          outline: 0;
+          padding: 14px 16px;
+          font-size: 15px;
+        }
+
+        .jv-select option {
+          background: #0f172a;
+          color: white;
+        }
+
+        .jv-textarea {
+          min-height: 96px;
+          resize: vertical;
+        }
+
+        @media (max-width: 1100px) {
+          .jv-main-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .jv-result-card {
+            min-height: 360px;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .jv-track-shell {
+            width: min(100% - 28px, 1460px);
+            padding: 18px 0 34px;
+            gap: 18px;
+          }
+
+          .jv-hero {
+            min-height: auto;
+            padding: 26px 22px;
+            border-radius: 22px;
+          }
+
+          .jv-hero::after,
+          .jv-hero::before {
+            opacity: .12;
+            right: 18px;
+            top: 48px;
+          }
+
+          .jv-logo {
+            width: 220px;
+            margin-bottom: 24px;
+          }
+
+          .jv-kicker {
+            font-size: 11px;
+            padding: 8px 12px;
+          }
+
+          .jv-hero h1 {
+            font-size: 38px;
+            line-height: 1.08;
+          }
+
+          .jv-hero p {
+            font-size: 15px;
+            line-height: 1.65;
+          }
+
+          .jv-form-card,
+          .jv-result-card {
+            padding: 22px;
+            border-radius: 22px;
+          }
+
+          .jv-card-title {
+            align-items: flex-start;
+          }
+
+          .jv-card-title h2 {
+            font-size: 25px;
+          }
+
+          .jv-input-wrap {
+            min-height: 58px;
+          }
+
+          .jv-input-wrap input {
+            font-size: 15px;
+          }
+
+          .jv-primary-button {
+            min-height: 58px;
+            font-size: 15px;
+          }
+
+          .jv-note {
+            font-size: 14px;
+          }
+
+          .jv-client-box {
+            grid-template-columns: 1fr;
+          }
+
+          .jv-process-head {
+            flex-direction: column;
+          }
+
+          .jv-empty-state h2 {
+            font-size: 26px;
+          }
+
+          .jv-empty-state p {
+            font-size: 15px;
+          }
+
+          .jv-scale-circle {
+            width: 88px;
+            height: 88px;
+            font-size: 36px;
+          }
+        }
+      `}</style>
+
+      <div className="jv-track-shell">
+        <section className="jv-hero">
+          <img className="jv-logo" src="/brand/logo-juridicvas.svg" alt="JuridicVas" />
+
+          <div className="jv-kicker">
+            <FaUserShield />
+            Área do cliente
           </div>
+
+          <h1>Acompanhar processo</h1>
+
+          <p>
+            Consulte suas informações com segurança usando o CPF/CNPJ e o código
+            fornecido pelo escritório.
+          </p>
         </section>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "minmax(340px, 420px) 1fr",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
-          <div
-            style={{
-              borderRadius: 28,
-              padding: 22,
-              background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-              backdropFilter: "blur(14px)",
-            }}
-          >
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#F8FAFC" }}>
-                Consultar acesso
+        <section className="jv-main-grid">
+          <aside className="jv-card jv-form-card">
+            <div className="jv-card-title">
+              <div className="jv-icon-box">
+                <FaLock />
               </div>
-              <div style={{ fontSize: 13, color: "#64748B", marginTop: 6, lineHeight: 1.6 }}>
-                Digite seus dados exatamente como informados pelo escritório.
+
+              <div>
+                <h2>Consultar acesso</h2>
+                <p>Digite seus dados exatamente como informados pelo escritório.</p>
               </div>
             </div>
 
-            <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ color: "#CBD5E1", fontSize: 13, fontWeight: 600 }}>
-                  CPF ou CNPJ
-                </label>
-                <input
-                  value={document}
-                  onChange={(e) => setDocument(formatDocument(e.target.value))}
-                  placeholder="Digite seu CPF ou CNPJ"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ color: "#CBD5E1", fontSize: 13, fontWeight: 600 }}>
-                  Código de acesso
-                </label>
-                <input
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Código informado pelo escritório"
-                  style={inputStyle}
-                />
-              </div>
-
-              {msg ? (
-                <div
-                  style={{
-                    padding: 14,
-                    borderRadius: 16,
-                    background: "rgba(239,68,68,0.10)",
-                    border: "1px solid rgba(239,68,68,0.18)",
-                    color: "#FECACA",
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {msg}
+            <form onSubmit={onSubmit} className="jv-form">
+              <div className="jv-field">
+                <label htmlFor="document">CPF ou CNPJ</label>
+                <div className="jv-input-wrap">
+                  <FaIdCard />
+                  <input
+                    id="document"
+                    value={document}
+                    onChange={(e) => setDocument(formatDocument(e.target.value))}
+                    placeholder="Digite seu CPF ou CNPJ"
+                    inputMode="numeric"
+                  />
                 </div>
-              ) : null}
+              </div>
 
-              <button
-                type="submit"
-                className="jv-premium-btn"
-                disabled={loading}
-                style={{ width: "100%", marginTop: 4 }}
-              >
+              <div className="jv-field">
+                <label htmlFor="accessCode">Código de acesso</label>
+                <div className="jv-input-wrap">
+                  <FaLock />
+                  <input
+                    id="accessCode"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value)}
+                    placeholder="Código informado pelo escritório"
+                  />
+                </div>
+              </div>
+
+              {msg ? <div className="jv-message">{msg}</div> : null}
+
+              <button type="submit" className="jv-primary-button" disabled={loading}>
+                <FaMagnifyingGlass />
                 {loading ? "Consultando..." : "Consultar agora"}
               </button>
             </form>
 
-            <div
-              style={{
-                marginTop: 16,
-                padding: 14,
-                borderRadius: 18,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.05)",
-                color: "#94A3B8",
-                fontSize: 13,
-                lineHeight: 1.7,
-              }}
-            >
-              Esta área mostra apenas informações liberadas pelo escritório.
+            <div className="jv-note">
+              <FaShieldHalved />
+              <div>Esta área mostra apenas informações liberadas pelo escritório.</div>
             </div>
-          </div>
+          </aside>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 18,
-            }}
-          >
+          <section className="jv-card jv-result-card">
             {!data?.ok ? (
-              <div
-                style={{
-                  borderRadius: 28,
-                  padding: 24,
-                  background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-                  backdropFilter: "blur(14px)",
-                  minHeight: 280,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <div style={{ textAlign: "center", maxWidth: 520 }}>
-                  <div
-                    style={{
-                      width: 74,
-                      height: 74,
-                      borderRadius: "50%",
-                      margin: "0 auto 18px",
-                      display: "grid",
-                      placeItems: "center",
-                      background: "linear-gradient(135deg, rgba(99,102,241,0.16), rgba(56,189,248,0.12))",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      boxShadow: "0 14px 30px rgba(0,0,0,0.22)",
-                      fontSize: 28,
-                    }}
-                  >
-                    ⚖
-                  </div>
-
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#F8FAFC" }}>
-                    Consulta protegida
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 14,
-                      color: "#64748B",
-                      lineHeight: 1.7,
-                      marginTop: 10,
-                    }}
-                  >
-                    Após informar seus dados, você verá aqui os processos liberados,
-                    o status atual, as últimas atualizações e os horários disponíveis.
-                  </div>
+              <div className="jv-empty-state">
+                <div className="jv-scale-circle">
+                  <FaScaleBalanced />
                 </div>
+
+                <h2>Consulta protegida</h2>
+
+                <p>
+                  Após informar seus dados, você verá aqui os processos liberados,
+                  o status atual, as últimas atualizações e os horários disponíveis.
+                </p>
               </div>
             ) : (
-              <>
-                <div
-                  style={{
-                    borderRadius: 28,
-                    padding: 22,
-                    background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-                    backdropFilter: "blur(14px)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
-                      gap: 16,
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: "#94A3B8", fontSize: 13 }}>Cliente</div>
-                      <div
-                        style={{
-                          color: "#F8FAFC",
-                          fontSize: 24,
-                          fontWeight: 800,
-                          marginTop: 8,
-                        }}
-                      >
-                        {data.client?.name}
-                      </div>
-                      <div style={{ color: "#64748B", fontSize: 14, marginTop: 8 }}>
-                        {formatDocument(data.client?.document || "")}
-                      </div>
-                    </div>
+              <div className="jv-results">
+                <div className="jv-client-box">
+                  <div className="jv-icon-box">
+                    <FaUserShield />
+                  </div>
 
-                    <div
-                      style={{
-                        display: "grid",
-                        gap: 12,
-                        alignContent: "start",
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: 14,
-                          borderRadius: 18,
-                          background: "rgba(99,102,241,0.10)",
-                          border: "1px solid rgba(99,102,241,0.18)",
-                        }}
-                      >
-                        <div style={{ color: "#94A3B8", fontSize: 12 }}>Processos liberados</div>
-                        <div
-                          style={{
-                            color: "#F8FAFC",
-                            fontSize: 28,
-                            fontWeight: 800,
-                            marginTop: 8,
-                          }}
-                        >
-                          {processCount}
-                        </div>
-                      </div>
-                    </div>
+                  <div>
+                    <h2>{data.client?.name || "Cliente localizado"}</h2>
+                    <p>{data.client?.document || document}</p>
+                  </div>
+
+                  <div className="jv-count">
+                    {processCount} processo{processCount === 1 ? "" : "s"}
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gap: 16 }}>
-                  {data.processes?.length ? (
-                    data.processes.map((p) => {
-                      const tone = getStatusTone(p.status);
+                {processes.length ? (
+                  processes.map((processo) => {
+                    const tone = getStatusTone(processo.status);
 
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            borderRadius: 28,
-                            padding: 22,
-                            background:
-                              "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-                            border: "1px solid rgba(255,255,255,0.06)",
-                            boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-                            backdropFilter: "blur(14px)",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: isMobile ? "column" : "row",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
-                              gap: 16,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <div style={{ display: "grid", gap: 8 }}>
-                              <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 700 }}>
-                                PROCESSO
-                              </div>
-                              <div style={{ color: "#F8FAFC", fontSize: 22, fontWeight: 800 }}>
-                                {p.cnj}
-                              </div>
-                              <div style={{ color: "#64748B", fontSize: 14 }}>
-                                {[p.tribunal, p.vara].filter(Boolean).join(" · ") || "Informações do órgão não disponíveis"}
-                              </div>
-                            </div>
-
-                            <span
-                              style={{
-                                padding: "10px 14px",
-                                borderRadius: 999,
-                                fontSize: 12,
-                                fontWeight: 800,
-                                whiteSpace: "nowrap",
-                                ...tone,
-                              }}
-                            >
-                              {p.status}
-                            </span>
+                    return (
+                      <article className="jv-process-card" key={processo.id}>
+                        <div className="jv-process-head">
+                          <div>
+                            <h3>{processo.cnj}</h3>
+                            <p>
+                              {processo.tribunal || "Tribunal não informado"}
+                              {processo.vara ? ` • ${processo.vara}` : ""}
+                            </p>
                           </div>
 
-                          <div style={{ marginTop: 18 }}>
-                            <div style={{ color: "#F8FAFC", fontSize: 15, fontWeight: 800, marginBottom: 10 }}>
-                              Horários disponíveis para agendamento
-                            </div>
-
-                            {slots.length > 0 ? (
-                              <form onSubmit={reservarHorario} style={{ display: "grid", gap: 12 }}>
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(230px, 1fr))",
-                                    gap: 10,
-                                  }}
-                                >
-                                  {slots.map((slot) => {
-                                    const selected = slotId === slot.id;
-
-                                    return (
-                                      <button
-                                        key={slot.id}
-                                        type="button"
-                                        onClick={() => setSlotId(slot.id)}
-                                        style={{
-                                          textAlign: "left",
-                                          padding: 14,
-                                          borderRadius: 16,
-                                          border: selected
-                                            ? "1px solid rgba(99,102,241,0.55)"
-                                            : "1px solid rgba(255,255,255,0.08)",
-                                          background: selected
-                                            ? "linear-gradient(135deg, rgba(99,102,241,0.20), rgba(56,189,248,0.14))"
-                                            : "rgba(255,255,255,0.03)",
-                                          color: "#F8FAFC",
-                                          cursor: "pointer",
-                                          boxShadow: selected
-                                            ? "0 10px 24px rgba(79,70,229,0.22)"
-                                            : "none",
-                                          transition: "all 0.18s ease",
-                                        }}
-                                      >
-                                        <div
-                                          style={{
-                                            fontSize: 13,
-                                            color: selected ? "#C7D2FE" : "#94A3B8",
-                                            fontWeight: 700,
-                                            marginBottom: 6,
-                                          }}
-                                        >
-                                          Horário disponível
-                                        </div>
-                                        <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.5 }}>
-                                          {formatDateTime(slot.startAt)}
-                                        </div>
-                                        <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
-                                          até {formatDateTime(slot.endAt)}
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                <textarea
-                                  value={bookingNotes}
-                                  onChange={(e) => setBookingNotes(e.target.value)}
-                                  placeholder="Observações para o atendimento"
-                                  rows={3}
-                                  style={textareaStyle}
-                                />
-
-                                <button
-                                  type="submit"
-                                  className="jv-premium-btn"
-                                  disabled={bookingLoading || !slotId}
-                                  style={{ width: "fit-content" }}
-                                >
-                                  {bookingLoading ? "Reservando..." : "Reservar horário"}
-                                </button>
-                              </form>
-                            ) : (
-                              <div
-                                style={{
-                                  marginTop: 6,
-                                  padding: 14,
-                                  borderRadius: 18,
-                                  background: "rgba(255,255,255,0.03)",
-                                  border: "1px solid rgba(255,255,255,0.05)",
-                                  color: "#94A3B8",
-                                  fontSize: 14,
-                                }}
-                              >
-                                Não há horários disponíveis no momento.
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ marginTop: 20 }}>
-                            <div style={{ color: "#F8FAFC", fontSize: 16, fontWeight: 800 }}>
-                              Últimas atualizações
-                            </div>
-
-                            {p.updates.length === 0 ? (
-                              <div
-                                style={{
-                                  marginTop: 12,
-                                  padding: 16,
-                                  borderRadius: 18,
-                                  background: "rgba(255,255,255,0.03)",
-                                  border: "1px solid rgba(255,255,255,0.05)",
-                                  color: "#94A3B8",
-                                  fontSize: 14,
-                                }}
-                              >
-                                Sem atualizações visíveis no momento.
-                              </div>
-                            ) : (
-                              <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-                                {p.updates.map((u, idx) => (
-                                  <div
-                                    key={`${p.id}-${idx}`}
-                                    style={{
-                                      padding: 16,
-                                      borderRadius: 18,
-                                      background: "rgba(255,255,255,0.03)",
-                                      border: "1px solid rgba(255,255,255,0.05)",
-                                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
-                                    }}
-                                  >
-                                    <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 700 }}>
-                                      {formatDateTime(u.date)}
-                                    </div>
-                                    <div
-                                      style={{
-                                        color: "#E2E8F0",
-                                        fontSize: 14,
-                                        lineHeight: 1.7,
-                                        marginTop: 8,
-                                      }}
-                                    >
-                                      {u.text}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                          <div className="jv-status-pill" style={tone}>
+                            {processo.status || "Status não informado"}
                           </div>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div
-                      style={{
-                        borderRadius: 28,
-                        padding: 24,
-                        background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                        boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-                        backdropFilter: "blur(14px)",
-                        color: "#94A3B8",
-                      }}
-                    >
-                      Nenhum processo visível para este acesso no momento.
+
+                        <div className="jv-update-list">
+                          {processo.updates?.length ? (
+                            processo.updates.map((update, index) => (
+                              <div className="jv-update" key={`${processo.id}-${index}`}>
+                                <FaFileLines />
+                                <div>
+                                  <strong>{formatDateTime(update.date)}</strong>
+                                  <span>{update.text}</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="jv-update">
+                              <FaCircleInfo />
+                              <div>
+                                <strong>Sem atualizações públicas</strong>
+                                <span>
+                                  Ainda não há atualização liberada para este processo.
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="jv-process-card">
+                    <div className="jv-update">
+                      <FaCircleInfo />
+                      <div>
+                        <strong>Nenhum processo liberado</strong>
+                        <span>
+                          O acesso foi validado, mas ainda não há processos públicos
+                          liberados pelo escritório.
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </>
+                  </div>
+                )}
+
+                {slots.length ? (
+                  <form onSubmit={reservarHorario} className="jv-booking-card">
+                    <h3>Horários disponíveis</h3>
+
+                    <div className="jv-form">
+                      <div className="jv-field">
+                        <label htmlFor="slotId">Escolha um horário</label>
+                        <select
+                          id="slotId"
+                          className="jv-select"
+                          value={slotId}
+                          onChange={(e) => setSlotId(e.target.value)}
+                        >
+                          <option value="">Selecione um horário</option>
+                          {slots.map((slot) => (
+                            <option key={slot.id} value={slot.id}>
+                              {formatDateTime(slot.startAt)} até {formatDateTime(slot.endAt)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="jv-field">
+                        <label htmlFor="bookingNotes">Observações</label>
+                        <textarea
+                          id="bookingNotes"
+                          className="jv-textarea"
+                          value={bookingNotes}
+                          onChange={(e) => setBookingNotes(e.target.value)}
+                          placeholder="Escreva uma observação, se necessário"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="jv-primary-button"
+                        disabled={bookingLoading}
+                      >
+                        <FaCalendarCheck />
+                        {bookingLoading ? "Reservando..." : "Reservar horário"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+              </div>
             )}
-          </div>
+          </section>
         </section>
       </div>
-    </div>
+    </main>
   );
 }
