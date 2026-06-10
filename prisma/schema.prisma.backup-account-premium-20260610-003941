@@ -54,8 +54,7 @@ model User {
   name                       String
   email                      String    @unique
   phone                      String?
-  document                   String?
-  age                        Int?
+  document                   String?
   emailVerified              Boolean   @default(false)
   emailVerificationToken     String?
   emailVerificationExpiresAt DateTime?

@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  FaCalendarCheck,
+  FaChartLine,
+  FaClock,
+  FaFolderOpen,
+  FaScaleBalanced,
+  FaShieldHalved,
+  FaUserGroup,
+} from "react-icons/fa6";
 import AdminShell from "@/components/AdminShell";
-import PremiumModal from "@/components/PremiumModal";
-import PremiumToast from "@/components/PremiumToast";
 
 type MeResponse = {
   user?: {
@@ -21,6 +28,12 @@ type DeadlineItem = {
   title?: string;
   dueDate?: string;
   done?: boolean;
+  client?: {
+    name?: string;
+  };
+  process?: {
+    cnj?: string;
+  };
 };
 
 type DashboardData = {
@@ -28,13 +41,6 @@ type DashboardData = {
   processes: number;
   pendingDeadlines: number;
   recentDeadlines: DeadlineItem[];
-};
-
-type PremiumCardProps = {
-  title: string;
-  value: number;
-  subtitle: string;
-  compact?: boolean;
 };
 
 function normalizeMe(meJson: MeResponse) {
@@ -64,62 +70,75 @@ function extractArrayPayload(data: unknown, possibleKeys: string[]) {
   return [];
 }
 
-function PremiumCard({ title, value, subtitle, compact = false }: PremiumCardProps) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 24,
-        padding: compact ? 18 : 22,
-        background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-        backdropFilter: "blur(14px)",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: -30,
-          right: -30,
-          width: compact ? 90 : 120,
-          height: compact ? 90 : 120,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.26), transparent 65%)",
-          filter: "blur(12px)",
-        }}
-      />
-
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ color: "#94A3B8", fontSize: compact ? 12 : 13, marginBottom: 8 }}>
-          {title}
-        </div>
-        <div
-          style={{
-            fontSize: compact ? 30 : 36,
-            fontWeight: 800,
-            letterSpacing: "-0.04em",
-            color: "#F8FAFC",
-            marginBottom: 8,
-            lineHeight: 1,
-          }}
-        >
-          {value}
-        </div>
-        <div style={{ color: "#64748B", fontSize: compact ? 12 : 13 }}>{subtitle}</div>
-      </div>
-    </div>
-  );
-}
-
 function formatDate(date?: string) {
   if (!date) return "Sem data";
+
   try {
-    return new Date(date).toLocaleDateString("pt-BR");
+    return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
   } catch {
     return date;
   }
+}
+
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  Icon,
+  tone,
+}: {
+  title: string;
+  value: number;
+  subtitle: string;
+  Icon: React.ComponentType;
+  tone: "purple" | "blue" | "yellow";
+}) {
+  return (
+    <article className={`jv-admin-metric jv-admin-metric-${tone}`}>
+      <div className="jv-admin-metric-icon">
+        <Icon />
+      </div>
+
+      <div>
+        <div className="jv-admin-metric-title">{title}</div>
+        <div className="jv-admin-metric-value">{value}</div>
+        <div className="jv-admin-metric-subtitle">{subtitle}</div>
+      </div>
+
+      <div className="jv-admin-metric-arrow">›</div>
+      <div className="jv-admin-metric-line" />
+    </article>
+  );
+}
+
+function StrategicItem({
+  title,
+  primary,
+  secondary,
+  Icon,
+  tone,
+}: {
+  title: string;
+  primary: string;
+  secondary: string;
+  Icon: React.ComponentType;
+  tone: "purple" | "blue" | "green" | "slate";
+}) {
+  return (
+    <div className={`jv-strategy-item jv-strategy-${tone}`}>
+      <div className="jv-strategy-icon">
+        <Icon />
+      </div>
+
+      <div className="jv-strategy-text">
+        <div className="jv-strategy-title">{title}</div>
+        <div className="jv-strategy-primary">{primary}</div>
+        <div className="jv-strategy-secondary">{secondary}</div>
+      </div>
+
+      <div className="jv-strategy-arrow">›</div>
+    </div>
+  );
 }
 
 export default function AdminDashboardPage() {
@@ -130,21 +149,10 @@ export default function AdminDashboardPage() {
     pendingDeadlines: 0,
     recentDeadlines: [],
   });
-  const [showModal, setShowModal] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  const [toast, setToast] = useState<{
-    open: boolean;
-    message: string;
-    type: "success" | "error" | "warning" | "info";
-  }>({
-    open: false,
-    message: "",
-    type: "info",
-  });
 
   async function load() {
     const meRes = await fetch("/api/me", { cache: "no-store" });
+
     if (meRes.ok) {
       const meJson = await meRes.json();
       setMe(normalizeMe(meJson));
@@ -166,7 +174,7 @@ export default function AdminDashboardPage() {
       (item) => typeof item === "object" && item !== null
     ) as DeadlineItem[];
 
-    const pending = deadlines.filter((d) => !d.done);
+    const pending = deadlines.filter((deadline) => !deadline.done);
 
     setData({
       clients: clients.length,
@@ -192,20 +200,39 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  useEffect(() => {
-    function updateViewport() {
-      const width = window.innerWidth;
-      setIsMobile(width < 640);
-      setIsTablet(width >= 640 && width < 1024);
-    }
-
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
-
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-    };
-  }, []);
+  const strategicItems = useMemo(
+    () => [
+      {
+        title: "Distribuição por área",
+        primary: `Cível: ${data.processes}`,
+        secondary: "Processos em acompanhamento",
+        Icon: FaScaleBalanced,
+        tone: "purple" as const,
+      },
+      {
+        title: "Status dos processos",
+        primary: `${data.processes} ativo${data.processes === 1 ? "" : "s"}`,
+        secondary: "0 suspensos · 0 arquivados",
+        Icon: FaShieldHalved,
+        tone: "blue" as const,
+      },
+      {
+        title: "Faturamento do mês",
+        primary: "R$ 0,00",
+        secondary: "0 recebido · 0 a receber",
+        Icon: FaChartLine,
+        tone: "green" as const,
+      },
+      {
+        title: "Audiências agendadas",
+        primary: "0 hoje",
+        secondary: "0 esta semana",
+        Icon: FaCalendarCheck,
+        tone: "slate" as const,
+      },
+    ],
+    [data.processes]
+  );
 
   if (!me) {
     return (
@@ -220,383 +247,619 @@ export default function AdminDashboardPage() {
           textAlign: "center",
         }}
       >
-        Carregando painel premium...
+        Carregando painel...
       </div>
     );
   }
 
-  const compact = isMobile;
-  const heroTitleSize = isMobile ? 24 : isTablet ? 30 : 34;
-  const heroPadding = isMobile ? 20 : isTablet ? 24 : 28;
-  const outerGap = isMobile ? 18 : 24;
-
   return (
     <AdminShell role={me.role} userName={me.name}>
-      <PremiumToast
-        open={toast.open}
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-      />
+      <div className="jv-admin-dashboard">
+        <style>{`
+          .jv-admin-dashboard {
+            display: grid;
+            gap: 20px;
+          }
 
-      <PremiumModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Experiência Premium ativada"
-        description="Este modal já representa a nova base visual do JuridicVas para confirmações, edições, exclusões e ações importantes do sistema."
-        footer={
-          <>
-            <button
-              className="jv-premium-btn-secondary"
-              onClick={() => setShowModal(false)}
-            >
-              Fechar
-            </button>
-            <button
-              className="jv-premium-btn"
-              onClick={() => {
-                setShowModal(false);
-                setToast({
-                  open: true,
-                  message: "Visual premium confirmado com sucesso.",
-                  type: "success",
-                });
-              }}
-            >
-              Confirmar
-            </button>
-          </>
-        }
-      >
-        <div style={{ display: "grid", gap: 12 }}>
-          <input
-            className="jv-premium-input"
-            placeholder="Exemplo de input premium"
-          />
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 18,
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              color: "#94A3B8",
-              lineHeight: 1.7,
-            }}
-          >
-            A partir daqui, podemos usar esse mesmo componente em edição de cliente,
-            criação de processo, confirmação de exclusão e feedback operacional.
-          </div>
-        </div>
-      </PremiumModal>
+          .jv-admin-dashboard * {
+            box-sizing: border-box;
+          }
 
-      <div style={{ display: "grid", gap: outerGap }}>
-        <section
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: isMobile ? 24 : 28,
-            padding: heroPadding,
+          .jv-dashboard-hero {
+            min-height: 300px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            border: 1px solid rgba(168, 85, 247, 0.22);
             background:
-              "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(15,23,42,0.88) 45%, rgba(56,189,248,0.10))",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 24px 45px rgba(0,0,0,0.30)",
-            backdropFilter: "blur(16px)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: -40,
-              right: -10,
-              width: isMobile ? 120 : 180,
-              height: isMobile ? 120 : 180,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(124,58,237,0.28), transparent 70%)",
-              filter: "blur(16px)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: -30,
-              left: -20,
-              width: isMobile ? 120 : 180,
-              height: isMobile ? 120 : 180,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(56,189,248,0.18), transparent 70%)",
-              filter: "blur(14px)",
-            }}
-          />
+              linear-gradient(90deg, rgba(7, 10, 23, 0.96), rgba(12, 15, 31, 0.82), rgba(17, 24, 39, 0.70)),
+              radial-gradient(circle at 82% 17%, rgba(124, 58, 237, 0.34), transparent 32%),
+              linear-gradient(135deg, #090b16, #111827);
+            box-shadow:
+              0 34px 90px rgba(0,0,0,0.36),
+              inset 0 1px 0 rgba(255,255,255,0.045);
+            padding: 38px 42px;
+          }
 
-          <div style={{ position: "relative", zIndex: 1, display: "grid", gap: isMobile ? 12 : 10 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                width: "fit-content",
-                padding: "8px 12px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#BFDBFE",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-              }}
-            >
-              DARK PREMIUM EXPERIENCE
-            </div>
+          .jv-dashboard-hero::before {
+            content: "";
+            position: absolute;
+            right: 70px;
+            bottom: 10px;
+            width: 390px;
+            height: 210px;
+            opacity: 0.48;
+            background:
+              radial-gradient(circle at 42% 54%, rgba(168,85,247,0.50), transparent 10%),
+              linear-gradient(180deg, transparent 0 44px, rgba(168,85,247,0.58) 45px 48px, transparent 49px),
+              linear-gradient(90deg, transparent 0 70px, rgba(192,132,252,0.40) 71px 73px, transparent 74px);
+            clip-path: polygon(50% 0, 85% 22%, 80% 26%, 80% 34%, 20% 34%, 20% 26%, 15% 22%);
+            filter: drop-shadow(0 0 34px rgba(168,85,247,0.38));
+          }
 
-            <h1
-              style={{
-                margin: 0,
-                fontSize: heroTitleSize,
-                fontWeight: 900,
-                letterSpacing: "-0.05em",
-                lineHeight: 1.05,
-                color: "#F8FAFC",
-              }}
-            >
-              Dashboard Premium
-            </h1>
+          .jv-dashboard-hero::after {
+            content: "";
+            position: absolute;
+            right: 180px;
+            bottom: 70px;
+            width: 340px;
+            height: 55px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(168,85,247,0.42), transparent 70%);
+            filter: blur(15px);
+          }
 
-            <p
-              style={{
-                margin: 0,
-                color: "#94A3B8",
-                fontSize: isMobile ? 14 : 15,
-                lineHeight: 1.7,
-                maxWidth: 760,
-              }}
-            >
-              Interface confortável aos olhos, mais tecnológica e preparada para
-              experiências visuais avançadas dentro do sistema jurídico.
+          .jv-hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 760px;
+            display: grid;
+            gap: 16px;
+          }
+
+          .jv-hero-title {
+            margin: 0;
+            color: #f8fafc;
+            font-size: clamp(40px, 4vw, 58px);
+            line-height: 0.98;
+            font-weight: 950;
+            letter-spacing: -0.06em;
+          }
+
+          .jv-hero-text {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 17px;
+            line-height: 1.7;
+          }
+
+          .jv-period-button {
+            width: fit-content;
+            min-height: 54px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 0 18px;
+            border-radius: 15px;
+            border: 1px solid rgba(148,163,184,0.18);
+            background: rgba(15,23,42,0.58);
+            color: #f8fafc;
+            font-size: 15px;
+            font-weight: 850;
+          }
+
+          .jv-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+          }
+
+          .jv-admin-metric {
+            min-height: 150px;
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 18px;
+            padding: 22px;
+            border-radius: 23px;
+            border: 1px solid rgba(148,163,184,0.16);
+            background:
+              radial-gradient(circle at 95% 5%, rgba(124,58,237,0.18), transparent 32%),
+              linear-gradient(180deg, rgba(15,23,42,0.88), rgba(15,23,42,0.64));
+            box-shadow: 0 26px 60px rgba(0,0,0,0.27);
+          }
+
+          .jv-admin-metric-icon {
+            width: 78px;
+            height: 78px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            font-size: 32px;
+          }
+
+          .jv-admin-metric-purple .jv-admin-metric-icon {
+            color: #d8b4fe;
+            background: radial-gradient(circle, rgba(168,85,247,0.45), rgba(15,23,42,0.72));
+            box-shadow: 0 0 38px rgba(168,85,247,0.18);
+          }
+
+          .jv-admin-metric-blue .jv-admin-metric-icon {
+            color: #93c5fd;
+            background: radial-gradient(circle, rgba(59,130,246,0.45), rgba(15,23,42,0.72));
+            box-shadow: 0 0 38px rgba(59,130,246,0.18);
+          }
+
+          .jv-admin-metric-yellow .jv-admin-metric-icon {
+            color: #facc15;
+            background: radial-gradient(circle, rgba(202,138,4,0.45), rgba(15,23,42,0.72));
+            box-shadow: 0 0 38px rgba(202,138,4,0.18);
+          }
+
+          .jv-admin-metric-title {
+            color: #cbd5e1;
+            font-size: 15px;
+          }
+
+          .jv-admin-metric-value {
+            margin-top: 6px;
+            color: #f8fafc;
+            font-size: 38px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: -0.05em;
+          }
+
+          .jv-admin-metric-subtitle {
+            margin-top: 8px;
+            color: #a1a1aa;
+            font-size: 14px;
+          }
+
+          .jv-admin-metric-arrow {
+            color: #cbd5e1;
+            font-size: 38px;
+            opacity: 0.9;
+          }
+
+          .jv-admin-metric-line {
+            position: absolute;
+            left: 22px;
+            bottom: 15px;
+            width: calc(100% - 44px);
+            height: 3px;
+            border-radius: 999px;
+            background: rgba(148,163,184,0.16);
+          }
+
+          .jv-admin-metric-purple .jv-admin-metric-line {
+            background: linear-gradient(90deg, #a855f7 0 24%, rgba(148,163,184,0.14) 24%);
+          }
+
+          .jv-admin-metric-blue .jv-admin-metric-line {
+            background: linear-gradient(90deg, #60a5fa 0 24%, rgba(148,163,184,0.14) 24%);
+          }
+
+          .jv-admin-metric-yellow .jv-admin-metric-line {
+            background: linear-gradient(90deg, #facc15 0 24%, rgba(148,163,184,0.14) 24%);
+          }
+
+          .jv-dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(380px, 0.78fr);
+            gap: 16px;
+            align-items: start;
+          }
+
+          .jv-panel {
+            border-radius: 24px;
+            border: 1px solid rgba(168,85,247,0.22);
+            background:
+              radial-gradient(circle at 0% 0%, rgba(124,58,237,0.11), transparent 30%),
+              linear-gradient(180deg, rgba(15,23,42,0.88), rgba(15,23,42,0.56));
+            box-shadow: 0 28px 70px rgba(0,0,0,0.26);
+            padding: 22px;
+          }
+
+          .jv-panel-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+          }
+
+          .jv-panel-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0;
+            color: #f8fafc;
+            font-size: 22px;
+            font-weight: 950;
+            letter-spacing: -0.04em;
+          }
+
+          .jv-panel-title svg {
+            color: #d8b4fe;
+          }
+
+          .jv-warning-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #facc15;
+            border: 1px solid rgba(202,138,4,0.34);
+            background: rgba(202,138,4,0.12);
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .jv-deadline-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+          }
+
+          .jv-deadline-table th {
+            padding: 13px 10px;
+            border-top: 1px solid rgba(148,163,184,0.10);
+            border-bottom: 1px solid rgba(148,163,184,0.10);
+            text-align: left;
+            color: #a1a1aa;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+
+          .jv-deadline-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(148,163,184,0.08);
+            color: #e5e7eb;
+            font-size: 14px;
+          }
+
+          .jv-empty-deadlines {
+            min-height: 260px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: #cbd5e1;
+          }
+
+          .jv-empty-icon {
+            width: 86px;
+            height: 86px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 18px;
+            border-radius: 999px;
+            color: #d8b4fe;
+            font-size: 38px;
+            background: radial-gradient(circle, rgba(168,85,247,0.32), rgba(15,23,42,0.75));
+          }
+
+          .jv-empty-title {
+            color: #e5e7eb;
+            font-size: 20px;
+            font-weight: 850;
+          }
+
+          .jv-empty-subtitle {
+            margin-top: 8px;
+            color: #a1a1aa;
+            font-size: 15px;
+          }
+
+          .jv-strategy-list {
+            display: grid;
+            gap: 10px;
+          }
+
+          .jv-strategy-item {
+            min-height: 82px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 16px;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(148,163,184,0.12);
+            background: rgba(255,255,255,0.035);
+          }
+
+          .jv-strategy-icon {
+            width: 58px;
+            height: 58px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            font-size: 24px;
+          }
+
+          .jv-strategy-purple .jv-strategy-icon {
+            color: #d8b4fe;
+            background: rgba(168,85,247,0.20);
+          }
+
+          .jv-strategy-blue .jv-strategy-icon {
+            color: #93c5fd;
+            background: rgba(59,130,246,0.20);
+          }
+
+          .jv-strategy-green .jv-strategy-icon {
+            color: #86efac;
+            background: rgba(34,197,94,0.18);
+          }
+
+          .jv-strategy-slate .jv-strategy-icon {
+            color: #cbd5e1;
+            background: rgba(148,163,184,0.14);
+          }
+
+          .jv-strategy-title {
+            color: #cbd5e1;
+            font-size: 14px;
+          }
+
+          .jv-strategy-primary {
+            margin-top: 5px;
+            color: #f8fafc;
+            font-size: 17px;
+            font-weight: 850;
+          }
+
+          .jv-strategy-secondary {
+            margin-top: 3px;
+            color: #a1a1aa;
+            font-size: 13px;
+          }
+
+          .jv-strategy-arrow {
+            color: #cbd5e1;
+            font-size: 34px;
+          }
+
+          @media (max-width: 1200px) {
+            .jv-metrics-grid,
+            .jv-dashboard-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          @media (max-width: 1024px) {
+            .jv-admin-dashboard {
+              gap: 16px;
+            }
+
+            .jv-dashboard-hero {
+              min-height: auto;
+              padding: 28px 26px;
+              border-radius: 24px;
+            }
+
+            .jv-dashboard-hero::before {
+              right: 28px;
+              bottom: 20px;
+              width: 250px;
+              height: 150px;
+              opacity: 0.32;
+            }
+
+            .jv-dashboard-hero::after {
+              display: none;
+            }
+
+            .jv-hero-title {
+              font-size: 40px;
+            }
+
+            .jv-metrics-grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(170px, 1fr));
+              overflow-x: auto;
+              padding-bottom: 4px;
+            }
+
+            .jv-admin-metric {
+              min-width: 180px;
+              min-height: 220px;
+              grid-template-columns: 1fr;
+              align-content: start;
+            }
+
+            .jv-admin-metric-icon {
+              width: 74px;
+              height: 74px;
+            }
+
+            .jv-admin-metric-arrow {
+              position: absolute;
+              right: 18px;
+              top: 42px;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .jv-dashboard-hero {
+              padding: 26px 22px;
+            }
+
+            .jv-hero-title {
+              font-size: 37px;
+            }
+
+            .jv-hero-text {
+              font-size: 16px;
+            }
+
+            .jv-period-button {
+              min-height: 52px;
+            }
+
+            .jv-dashboard-hero::before {
+              position: relative;
+              display: block;
+              right: auto;
+              bottom: auto;
+              width: 100%;
+              height: 175px;
+              margin-top: 22px;
+              opacity: 0.42;
+            }
+
+            .jv-panel {
+              padding: 18px;
+              border-radius: 22px;
+            }
+
+            .jv-panel-title-row {
+              align-items: flex-start;
+            }
+
+            .jv-deadline-table thead {
+              display: none;
+            }
+
+            .jv-deadline-table,
+            .jv-deadline-table tbody,
+            .jv-deadline-table tr,
+            .jv-deadline-table td {
+              display: block;
+              width: 100%;
+            }
+
+            .jv-deadline-table tr {
+              padding: 12px 0;
+              border-bottom: 1px solid rgba(148,163,184,0.10);
+            }
+
+            .jv-deadline-table td {
+              border-bottom: 0;
+              padding: 6px 0;
+            }
+
+            .jv-strategy-item {
+              grid-template-columns: auto 1fr;
+            }
+
+            .jv-strategy-arrow {
+              display: none;
+            }
+          }
+        `}</style>
+
+        <section className="jv-dashboard-hero">
+          <div className="jv-hero-content">
+            <h1 className="jv-hero-title">Dashboard</h1>
+
+            <p className="jv-hero-text">
+              Resumo das atividades do escritório hoje.
             </p>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                flexDirection: isMobile ? "column" : "row",
-                marginTop: 8,
-              }}
-            >
-              <button
-                className="jv-premium-btn"
-                onClick={() => setShowModal(true)}
-                style={{ width: isMobile ? "100%" : "auto" }}
-              >
-                Abrir modal premium
-              </button>
-
-              <button
-                className="jv-premium-btn-secondary"
-                onClick={() =>
-                  setToast({
-                    open: true,
-                    message: "Toast premium exibido com sucesso.",
-                    type: "info",
-                  })
-                }
-                style={{ width: isMobile ? "100%" : "auto" }}
-              >
-                Exibir toast
-              </button>
-            </div>
+            <button type="button" className="jv-period-button">
+              <FaCalendarCheck />
+              Hoje
+            </button>
           </div>
         </section>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(230px, 1fr))",
-            gap: 16,
-          }}
-        >
-          <PremiumCard
+        <section className="jv-metrics-grid">
+          <MetricCard
             title="Clientes ativos"
             value={data.clients}
-            subtitle="Base ativa e organizada no sistema"
-            compact={compact}
+            subtitle="+0 hoje"
+            Icon={FaUserGroup}
+            tone="purple"
           />
-          <PremiumCard
+
+          <MetricCard
             title="Processos ativos"
             value={data.processes}
-            subtitle="Acompanhamento centralizado do escritório"
-            compact={compact}
+            subtitle="+0 hoje"
+            Icon={FaFolderOpen}
+            tone="blue"
           />
-          <PremiumCard
+
+          <MetricCard
             title="Prazos pendentes"
             value={data.pendingDeadlines}
-            subtitle="Itens que merecem atenção operacional"
-            compact={compact}
+            subtitle={data.pendingDeadlines > 0 ? "Itens a vencer" : "Sem vencimentos"}
+            Icon={FaClock}
+            tone="yellow"
           />
         </section>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile || isTablet ? "1fr" : "1.5fr 1fr",
-            gap: 18,
-          }}
-        >
-          <div
-            style={{
-              borderRadius: isMobile ? 22 : 24,
-              padding: isMobile ? 18 : 22,
-              background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-              backdropFilter: "blur(14px)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: 12,
-                marginBottom: 18,
-              }}
-            >
-              <div>
-                <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 800, color: "#F8FAFC" }}>
-                  Próximos prazos
-                </div>
-                <div style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
-                  Vista rápida dos vencimentos pendentes
-                </div>
-              </div>
+        <section className="jv-dashboard-grid">
+          <div className="jv-panel">
+            <div className="jv-panel-title-row">
+              <h2 className="jv-panel-title">
+                <FaCalendarCheck />
+                Próximos prazos
+              </h2>
 
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  background: "rgba(245,158,11,0.12)",
-                  color: "#FCD34D",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  border: "1px solid rgba(245,158,11,0.18)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {data.pendingDeadlines} pendente(s)
+              <div className="jv-warning-pill">
+                {data.pendingDeadlines} vencendo hoje
               </div>
             </div>
 
-            {data.recentDeadlines.length === 0 ? (
-              <div
-                style={{
-                  padding: 18,
-                  borderRadius: 18,
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  color: "#94A3B8",
-                  fontSize: isMobile ? 14 : 15,
-                }}
-              >
-                Nenhum prazo pendente encontrado.
-              </div>
+            {data.recentDeadlines.length > 0 ? (
+              <table className="jv-deadline-table">
+                <thead>
+                  <tr>
+                    <th>Prazo</th>
+                    <th>Processo</th>
+                    <th>Cliente</th>
+                    <th>Vencimento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recentDeadlines.map((deadline) => (
+                    <tr key={deadline.id}>
+                      <td>{deadline.title || "Prazo"}</td>
+                      <td>{deadline.process?.cnj || "Não vinculado"}</td>
+                      <td>{deadline.client?.name || "Não informado"}</td>
+                      <td>{formatDate(deadline.dueDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-              <div style={{ display: "grid", gap: 12 }}>
-                {data.recentDeadlines.map((deadline) => (
-                  <div
-                    key={deadline.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: isMobile ? "flex-start" : "center",
-                      flexDirection: isMobile ? "column" : "row",
-                      gap: 12,
-                      padding: isMobile ? 14 : 16,
-                      borderRadius: 18,
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.05)",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: "#F8FAFC", fontWeight: 700 }}>
-                        {deadline.title || "Prazo"}
-                      </div>
-                      <div style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>
-                        Vencimento: {formatDate(deadline.dueDate)}
-                      </div>
-                    </div>
-
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        padding: "8px 12px",
-                        borderRadius: 999,
-                        background: "rgba(245,158,11,0.12)",
-                        color: "#FCD34D",
-                        border: "1px solid rgba(245,158,11,0.18)",
-                        fontSize: 12,
-                        fontWeight: 800,
-                      }}
-                    >
-                      Pendente
-                    </span>
+              <div className="jv-empty-deadlines">
+                <div>
+                  <div className="jv-empty-icon">
+                    <FaCalendarCheck />
                   </div>
-                ))}
+                  <div className="jv-empty-title">Nenhum prazo a vencer.</div>
+                  <div className="jv-empty-subtitle">Tudo em dia.</div>
+                </div>
               </div>
             )}
           </div>
 
-          <div
-            style={{
-              borderRadius: isMobile ? 22 : 24,
-              padding: isMobile ? 18 : 22,
-              background: "linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.88))",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.28)",
-              backdropFilter: "blur(14px)",
-              display: "grid",
-              gap: 14,
-              alignContent: "start",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 800, color: "#F8FAFC" }}>
-                Camada interativa
-              </div>
-              <div style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
-                Motion, popup e feedback visual do produto
-              </div>
+          <div className="jv-panel">
+            <div className="jv-panel-title-row">
+              <h2 className="jv-panel-title">
+                <FaChartLine />
+                Visão estratégica
+              </h2>
             </div>
 
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 18,
-                background: "rgba(99,102,241,0.10)",
-                border: "1px solid rgba(99,102,241,0.18)",
-                color: "#C7D2FE",
-                lineHeight: 1.7,
-                fontSize: 14,
-              }}
-            >
-              Agora o JuridicVas já possui uma base real para modais premium, ações
-              confirmatórias e feedback visual elegante.
-            </div>
-
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 18,
-                background: "rgba(56,189,248,0.08)",
-                border: "1px solid rgba(56,189,248,0.16)",
-                color: "#BAE6FD",
-                lineHeight: 1.7,
-                fontSize: 14,
-              }}
-            >
-              Na próxima fase, aplicamos essa mesma experiência em clientes, processos,
-              usuários e fluxos operacionais do sistema.
+            <div className="jv-strategy-list">
+              {strategicItems.map((item) => (
+                <StrategicItem
+                  key={item.title}
+                  title={item.title}
+                  primary={item.primary}
+                  secondary={item.secondary}
+                  Icon={item.Icon}
+                  tone={item.tone}
+                />
+              ))}
             </div>
           </div>
         </section>

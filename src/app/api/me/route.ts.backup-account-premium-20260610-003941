@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, destroySession } from "@/lib/session";
 
@@ -16,31 +16,9 @@ function getSuggestedRedirect(params: {
 }
 
 export async function GET() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      age: true,
-      role: true,
-      active: true,
-      firmId: true,
-      onboardingStatus: true,
-      selectedPlanId: true,
-      selectedPlanNameSnapshot: true,
-    },
-  });
+  const user = await getSessionUser();
 
   if (!user) {
-    await destroySession();
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
@@ -59,7 +37,6 @@ export async function GET() {
 
     if (user.role !== "SUPERADMIN" && (!firm || !firm.active)) {
       await destroySession();
-
       return NextResponse.json(
         {
           ok: false,
@@ -106,8 +83,6 @@ export async function GET() {
       id: user.id,
       name: user.name,
       email: user.email,
-      phone: user.phone ?? null,
-      age: user.age ?? null,
       role: user.role,
       active: user.active,
       firmId: user.firmId,
@@ -121,3 +96,5 @@ export async function GET() {
     suggestedRedirect,
   });
 }
+
+

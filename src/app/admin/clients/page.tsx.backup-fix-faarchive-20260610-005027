@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  FaBoxArchive,
+  FaArchive,
   FaBoxOpen,
   FaCopy,
   FaEnvelope,
@@ -1195,7 +1195,7 @@ export default function ClientsPage() {
                         className="jv-client-danger"
                         onClick={() => setActionModal({ type: "archive", client })}
                       >
-                        <FaBoxArchive />
+                        <FaArchive />
                         Arquivar
                       </button>
                     ) : null}

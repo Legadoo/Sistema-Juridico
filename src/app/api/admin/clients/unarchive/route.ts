@@ -3,9 +3,14 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import { unarchiveClientForFirm } from "@/services/client.service";
 
+function canArchive(role: string) {
+  return role === "MASTER" || role === "SUPERADMIN";
+}
+
 export async function POST(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleClients");
   if (moduleGuard) return moduleGuard;
+
   try {
     const user = await getSessionUser();
 
@@ -16,9 +21,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (user.role !== "MASTER" && user.role !== "SECRETARY") {
+    if (!canArchive(user.role)) {
       return NextResponse.json(
-        { ok: false, message: "Sem permissão para desarquivar cliente." },
+        { ok: false, message: "Apenas advogado pode desarquivar cliente." },
         { status: 403 }
       );
     }

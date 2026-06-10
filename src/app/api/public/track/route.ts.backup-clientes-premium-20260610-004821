@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-function onlyDigits(value: string) {
-  return (value || "").replace(/\D/g, "");
-}
-
-function normalizeCode(value: string) {
-  return (value || "").trim().toUpperCase();
+function onlyDigits(s: string) {
+  return (s || "").replace(/\D/g, "");
 }
 
 export async function POST(req: Request) {
@@ -14,7 +10,7 @@ export async function POST(req: Request) {
 
   const rawDocument = (body?.document ?? "").toString().trim();
   const document = onlyDigits(rawDocument);
-  const code = normalizeCode(((body?.code ?? body?.accessCode) ?? "").toString());
+  const code = ((body?.code ?? body?.accessCode) ?? "").toString().trim();
 
   if (!document || !code) {
     return NextResponse.json(
@@ -25,19 +21,25 @@ export async function POST(req: Request) {
 
   const client = await prisma.client.findFirst({
     where: {
-      archived: false,
-      accessCode: code,
       OR: [
         { document },
         { document: rawDocument },
       ],
+      archived: false,
     },
   });
 
   if (!client) {
     return NextResponse.json(
-      { ok: false, message: "CPF/CNPJ ou código de acesso inválido." },
+      { ok: false, message: "Dados não encontrados." },
       { status: 404 }
+    );
+  }
+
+  if (client.accessCode !== code) {
+    return NextResponse.json(
+      { ok: false, message: "Código inválido." },
+      { status: 401 }
     );
   }
 

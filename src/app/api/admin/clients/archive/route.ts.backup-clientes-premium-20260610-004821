@@ -3,14 +3,9 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { getSessionUser } from "@/lib/session";
 import { archiveClientForFirm } from "@/services/client.service";
 
-function canArchive(role: string) {
-  return role === "MASTER" || role === "SUPERADMIN";
-}
-
 export async function POST(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleClients");
   if (moduleGuard) return moduleGuard;
-
   try {
     const user = await getSessionUser();
 
@@ -21,9 +16,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!canArchive(user.role)) {
+    if (user.role !== "MASTER" && user.role !== "SECRETARY") {
       return NextResponse.json(
-        { ok: false, message: "Apenas advogado pode arquivar cliente." },
+        { ok: false, message: "Sem permissão para arquivar cliente." },
         { status: 403 }
       );
     }

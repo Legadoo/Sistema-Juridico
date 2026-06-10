@@ -8,87 +8,36 @@ type ClientPayload = {
   accessCode?: string | null;
 };
 
-export type ClientListMode = "active" | "archived" | "all";
-
 function normalizeDocument(value: string) {
-  return (value || "").replace(/\D/g, "");
-}
-
-function normalizeAccessCode(value: string) {
-  return (value || "").trim().toUpperCase();
+  return value.replace(/\D/g, "");
 }
 
 function generateAccessCode() {
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const numbers = "23456789";
-
-  let code = "";
-
-  for (let i = 0; i < 4; i++) {
-    code += letters[Math.floor(Math.random() * letters.length)];
-  }
-
-  code += "-";
-
-  for (let i = 0; i < 4; i++) {
-    code += numbers[Math.floor(Math.random() * numbers.length)];
-  }
-
-  return code;
+  return Math.random().toString(36).slice(2, 10).toUpperCase();
 }
 
-async function generateUniqueAccessCode(firmId: string) {
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const accessCode = generateAccessCode();
-
-    const existing = await prisma.client.findFirst({
-      where: {
-        firmId,
-        accessCode,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!existing) return accessCode;
-  }
-
-  return `${generateAccessCode()}-${Date.now().toString().slice(-4)}`;
-}
-
-export async function listClientsByFirm(firmId: string, mode: ClientListMode = "active") {
+export async function listActiveClientsByFirm(firmId: string) {
   return prisma.client.findMany({
     where: {
       firmId,
-      ...(mode === "all" ? {} : { archived: mode === "archived" }),
+      archived: false,
     },
     orderBy: {
       createdAt: "desc",
     },
-    include: {
-      processes: {
-        select: {
-          id: true,
-          cnj: true,
-          status: true,
-          archived: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 6,
-      },
-    },
   });
 }
 
-export async function listActiveClientsByFirm(firmId: string) {
-  return listClientsByFirm(firmId, "active");
-}
-
 export async function listArchivedClientsByFirm(firmId: string) {
-  return listClientsByFirm(firmId, "archived");
+  return prisma.client.findMany({
+    where: {
+      firmId,
+      archived: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
 }
 
 export async function findClientByIdAndFirm(id: string, firmId: string) {
@@ -114,14 +63,6 @@ export async function findClientByDocumentInFirm(document: string, firmId: strin
 export async function createClientForFirm(data: ClientPayload, firmId: string) {
   const normalizedDocument = normalizeDocument(data.document);
 
-  if (!data.name?.trim()) {
-    throw new Error("Nome do cliente é obrigatório.");
-  }
-
-  if (!normalizedDocument) {
-    throw new Error("CPF/CNPJ do cliente é obrigatório.");
-  }
-
   const existing = await prisma.client.findFirst({
     where: {
       firmId,
@@ -133,32 +74,14 @@ export async function createClientForFirm(data: ClientPayload, firmId: string) {
     throw new Error("Já existe um cliente com este documento nesta advocacia.");
   }
 
-  const accessCode = data.accessCode?.trim()
-    ? normalizeAccessCode(data.accessCode)
-    : await generateUniqueAccessCode(firmId);
-
   return prisma.client.create({
     data: {
-      name: data.name.trim(),
+      name: data.name,
       document: normalizedDocument,
-      email: data.email?.trim() ? data.email.trim() : null,
-      phone: data.phone?.trim() ? data.phone.trim() : null,
-      accessCode,
+      email: data.email ?? null,
+      phone: data.phone ?? null,
+      accessCode: data.accessCode?.trim() || generateAccessCode(),
       firmId,
-    },
-    include: {
-      processes: {
-        select: {
-          id: true,
-          cnj: true,
-          status: true,
-          archived: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 6,
-      },
     },
   });
 }
@@ -206,26 +129,12 @@ export async function updateClientForFirm(
     data: {
       name: typeof data.name === "string" && data.name.trim() ? data.name.trim() : existing.name,
       document: normalizedDocument,
-      email: data.email !== undefined ? (data.email?.trim() || null) : existing.email,
-      phone: data.phone !== undefined ? (data.phone?.trim() || null) : existing.phone,
+      email: data.email !== undefined ? data.email : existing.email,
+      phone: data.phone !== undefined ? data.phone : existing.phone,
       accessCode:
         typeof data.accessCode === "string" && data.accessCode.trim()
-          ? normalizeAccessCode(data.accessCode)
+          ? data.accessCode.trim()
           : existing.accessCode,
-    },
-    include: {
-      processes: {
-        select: {
-          id: true,
-          cnj: true,
-          status: true,
-          archived: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 6,
-      },
     },
   });
 }
