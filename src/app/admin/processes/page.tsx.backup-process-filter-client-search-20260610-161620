@@ -98,10 +98,7 @@ type UpdateFormState = {
 
 type ArchiveActionState = {
   process: ProcessRow;
-  action: "archive" | "unarchive";
 } | null;
-
-type ListMode = "active" | "archived" | "all";
 
 const emptyProcessForm: ProcessFormState = {
   clientId: "",
@@ -231,8 +228,6 @@ export default function ProcessesPage() {
   const [deletingDocument, setDeletingDocument] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [listMode, setListMode] = useState<ListMode>("active");
-  const [clientSearch, setClientSearch] = useState("");
 
   const [toast, setToast] = useState<ToastState>({
     open: false,
@@ -253,16 +248,6 @@ export default function ProcessesPage() {
       withDocuments,
     };
   }, [processes]);
-
-  const filteredClientsForSelect = useMemo(() => {
-    const term = normalizeText(clientSearch);
-
-    if (!term) return clients;
-
-    return clients.filter((client) =>
-      normalizeText(`${client.name} ${client.document}`).includes(term)
-    );
-  }, [clients, clientSearch]);
 
   const filteredProcesses = useMemo(() => {
     const term = normalizeText(search);
@@ -299,7 +284,7 @@ export default function ProcessesPage() {
     setToast({ open: true, message, type });
   }
 
-  async function load(mode: ListMode = listMode) {
+  async function load() {
     setLoading(true);
 
     const meResponse = await fetch("/api/me", { cache: "no-store" })
@@ -320,7 +305,7 @@ export default function ProcessesPage() {
       .then((response) => response.json())
       .catch(() => null);
 
-    const processesResponse = await fetch(`/api/admin/processes?status=${mode}`, { cache: "no-store" })
+    const processesResponse = await fetch("/api/admin/processes", { cache: "no-store" })
       .then((response) => response.json())
       .catch(() => null);
 
@@ -334,7 +319,7 @@ export default function ProcessesPage() {
 
     async function run() {
       if (!ignore) {
-        await load(listMode);
+        await load();
       }
     }
 
@@ -345,13 +330,7 @@ export default function ProcessesPage() {
     };
   }, []);
 
-  async function changeListMode(mode: ListMode) {
-    setListMode(mode);
-    await load(mode);
-  }
-
   function openCreateModal() {
-    setClientSearch("");
     setProcessModalMode("create");
     setEditingProcessId(null);
     setProcessForm(emptyProcessForm);
@@ -359,7 +338,6 @@ export default function ProcessesPage() {
   }
 
   function openEditModal(process: ProcessRow) {
-    setClientSearch(process.client?.name || "");
     setProcessModalMode("edit");
     setEditingProcessId(process.id);
     setProcessForm({
@@ -413,7 +391,7 @@ export default function ProcessesPage() {
       setProcessModalOpen(false);
       setEditingProcessId(null);
       setProcessForm(emptyProcessForm);
-      await load(listMode);
+      await load();
       showToast(
         processModalMode === "create"
           ? "Processo criado com sucesso."
@@ -470,7 +448,7 @@ export default function ProcessesPage() {
       setUpdateOpen(false);
       setSelectedProcess(null);
       setUpdateForm(emptyUpdateForm);
-      await load(listMode);
+      await load();
       showToast("Atualização registrada com sucesso.", "success");
     } catch {
       showToast("Não foi possível registrar a atualização.", "error");
@@ -485,12 +463,7 @@ export default function ProcessesPage() {
     setRunningArchive(true);
 
     try {
-      const endpoint =
-        archiveAction.action === "unarchive"
-          ? "/api/admin/processes/unarchive"
-          : "/api/admin/processes/archive";
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/admin/processes/archive", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ processId: archiveAction.process.id }),
@@ -500,31 +473,15 @@ export default function ProcessesPage() {
       }));
 
       if (!response.ok || !response.data?.ok) {
-        showToast(
-          response.data?.message ||
-            (archiveAction.action === "unarchive"
-              ? "Erro ao desarquivar processo."
-              : "Erro ao arquivar processo."),
-          "error"
-        );
+        showToast(response.data?.message || "Erro ao arquivar processo.", "error");
         return;
       }
 
-      const successMessage =
-        archiveAction.action === "unarchive"
-          ? "Processo desarquivado com sucesso."
-          : "Processo arquivado com sucesso.";
-
       setArchiveAction(null);
-      await load(listMode);
-      showToast(successMessage, "success");
+      await load();
+      showToast("Processo arquivado com sucesso.", "success");
     } catch {
-      showToast(
-        archiveAction.action === "unarchive"
-          ? "Não foi possível desarquivar o processo."
-          : "Não foi possível arquivar o processo.",
-        "error"
-      );
+      showToast("Não foi possível arquivar o processo.", "error");
     } finally {
       setRunningArchive(false);
     }
@@ -552,7 +509,7 @@ export default function ProcessesPage() {
         return;
       }
 
-      await load(listMode);
+      await load();
       showToast("Processo excluído com sucesso.", "success");
     } catch {
       showToast("Não foi possível excluir o processo.", "error");
@@ -621,7 +578,7 @@ export default function ProcessesPage() {
       setUploadFile(null);
       setUploadDocType("Documento");
       await loadDocuments(documentsProcess);
-      await load(listMode);
+      await load();
       showToast("PDF anexado com sucesso.", "success");
     } catch {
       showToast("Não foi possível enviar o PDF.", "error");
@@ -657,7 +614,7 @@ export default function ProcessesPage() {
       }
 
       setDocuments(response.data.documents || nextDocs);
-      await load(listMode);
+      await load();
       showToast("Ordem dos documentos salva com sucesso.", "success");
     } catch {
       showToast("Não foi possível salvar a ordem dos documentos.", "error");
@@ -705,7 +662,7 @@ export default function ProcessesPage() {
 
       setDocumentDeleteAction(null);
       await loadDocuments(documentsProcess);
-      await load(listMode);
+      await load();
       showToast("Documento excluído com sucesso.", "success");
     } catch {
       showToast("Não foi possível excluir o documento.", "error");
@@ -783,34 +740,17 @@ export default function ProcessesPage() {
         }
       >
         <div className="jv-process-form">
-          <input
-            className="jv-premium-input jv-client-search-input"
-            placeholder="Buscar cliente pelo nome ou CPF/CNPJ"
-            value={clientSearch}
-            onChange={(event) => setClientSearch(event.target.value)}
-          />
-
           <select
-            className="jv-premium-input jv-dark-select"
+            className="jv-premium-input"
             value={processForm.clientId}
             onChange={(event) =>
               setProcessForm((prev) => ({ ...prev, clientId: event.target.value }))
             }
-            style={{
-              colorScheme: "dark",
-              backgroundColor: "#111827",
-              color: "#f8fafc",
-            }}
+            style={{ colorScheme: "dark" }}
           >
-            <option value="" style={{ backgroundColor: "#111827", color: "#f8fafc" }}>
-              Selecione o cliente
-            </option>
-            {filteredClientsForSelect.map((client) => (
-              <option
-                key={client.id}
-                value={client.id}
-                style={{ backgroundColor: "#111827", color: "#f8fafc" }}
-              >
+            <option value="">Selecione o cliente</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
                 {client.name}
               </option>
             ))}
@@ -918,12 +858,8 @@ export default function ProcessesPage() {
         onClose={() => {
           if (!runningArchive) setArchiveAction(null);
         }}
-        title={archiveAction?.action === "unarchive" ? "Desarquivar processo" : "Arquivar processo"}
-        description={
-          archiveAction?.action === "unarchive"
-            ? "O processo voltará para a lista de processos ativos."
-            : "O processo será removido da lista ativa e enviado para a área de arquivados."
-        }
+        title="Arquivar processo"
+        description="O processo será removido da lista ativa e enviado para a área de arquivados."
         footer={
           <>
             <button
@@ -939,11 +875,7 @@ export default function ProcessesPage() {
               onClick={confirmArchive}
               disabled={runningArchive}
             >
-              {runningArchive
-                ? "Processando..."
-                : archiveAction?.action === "unarchive"
-                  ? "Desarquivar"
-                  : "Arquivar"}
+              {runningArchive ? "Processando..." : "Confirmar"}
             </button>
           </>
         }
@@ -1436,59 +1368,6 @@ export default function ProcessesPage() {
             font-size: 14px;
           }
 
-          .jv-filters {
-            display: grid;
-            grid-template-columns: minmax(280px, 1fr) auto;
-            gap: 12px;
-            margin-bottom: 18px;
-          }
-
-          .jv-mode-tabs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-          }
-
-          .jv-mode-tab {
-            min-height: 52px;
-            border-radius: 16px;
-            border: 1px solid rgba(148,163,184,0.16);
-            background: rgba(255,255,255,0.035);
-            color: #cbd5e1;
-            padding: 0 14px;
-            cursor: pointer;
-            font-weight: 900;
-          }
-
-          .jv-mode-tab-active {
-            color: #fff;
-            border-color: rgba(168,85,247,0.45);
-            background: linear-gradient(135deg, rgba(124,58,237,0.32), rgba(59,130,246,0.12));
-          }
-
-          .jv-process-form select,
-          .jv-process-form select option,
-          .jv-dark-select,
-          .jv-dark-select option {
-            background-color: #111827 !important;
-            color: #f8fafc !important;
-            color-scheme: dark;
-          }
-
-          .jv-process-form select:focus,
-          .jv-dark-select:focus,
-          .jv-client-search-input:focus {
-            border-color: rgba(168,85,247,0.58);
-            box-shadow: 0 0 0 3px rgba(168,85,247,0.12);
-            outline: none;
-          }
-
-          .jv-pill-red {
-            color: #fecaca;
-            background: rgba(127,29,29,0.18);
-            border: 1px solid rgba(248,113,113,0.24);
-          }
-
           .jv-list {
             display: grid;
             gap: 13px;
@@ -1659,8 +1538,7 @@ export default function ProcessesPage() {
           @media (max-width: 1100px) {
             .jv-stats-grid,
             .jv-doc-grid,
-            .jv-doc-upload,
-            .jv-filters {
+            .jv-doc-upload {
               grid-template-columns: 1fr;
             }
 
@@ -1766,56 +1644,28 @@ export default function ProcessesPage() {
             </div>
           </div>
 
-          <div className="jv-filters">
-            <label className="jv-search-box">
-              <FaMagnifyingGlass />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar processo, cliente, CNJ, documento..."
-              />
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  style={{
-                    border: 0,
-                    background: "transparent",
-                    color: "#CBD5E1",
-                    cursor: "pointer",
-                  }}
-                >
-                  <FaXmark />
-                </button>
-              ) : null}
-            </label>
-
-            <div className="jv-mode-tabs">
+          <label className="jv-search-box">
+            <FaMagnifyingGlass />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar processo, cliente, CNJ, documento..."
+            />
+            {search ? (
               <button
                 type="button"
-                className={listMode === "active" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                onClick={() => void changeListMode("active")}
+                onClick={() => setSearch("")}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  color: "#CBD5E1",
+                  cursor: "pointer",
+                }}
               >
-                Ativos
+                <FaXmark />
               </button>
-
-              <button
-                type="button"
-                className={listMode === "archived" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                onClick={() => void changeListMode("archived")}
-              >
-                Arquivados
-              </button>
-
-              <button
-                type="button"
-                className={listMode === "all" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                onClick={() => void changeListMode("all")}
-              >
-                Todos
-              </button>
-            </div>
-          </div>
+            ) : null}
+          </label>
 
           {loading ? (
             <div className="jv-empty">Carregando processos...</div>
@@ -1885,23 +1735,13 @@ export default function ProcessesPage() {
                         Documentos
                       </button>
 
-                      {process.archived ? (
-                        <button
-                          className="jv-process-secondary"
-                          onClick={() => setArchiveAction({ process, action: "unarchive" })}
-                        >
-                          <FaBoxArchive />
-                          Desarquivar
-                        </button>
-                      ) : (
-                        <button
-                          className="jv-process-secondary"
-                          onClick={() => setArchiveAction({ process, action: "archive" })}
-                        >
-                          <FaBoxArchive />
-                          Arquivar
-                        </button>
-                      )}
+                      <button
+                        className="jv-process-secondary"
+                        onClick={() => setArchiveAction({ process })}
+                      >
+                        <FaBoxArchive />
+                        Arquivar
+                      </button>
 
                       {canDeleteProcess ? (
                         <button

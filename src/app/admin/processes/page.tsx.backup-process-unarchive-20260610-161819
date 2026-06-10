@@ -98,7 +98,6 @@ type UpdateFormState = {
 
 type ArchiveActionState = {
   process: ProcessRow;
-  action: "archive" | "unarchive";
 } | null;
 
 type ListMode = "active" | "archived" | "all";
@@ -485,12 +484,7 @@ export default function ProcessesPage() {
     setRunningArchive(true);
 
     try {
-      const endpoint =
-        archiveAction.action === "unarchive"
-          ? "/api/admin/processes/unarchive"
-          : "/api/admin/processes/archive";
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/admin/processes/archive", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ processId: archiveAction.process.id }),
@@ -500,31 +494,15 @@ export default function ProcessesPage() {
       }));
 
       if (!response.ok || !response.data?.ok) {
-        showToast(
-          response.data?.message ||
-            (archiveAction.action === "unarchive"
-              ? "Erro ao desarquivar processo."
-              : "Erro ao arquivar processo."),
-          "error"
-        );
+        showToast(response.data?.message || "Erro ao arquivar processo.", "error");
         return;
       }
 
-      const successMessage =
-        archiveAction.action === "unarchive"
-          ? "Processo desarquivado com sucesso."
-          : "Processo arquivado com sucesso.";
-
       setArchiveAction(null);
       await load(listMode);
-      showToast(successMessage, "success");
+      showToast("Processo arquivado com sucesso.", "success");
     } catch {
-      showToast(
-        archiveAction.action === "unarchive"
-          ? "Não foi possível desarquivar o processo."
-          : "Não foi possível arquivar o processo.",
-        "error"
-      );
+      showToast("Não foi possível arquivar o processo.", "error");
     } finally {
       setRunningArchive(false);
     }
@@ -918,12 +896,8 @@ export default function ProcessesPage() {
         onClose={() => {
           if (!runningArchive) setArchiveAction(null);
         }}
-        title={archiveAction?.action === "unarchive" ? "Desarquivar processo" : "Arquivar processo"}
-        description={
-          archiveAction?.action === "unarchive"
-            ? "O processo voltará para a lista de processos ativos."
-            : "O processo será removido da lista ativa e enviado para a área de arquivados."
-        }
+        title="Arquivar processo"
+        description="O processo será removido da lista ativa e enviado para a área de arquivados."
         footer={
           <>
             <button
@@ -939,11 +913,7 @@ export default function ProcessesPage() {
               onClick={confirmArchive}
               disabled={runningArchive}
             >
-              {runningArchive
-                ? "Processando..."
-                : archiveAction?.action === "unarchive"
-                  ? "Desarquivar"
-                  : "Arquivar"}
+              {runningArchive ? "Processando..." : "Confirmar"}
             </button>
           </>
         }
@@ -1886,17 +1856,13 @@ export default function ProcessesPage() {
                       </button>
 
                       {process.archived ? (
-                        <button
-                          className="jv-process-secondary"
-                          onClick={() => setArchiveAction({ process, action: "unarchive" })}
-                        >
-                          <FaBoxArchive />
-                          Desarquivar
-                        </button>
+                        <span className="jv-pill jv-pill-red">
+                          Arquivado
+                        </span>
                       ) : (
                         <button
                           className="jv-process-secondary"
-                          onClick={() => setArchiveAction({ process, action: "archive" })}
+                          onClick={() => setArchiveAction({ process })}
                         >
                           <FaBoxArchive />
                           Arquivar

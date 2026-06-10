@@ -24,18 +24,8 @@ export async function GET(req: Request) {
 
   try {
     const url = new URL(req.url);
-    const status = url.searchParams.get("status");
-    const archivedParam = url.searchParams.get("archived");
+    const archived = url.searchParams.get("archived") === "1";
     const clientId = url.searchParams.get("clientId")?.trim() || "";
-
-    const archived =
-      status === "all"
-        ? "all"
-        : status === "archived"
-          ? true
-          : archivedParam === "1"
-            ? true
-            : false;
 
     const processes = await listProcessesByFirm(user.firmId, {
       archived,

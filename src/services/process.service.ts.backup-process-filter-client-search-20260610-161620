@@ -16,7 +16,7 @@ export function onlyDigits(value: string) {
 
 export async function listProcessesByFirm(
   firmId: string,
-  options?: { archived?: boolean | "all"; clientId?: string }
+  options?: { archived?: boolean; clientId?: string }
 ) {
   const archived = options?.archived ?? false;
   const clientId = options?.clientId?.trim() || "";
@@ -24,7 +24,7 @@ export async function listProcessesByFirm(
   return prisma.legalProcess.findMany({
     where: {
       firmId,
-      ...(archived === "all" ? {} : { archived }),
+      archived,
       ...(clientId ? { clientId } : {}),
     },
     include: {
