@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -92,6 +92,36 @@ export default function SuperAdminShell({
     { href: "/admin/super", label: "Dashboard SaaS" },
     { href: "/admin/super/firms", label: "Advocacias" },
     { href: "/admin/super/site", label: "Site público" },
+    {
+      href: "/admin/super/site/funcionalidades",
+      label: "Funcionalidades",
+      subItem: true,
+    },
+    {
+      href: "/admin/super/site/midias",
+      label: "Mídias públicas",
+      subItem: true,
+    },
+    {
+      href: "/admin/super/site/planos",
+      label: "Planos públicos",
+      subItem: true,
+    },
+    {
+      href: "/admin/super/site/planos/cupons",
+      label: "Cupons de desconto",
+      subItem: true,
+    },
+    {
+      href: "/admin/super/site/pagamento",
+      label: "Pagamento público",
+      subItem: true,
+    },
+    {
+      href: "/admin/super/site/atualizacoes",
+      label: "Atualizações",
+      subItem: true,
+    },
   ];
 
   return (

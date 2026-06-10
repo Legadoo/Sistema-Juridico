@@ -1,7 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SuperAdminShell from "@/components/SuperAdminShell";
 import PremiumToast from "@/components/PremiumToast";
 import { fetchMeOrRedirect } from "@/lib/superadmin/clientGuard";
@@ -12,159 +11,42 @@ type ToastState = {
   type: "success" | "error" | "warning" | "info";
 };
 
-type LandingConfig = {
-  brandName: string;
-  heroTitle: string;
-  heroSubtitle: string;
-  heroPrimaryButtonText: string;
-  heroSecondaryButtonText: string;
-  aboutTitle: string;
-  aboutText: string;
-  featuresTitle: string;
-  featuresSubtitle: string;
-  mediaTitle: string;
-  mediaSubtitle: string;
-  plansTitle: string;
-  plansSubtitle: string;
-  updatesTitle: string;
-  updatesSubtitle: string;
-  ctaTitle: string;
-  ctaSubtitle: string;
-  footerText: string;
-  loginUrl: string;
-  trackUrl: string;
-  isPublished: boolean;
-};
-
-type AdminSiteResponse = {
-  ok?: boolean;
-  data?: {
-    config?: Partial<LandingConfig>;
-  };
-  message?: string;
-};
-
-const emptyConfig: LandingConfig = {
-  brandName: "",
-  heroTitle: "",
-  heroSubtitle: "",
-  heroPrimaryButtonText: "",
-  heroSecondaryButtonText: "",
-  aboutTitle: "",
-  aboutText: "",
-  featuresTitle: "",
-  featuresSubtitle: "",
-  mediaTitle: "",
-  mediaSubtitle: "",
-  plansTitle: "",
-  plansSubtitle: "",
-  updatesTitle: "",
-  updatesSubtitle: "",
-  ctaTitle: "",
-  ctaSubtitle: "",
-  footerText: "",
-  loginUrl: "/login",
-  trackUrl: "/acompanhar",
-  isPublished: true,
-};
-
-const inputStyle: CSSProperties = {
-  width: "100%",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.10)",
-  color: "#F8FAFC",
-  borderRadius: 16,
-  padding: "14px 16px",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const textAreaStyle: CSSProperties = {
-  ...inputStyle,
-  minHeight: 110,
-  resize: "vertical",
-  lineHeight: 1.6,
-};
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <label
-        style={{
-          color: "#CBD5E1",
-          fontSize: 13,
-          fontWeight: 800,
-          letterSpacing: "0.01em",
-        }}
-      >
-        {label}
-      </label>
-
-      {children}
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
+type HeroSlide = {
+  id?: string;
   title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      className="jv-glass"
-      style={{
-        borderRadius: 28,
-        padding: 22,
-        display: "grid",
-        gap: 18,
-      }}
-    >
-      <div style={{ display: "grid", gap: 6 }}>
-        <h2
-          style={{
-            margin: 0,
-            color: "#F8FAFC",
-            fontSize: 22,
-            fontWeight: 900,
-            letterSpacing: "-0.04em",
-          }}
-        >
-          {title}
-        </h2>
+  url: string;
+  alt: string;
+  sortOrder: number;
+  isActive: boolean;
+};
 
-        <p
-          style={{
-            margin: 0,
-            color: "#94A3B8",
-            fontSize: 14,
-            lineHeight: 1.7,
-          }}
-        >
-          {description}
-        </p>
-      </div>
+const emptySlide: HeroSlide = {
+  title: "",
+  url: "",
+  alt: "",
+  sortOrder: 0,
+  isActive: true,
+};
 
-      {children}
-    </section>
-  );
+function normalizeSlide(slide: Partial<HeroSlide>, index: number): HeroSlide {
+  return {
+    id: slide.id,
+    title: slide.title || `Slide ${index + 1}`,
+    url: slide.url || "",
+    alt: slide.alt || slide.title || `Imagem do hero ${index + 1}`,
+    sortOrder: Number.isFinite(Number(slide.sortOrder)) ? Number(slide.sortOrder) : index,
+    isActive: typeof slide.isActive === "boolean" ? slide.isActive : true,
+  };
 }
 
 export default function SuperSitePage() {
   const [me, setMe] = useState<{ name: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [config, setConfig] = useState<LandingConfig>(emptyConfig);
+  const [saving, setSaving] = useState(false);
+
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [form, setForm] = useState<HeroSlide>(emptySlide);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const [toast, setToast] = useState<ToastState>({
     open: false,
@@ -172,103 +54,166 @@ export default function SuperSitePage() {
     type: "info",
   });
 
+  const activeSlides = useMemo(() => {
+    return slides.filter((slide) => slide.isActive && slide.url.trim());
+  }, [slides]);
+
   function showToast(message: string, type: ToastState["type"]) {
     setToast({ open: true, message, type });
   }
 
-  async function loadSiteData(ignore = false) {
+  async function loadSlides() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/admin/site", {
+      const response = await fetch("/api/admin/site/hero-slides", {
         cache: "no-store",
       });
 
-      const data = (await response.json().catch(() => null)) as AdminSiteResponse | null;
+      const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        if (!ignore) {
-          showToast(data?.message || "Não foi possível carregar as configurações gerais.", "error");
-        }
-
+        showToast(data?.message || "Não foi possível carregar os slides.", "error");
         return;
       }
 
-      if (!ignore) {
-        setConfig({
-          ...emptyConfig,
-          ...(data.data?.config ?? {}),
-        });
-      }
+      const loadedSlides = Array.isArray(data.slides)
+        ? data.slides.map((slide: Partial<HeroSlide>, index: number) =>
+            normalizeSlide(slide, index)
+          )
+        : [];
+
+      setSlides(loadedSlides);
     } catch {
-      if (!ignore) {
-        showToast("Falha ao carregar configurações gerais do site público.", "error");
-      }
+      showToast("Falha ao carregar slides do hero.", "error");
     } finally {
-      if (!ignore) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     let ignore = false;
 
-    async function load() {
+    async function boot() {
       const currentUser = await fetchMeOrRedirect((value) => {
         if (!ignore) setMe(value);
       });
 
       if (!currentUser) return;
 
-      await loadSiteData(ignore);
+      if (!ignore) {
+        await loadSlides();
+      }
     }
 
-    void load();
+    void boot();
 
     return () => {
       ignore = true;
     };
   }, []);
 
-  async function saveConfig() {
-    if (!config.brandName.trim()) {
-      showToast("Informe o nome da marca.", "warning");
+  function resetForm() {
+    setForm({
+      ...emptySlide,
+      sortOrder: slides.length,
+    });
+    setEditingIndex(null);
+  }
+
+  function addOrUpdateSlide() {
+    if (!form.url.trim()) {
+      showToast("Informe a URL da imagem.", "warning");
       return;
     }
 
-    if (!config.heroTitle.trim()) {
-      showToast("Informe o título principal.", "warning");
-      return;
+    const preparedSlide = normalizeSlide(
+      {
+        ...form,
+        title: form.title.trim() || `Slide ${slides.length + 1}`,
+        url: form.url.trim(),
+        alt: form.alt.trim() || form.title.trim() || "Imagem do hero",
+      },
+      editingIndex ?? slides.length
+    );
+
+    if (editingIndex === null) {
+      setSlides((prev) => [...prev, preparedSlide]);
+      showToast("Slide adicionado. Clique em Salvar alterações para publicar.", "info");
+    } else {
+      setSlides((prev) =>
+        prev.map((slide, index) => (index === editingIndex ? preparedSlide : slide))
+      );
+      showToast("Slide atualizado. Clique em Salvar alterações para publicar.", "info");
     }
 
-    if (!config.heroSubtitle.trim()) {
-      showToast("Informe o subtítulo principal.", "warning");
-      return;
-    }
+    resetForm();
+  }
 
-    setSavingConfig(true);
+  function editSlide(index: number) {
+    setEditingIndex(index);
+    setForm(slides[index]);
+  }
+
+  function removeSlide(index: number) {
+    const confirmed = window.confirm("Deseja remover este slide?");
+    if (!confirmed) return;
+
+    setSlides((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    resetForm();
+  }
+
+  function moveSlide(index: number, direction: "up" | "down") {
+    setSlides((prev) => {
+      const next = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+      if (targetIndex < 0 || targetIndex >= next.length) return prev;
+
+      const current = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = current;
+
+      return next.map((slide, currentIndex) => ({
+        ...slide,
+        sortOrder: currentIndex,
+      }));
+    });
+  }
+
+  async function saveSlides() {
+    setSaving(true);
 
     try {
-      const response = await fetch("/api/admin/site", {
+      const response = await fetch("/api/admin/site/hero-slides", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(config),
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          slides: slides.map((slide, index) => ({
+            title: slide.title,
+            url: slide.url,
+            alt: slide.alt,
+            sortOrder: index,
+            isActive: slide.isActive,
+          })),
+        }),
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
-        showToast(data?.message || "Erro ao salvar configurações gerais.", "error");
+        showToast(data?.message || "Não foi possível salvar os slides.", "error");
         return;
       }
 
-      showToast("Configurações gerais salvas com sucesso.", "success");
-      await loadSiteData();
+      showToast(data?.message || "Slides salvos com sucesso.", "success");
+      await loadSlides();
     } catch {
-      showToast("Não foi possível salvar as configurações gerais.", "error");
+      showToast("Falha ao salvar slides.", "error");
     } finally {
-      setSavingConfig(false);
+      setSaving(false);
     }
   }
 
@@ -285,7 +230,7 @@ export default function SuperSitePage() {
           textAlign: "center",
         }}
       >
-        Carregando configurações gerais do site público...
+        Carregando painel do site...
       </div>
     );
   }
@@ -299,502 +244,427 @@ export default function SuperSitePage() {
         onClose={() => setToast((prev) => ({ ...prev, open: false }))}
       />
 
-      <div style={{ display: "grid", gap: 24 }}>
-        <section
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 28,
-            padding: 28,
+      <div className="jv-site-module">
+        <style>{`
+          .jv-site-module {
+            display: grid;
+            gap: 20px;
+          }
+
+          .jv-site-header,
+          .jv-site-card {
+            border-radius: 24px;
+            padding: 22px;
+          }
+
+          .jv-site-header {
+            position: relative;
+            overflow: hidden;
+          }
+
+          .jv-site-title {
+            color: #F8FAFC;
+            font-size: 30px;
+            font-weight: 950;
+            letter-spacing: -0.04em;
+            margin: 0;
+          }
+
+          .jv-site-subtitle {
+            color: #94A3B8;
+            margin-top: 8px;
+            line-height: 1.7;
+            max-width: 920px;
+          }
+
+          .jv-site-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 0.75fr) minmax(420px, 1.25fr);
+            gap: 20px;
+            align-items: start;
+          }
+
+          .jv-site-field {
+            display: grid;
+            gap: 7px;
+          }
+
+          .jv-site-label {
+            color: #CBD5E1;
+            font-size: 13px;
+            font-weight: 850;
+          }
+
+          .jv-site-help {
+            color: #94A3B8;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+
+          .jv-site-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #E2E8F0;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+          }
+
+          .jv-site-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+
+          .jv-site-secondary {
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.05);
+            color: #E2E8F0;
+            border-radius: 14px;
+            padding: 11px 15px;
+            font-weight: 900;
+            cursor: pointer;
+            text-decoration: none;
+          }
+
+          .jv-site-danger {
+            border: 1px solid rgba(248,113,113,0.30);
+            background: rgba(127,29,29,0.20);
+            color: #FECACA;
+            border-radius: 14px;
+            padding: 10px 13px;
+            font-weight: 900;
+            cursor: pointer;
+          }
+
+          .jv-site-slide {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 14px;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.035);
+          }
+
+          .jv-site-thumb {
+            min-height: 115px;
+            border-radius: 16px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid rgba(255,255,255,0.08);
+          }
+
+          .jv-site-preview {
+            min-height: 280px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(56,189,248,0.20);
             background:
-              "linear-gradient(135deg, rgba(34,211,238,0.14), rgba(15,23,42,0.94) 45%, rgba(99,102,241,0.12))",
-            border: "1px solid rgba(255,255,255,0.06)",
-            boxShadow: "0 24px 45px rgba(0,0,0,0.30)",
-            backdropFilter: "blur(16px)",
-          }}
-        >
-          <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 12 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                width: "fit-content",
-                padding: "8px 12px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#CFFAFE",
-                fontSize: 12,
-                fontWeight: 900,
-                letterSpacing: "0.08em",
-              }}
+              linear-gradient(135deg, rgba(2,6,23,0.30), rgba(15,23,42,0.82)),
+              radial-gradient(circle at 80% 10%, rgba(22,119,255,0.35), transparent 30%),
+              linear-gradient(180deg, #020617, #07111f);
+          }
+
+          .jv-site-preview-slide {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            animation: jvAdminPreviewFade 18s infinite;
+          }
+
+          .jv-site-preview-slide:nth-child(1) { animation-delay: 0s; }
+          .jv-site-preview-slide:nth-child(2) { animation-delay: 6s; }
+          .jv-site-preview-slide:nth-child(3) { animation-delay: 12s; }
+
+          .jv-site-preview-overlay {
+            position: absolute;
+            inset: 0;
+            background:
+              linear-gradient(90deg, rgba(2,6,23,0.92), rgba(2,6,23,0.46), rgba(2,6,23,0.82)),
+              radial-gradient(circle at 80% 20%, rgba(22,119,255,0.24), transparent 32%);
+          }
+
+          .jv-site-preview-content {
+            position: relative;
+            z-index: 2;
+            padding: 26px;
+            max-width: 560px;
+          }
+
+          @keyframes jvAdminPreviewFade {
+            0%, 28% { opacity: 1; }
+            34%, 100% { opacity: 0; }
+          }
+
+          @media (max-width: 1100px) {
+            .jv-site-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          @media (max-width: 700px) {
+            .jv-site-slide {
+              grid-template-columns: 1fr;
+            }
+
+            .jv-site-title {
+              font-size: 25px;
+            }
+          }
+        `}</style>
+
+        <section className="jv-glass jv-site-header">
+          <div
+            style={{
+              display: "inline-flex",
+              width: "fit-content",
+              padding: "8px 12px",
+              borderRadius: 999,
+              background: "rgba(56,189,248,0.10)",
+              border: "1px solid rgba(56,189,248,0.22)",
+              color: "#BAE6FD",
+              fontSize: 12,
+              fontWeight: 950,
+              letterSpacing: "0.08em",
+              marginBottom: 14,
+            }}
+          >
+            SITE PÚBLICO · HERO SLIDES
+          </div>
+
+          <h1 className="jv-site-title">Banner principal do site</h1>
+
+          <div className="jv-site-subtitle">
+            Controle somente as imagens de fundo do hero da página principal. Adicione
+            quantas imagens quiser por URL. O site identifica os slides ativos e cria o
+            carrossel automaticamente.
+          </div>
+
+          <div className="jv-site-actions" style={{ marginTop: 16 }}>
+            <a href="/" target="_blank" rel="noreferrer" className="jv-premium-btn" style={{ textDecoration: "none" }}>
+              Ver site público
+            </a>
+
+            <button
+              type="button"
+              className="jv-site-secondary"
+              onClick={() => void loadSlides()}
+              disabled={loading || saving}
             >
-              SITE PÚBLICO · CONFIGURAÇÕES GERAIS
-            </div>
-
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 36,
-                fontWeight: 950,
-                letterSpacing: "-0.05em",
-                lineHeight: 1.05,
-                color: "#F8FAFC",
-              }}
-            >
-              Configurações gerais da landing pública
-            </h1>
-
-            <p
-              style={{
-                margin: 0,
-                color: "#94A3B8",
-                fontSize: 15,
-                lineHeight: 1.8,
-                maxWidth: 920,
-              }}
-            >
-              Edite somente os textos principais, links, chamadas comerciais,
-              títulos das seções e status de publicação. Funcionalidades, mídias,
-              planos e pagamento ficam nas subcategorias do menu lateral.
-            </p>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <a
-                href="/"
-                target="_blank"
-                rel="noreferrer"
-                className="jv-premium-btn"
-                style={{ textDecoration: "none" }}
-              >
-                Ver site público
-              </a>
-
-              <button
-                type="button"
-                className="jv-premium-btn-secondary"
-                onClick={() => void loadSiteData()}
-                disabled={loading || savingConfig}
-              >
-                Recarregar
-              </button>
-            </div>
+              Recarregar
+            </button>
           </div>
         </section>
 
-        <SectionCard
-          title="Identidade e publicação"
-          description="Controle o nome da marca e se a landing pública está publicada."
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 16,
-            }}
-          >
-            <Field label="Nome da marca">
+        <section className="jv-site-grid">
+          <div className="jv-glass jv-site-card" style={{ display: "grid", gap: 14 }}>
+            <div>
+              <h2 style={{ color: "#F8FAFC", margin: 0, fontSize: 22, fontWeight: 950 }}>
+                {editingIndex === null ? "Adicionar imagem" : "Editar imagem"}
+              </h2>
+
+              <div className="jv-site-help" style={{ marginTop: 6 }}>
+                Use uma URL pública de imagem, por exemplo uma imagem hospedada no seu site,
+                CDN, GitHub raw ou outro servidor.
+              </div>
+            </div>
+
+            <div className="jv-site-field">
+              <label className="jv-site-label">Título interno</label>
               <input
-                type="text"
-                value={config.brandName}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    brandName: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-                placeholder="JURIDICVAS"
+                className="jv-premium-input"
+                value={form.title}
+                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                placeholder="Ex: Banner escritório moderno"
               />
-            </Field>
+            </div>
 
-            <Field label="Status da landing">
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "14px 16px",
-                  borderRadius: 16,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.04)",
-                  color: "#E2E8F0",
-                  minHeight: 52,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={config.isPublished}
-                  onChange={(event) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      isPublished: event.target.checked,
-                    }))
-                  }
-                />
-                Landing publicada
-              </label>
-            </Field>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Topo da landing"
-          description="Textos principais exibidos na primeira dobra do site público."
-        >
-          <div style={{ display: "grid", gap: 16 }}>
-            <Field label="Título principal">
-              <textarea
-                value={config.heroTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    heroTitle: event.target.value,
-                  }))
-                }
-                style={textAreaStyle}
+            <div className="jv-site-field">
+              <label className="jv-site-label">URL da imagem</label>
+              <input
+                className="jv-premium-input"
+                value={form.url}
+                onChange={(event) => setForm((prev) => ({ ...prev, url: event.target.value }))}
+                placeholder="https://..."
               />
-            </Field>
+            </div>
 
-            <Field label="Subtítulo principal">
-              <textarea
-                value={config.heroSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    heroSubtitle: event.target.value,
-                  }))
-                }
-                style={textAreaStyle}
+            <div className="jv-site-field">
+              <label className="jv-site-label">Texto alternativo</label>
+              <input
+                className="jv-premium-input"
+                value={form.alt}
+                onChange={(event) => setForm((prev) => ({ ...prev, alt: event.target.value }))}
+                placeholder="Descrição da imagem"
               />
-            </Field>
+            </div>
+
+            <div className="jv-site-field">
+              <label className="jv-site-label">Ordem</label>
+              <input
+                className="jv-premium-input"
+                type="number"
+                value={form.sortOrder}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, sortOrder: Number(event.target.value) }))
+                }
+              />
+            </div>
+
+            <label className="jv-site-check">
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+              />
+              Slide ativo
+            </label>
+
+            <div className="jv-site-actions">
+              <button type="button" className="jv-premium-btn" onClick={addOrUpdateSlide}>
+                {editingIndex === null ? "Adicionar à lista" : "Atualizar slide"}
+              </button>
+
+              <button type="button" className="jv-site-secondary" onClick={resetForm}>
+                Limpar
+              </button>
+            </div>
 
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                gap: 16,
-              }}
+              className="jv-site-preview"
+              style={
+                activeSlides[0]?.url
+                  ? {
+                      backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.92), rgba(2,6,23,.58)), url(${activeSlides[0].url})`,
+                    }
+                  : undefined
+              }
             >
-              <Field label="Texto do botão principal">
-                <input
-                  type="text"
-                  value={config.heroPrimaryButtonText}
-                  onChange={(event) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      heroPrimaryButtonText: event.target.value,
-                    }))
-                  }
-                  style={inputStyle}
+              {activeSlides.slice(0, 3).map((slide, index) => (
+                <div
+                  key={`${slide.url}-${index}`}
+                  className="jv-site-preview-slide"
+                  style={{ backgroundImage: `url(${slide.url})` }}
                 />
-              </Field>
+              ))}
 
-              <Field label="Texto do botão secundário">
-                <input
-                  type="text"
-                  value={config.heroSecondaryButtonText}
-                  onChange={(event) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      heroSecondaryButtonText: event.target.value,
-                    }))
-                  }
-                  style={inputStyle}
-                />
-              </Field>
+              <div className="jv-site-preview-overlay" />
+
+              <div className="jv-site-preview-content">
+                <div style={{ color: "#38BDF8", fontSize: 12, fontWeight: 950, letterSpacing: "0.08em" }}>
+                  PRÉVIA DO HERO
+                </div>
+
+                <div style={{ color: "#F8FAFC", fontSize: 34, fontWeight: 950, lineHeight: 1.05, marginTop: 12 }}>
+                  Gestão jurídica premium
+                </div>
+
+                <div style={{ color: "#CBD5E1", lineHeight: 1.7, marginTop: 12 }}>
+                  O fundo será trocado automaticamente conforme os slides ativos.
+                </div>
+              </div>
             </div>
           </div>
-        </SectionCard>
 
-        <SectionCard
-          title="Sobre o sistema"
-          description="Conteúdo institucional exibido na seção de apresentação da plataforma."
-        >
-          <div style={{ display: "grid", gap: 16 }}>
-            <Field label="Título da seção Sobre">
-              <input
-                type="text"
-                value={config.aboutTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    aboutTitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
+          <div className="jv-glass jv-site-card" style={{ display: "grid", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <h2 style={{ color: "#F8FAFC", margin: 0, fontSize: 22, fontWeight: 950 }}>
+                  Slides cadastrados
+                </h2>
 
-            <Field label="Texto da seção Sobre">
-              <textarea
-                value={config.aboutText}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    aboutText: event.target.value,
-                  }))
-                }
-                style={textAreaStyle}
-              />
-            </Field>
+                <div className="jv-site-help" style={{ marginTop: 6 }}>
+                  Total: {slides.length} · Ativos: {activeSlides.length}
+                </div>
+              </div>
+
+              <button type="button" className="jv-premium-btn" onClick={saveSlides} disabled={saving}>
+                {saving ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="jv-site-help">Carregando slides...</div>
+            ) : slides.length === 0 ? (
+              <div className="jv-site-help">
+                Nenhuma imagem cadastrada. Adicione uma URL para começar o slide do hero.
+              </div>
+            ) : (
+              slides
+                .map((slide, index) => ({ slide, index }))
+                .sort((a, b) => a.slide.sortOrder - b.slide.sortOrder)
+                .map(({ slide, index }) => (
+                  <article className="jv-site-slide" key={`${slide.url}-${index}`}>
+                    <div
+                      className="jv-site-thumb"
+                      style={{ backgroundImage: `url(${slide.url})` }}
+                    />
+
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <strong style={{ color: "#F8FAFC", fontSize: 17 }}>
+                          {slide.title || `Slide ${index + 1}`}
+                        </strong>
+
+                        <span style={{ color: slide.isActive ? "#A7F3D0" : "#FCA5A5", fontSize: 12, fontWeight: 950 }}>
+                          {slide.isActive ? "ATIVO" : "INATIVO"}
+                        </span>
+                      </div>
+
+                      <div style={{ color: "#94A3B8", fontSize: 13, wordBreak: "break-all" }}>
+                        {slide.url}
+                      </div>
+
+                      <div style={{ color: "#CBD5E1", fontSize: 13 }}>
+                        Ordem: {slide.sortOrder}
+                      </div>
+
+                      <label className="jv-site-check">
+                        <input
+                          type="checkbox"
+                          checked={slide.isActive}
+                          onChange={(event) =>
+                            setSlides((prev) =>
+                              prev.map((item, currentIndex) =>
+                                currentIndex === index
+                                  ? { ...item, isActive: event.target.checked }
+                                  : item
+                              )
+                            )
+                          }
+                        />
+                        Ativo no site
+                      </label>
+
+                      <div className="jv-site-actions">
+                        <button type="button" className="jv-site-secondary" onClick={() => editSlide(index)}>
+                          Editar
+                        </button>
+
+                        <button type="button" className="jv-site-secondary" onClick={() => moveSlide(index, "up")}>
+                          Subir
+                        </button>
+
+                        <button type="button" className="jv-site-secondary" onClick={() => moveSlide(index, "down")}>
+                          Descer
+                        </button>
+
+                        <button type="button" className="jv-site-danger" onClick={() => removeSlide(index)}>
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))
+            )}
           </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Títulos das seções públicas"
-          description="Defina os títulos e subtítulos das áreas que aparecem no site."
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 16,
-            }}
-          >
-            <Field label="Título de funcionalidades">
-              <input
-                type="text"
-                value={config.featuresTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    featuresTitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Subtítulo de funcionalidades">
-              <input
-                type="text"
-                value={config.featuresSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    featuresSubtitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Título de mídias">
-              <input
-                type="text"
-                value={config.mediaTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    mediaTitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Subtítulo de mídias">
-              <input
-                type="text"
-                value={config.mediaSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    mediaSubtitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Título de planos">
-              <input
-                type="text"
-                value={config.plansTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    plansTitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Subtítulo de planos">
-              <input
-                type="text"
-                value={config.plansSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    plansSubtitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Título de atualizações">
-              <input
-                type="text"
-                value={config.updatesTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    updatesTitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Subtítulo de atualizações">
-              <input
-                type="text"
-                value={config.updatesSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    updatesSubtitle: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Chamada final e rodapé"
-          description="Configure o CTA final da landing e o texto de rodapé."
-        >
-          <div style={{ display: "grid", gap: 16 }}>
-            <Field label="Título da chamada final">
-              <textarea
-                value={config.ctaTitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    ctaTitle: event.target.value,
-                  }))
-                }
-                style={textAreaStyle}
-              />
-            </Field>
-
-            <Field label="Subtítulo da chamada final">
-              <textarea
-                value={config.ctaSubtitle}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    ctaSubtitle: event.target.value,
-                  }))
-                }
-                style={textAreaStyle}
-              />
-            </Field>
-
-            <Field label="Texto do rodapé">
-              <input
-                type="text"
-                value={config.footerText}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    footerText: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          title="Links principais"
-          description="Configure os destinos dos botões principais do site público."
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 16,
-            }}
-          >
-            <Field label="URL de login">
-              <input
-                type="text"
-                value={config.loginUrl}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    loginUrl: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="URL de acompanhamento">
-              <input
-                type="text"
-                value={config.trackUrl}
-                onChange={(event) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    trackUrl: event.target.value,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        <div
-          className="jv-glass"
-          style={{
-            position: "sticky",
-            bottom: 18,
-            zIndex: 20,
-            borderRadius: 24,
-            padding: 16,
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div>
-            <strong style={{ color: "#F8FAFC", fontSize: 15 }}>
-              Configurações gerais
-            </strong>
-
-            <p
-              style={{
-                margin: "4px 0 0",
-                color: "#94A3B8",
-                fontSize: 13,
-              }}
-            >
-              Salve para publicar as alterações no site público.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="jv-premium-btn"
-            onClick={saveConfig}
-            disabled={savingConfig || loading}
-          >
-            {savingConfig ? "Salvando..." : "Salvar configurações gerais"}
-          </button>
-        </div>
+        </section>
       </div>
     </SuperAdminShell>
   );

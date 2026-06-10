@@ -101,7 +101,8 @@ model Client {
   name       String
   document   String // CPF ou CNPJ (somente numeros)
   phone      String?
-email      String?
+  document                   String?
+  email      String?
   accessCode String // codigo do cliente
   notes      String?
   archived   Boolean  @default(false)
