@@ -1,0 +1,196 @@
+import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
+import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
+
+function canManageDeadlines(role: string) {
+  return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
+}
+
+function parseDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Data inválida.");
+  }
+
+  return date;
+}
+
+async function getDeadlineForUser(deadlineId: string, firmId: string) {
+  return prisma.deadline.findFirst({
+    where: {
+      id: deadlineId,
+      process: {
+        firmId,
+      },
+    },
+    include: {
+      process: {
+        include: {
+          client: true,
+        },
+      },
+    },
+  });
+}
+
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleDeadlines");
+  if (moduleGuard) return moduleGuard;
+
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, message: "Não autenticado." },
+      { status: 401 }
+    );
+  }
+
+  if (!user.firmId) {
+    return NextResponse.json(
+      { ok: false, message: "Usuário sem advocacia vinculada." },
+      { status: 403 }
+    );
+  }
+
+  if (!canManageDeadlines(user.role)) {
+    return NextResponse.json(
+      { ok: false, message: "Sem permissão para editar prazo." },
+      { status: 403 }
+    );
+  }
+
+  const params = await context.params;
+  const deadlineId = params.id;
+
+  const existing = await getDeadlineForUser(deadlineId, user.firmId);
+
+  if (!existing) {
+    return NextResponse.json(
+      { ok: false, message: "Prazo não encontrado." },
+      { status: 404 }
+    );
+  }
+
+  const body = await req.json().catch(() => null);
+
+  const processId = (body?.processId ?? existing.processId).toString().trim();
+  const title = (body?.title ?? existing.title ?? "Prazo").toString().trim();
+  const description = (body?.description ?? existing.description ?? "").toString().trim();
+  const dueDateStr = (
+    body?.dueDate ??
+    body?.dueAt ??
+    body?.date ??
+    body?.deadlineAt ??
+    existing.dueDate
+  ).toString();
+
+  const process = await prisma.legalProcess.findFirst({
+    where: {
+      id: processId,
+      firmId: user.firmId,
+    },
+  });
+
+  if (!process) {
+    return NextResponse.json(
+      { ok: false, message: "Processo inválido para esta advocacia." },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const dueDate = parseDate(dueDateStr);
+
+    const updated = await prisma.deadline.update({
+      where: {
+        id: deadlineId,
+      },
+      data: {
+        processId,
+        title: title || "Prazo",
+        description: description || null,
+        dueDate,
+      },
+      include: {
+        process: {
+          include: {
+            client: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      deadline: updated,
+      message: "Prazo atualizado com sucesso.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao atualizar prazo.";
+
+    return NextResponse.json(
+      { ok: false, message },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleDeadlines");
+  if (moduleGuard) return moduleGuard;
+
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, message: "Não autenticado." },
+      { status: 401 }
+    );
+  }
+
+  if (!user.firmId) {
+    return NextResponse.json(
+      { ok: false, message: "Usuário sem advocacia vinculada." },
+      { status: 403 }
+    );
+  }
+
+  if (!canManageDeadlines(user.role)) {
+    return NextResponse.json(
+      { ok: false, message: "Sem permissão para excluir prazo." },
+      { status: 403 }
+    );
+  }
+
+  const params = await context.params;
+  const deadlineId = params.id;
+
+  const existing = await getDeadlineForUser(deadlineId, user.firmId);
+
+  if (!existing) {
+    return NextResponse.json(
+      { ok: false, message: "Prazo não encontrado." },
+      { status: 404 }
+    );
+  }
+
+  await prisma.deadline.delete({
+    where: {
+      id: deadlineId,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    message: "Prazo excluído com sucesso.",
+  });
+}

@@ -3,32 +3,11 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-function canManageDeadlines(role: string) {
-  return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
-}
-
-function parseDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Data inválida.");
-  }
-
-  return date;
-}
-
 export async function GET(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleDeadlines");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado." },
-      { status: 401 }
-    );
-  }
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -37,15 +16,12 @@ export async function GET(req: Request) {
     );
   }
 
-  if (!canManageDeadlines(user.role)) {
-    return NextResponse.json(
-      { ok: false, message: "Sem permissão para acessar prazos." },
-      { status: 403 }
-    );
+  if (user.role !== "MASTER" && user.role !== "SUPERADMIN" && user.role !== "SECRETARY") {
+    return NextResponse.json({ ok: false }, { status: 403 });
   }
 
   const url = new URL(req.url);
-  const status = url.searchParams.get("status");
+
   const pendingParam = url.searchParams.get("pending");
   const daysParam = url.searchParams.get("days");
 
@@ -55,30 +31,13 @@ export async function GET(req: Request) {
     },
   };
 
-  if (status === "pending") {
+  if (pendingParam === "1") {
     where.done = false;
-  }
-
-  if (status === "done") {
+  } else if (pendingParam === "0") {
     where.done = true;
   }
 
-  if (status === "late") {
-    where.done = false;
-    where.dueDate = {
-      lt: new Date(new Date().setHours(0, 0, 0, 0)),
-    };
-  }
-
-  if (!status) {
-    if (pendingParam === "1") {
-      where.done = false;
-    } else if (pendingParam === "0") {
-      where.done = true;
-    }
-  }
-
-  if (daysParam && status !== "late") {
+  if (daysParam) {
     const days = Number(daysParam);
     if (!Number.isNaN(days) && days > 0) {
       const now = new Date();
@@ -105,15 +64,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleDeadlines");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado." },
-      { status: 401 }
-    );
-  }
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -122,11 +74,8 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!canManageDeadlines(user.role)) {
-    return NextResponse.json(
-      { ok: false, message: "Sem permissão para criar prazo." },
-      { status: 403 }
-    );
+  if (user.role !== "MASTER" && user.role !== "SUPERADMIN" && user.role !== "SECRETARY") {
+    return NextResponse.json({ ok: false }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -163,37 +112,23 @@ export async function POST(req: Request) {
     );
   }
 
-  try {
-    const dueDate = parseDate(dueDateStr);
-
-    const created = await prisma.deadline.create({
-      data: {
-        processId,
-        title: title || "Prazo",
-        description: description || null,
-        dueDate,
-        done: false,
-      },
-      include: {
-        process: {
-          include: {
-            client: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({
-      ok: true,
-      deadline: created,
-      message: "Prazo criado com sucesso.",
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao criar prazo.";
-
+  const dueDate = new Date(dueDateStr);
+  if (isNaN(dueDate.getTime())) {
     return NextResponse.json(
-      { ok: false, message },
+      { ok: false, message: "Data inválida." },
       { status: 400 }
     );
   }
+
+  const created = await prisma.deadline.create({
+    data: {
+      processId,
+      title: title || "Prazo",
+      description: description || null,
+      dueDate,
+      done: false,
+    },
+  });
+
+  return NextResponse.json({ ok: true, deadline: created });
 }

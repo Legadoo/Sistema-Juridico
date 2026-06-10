@@ -3,12 +3,12 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-function canManageDeadlines(role: string) {
+function canManageProcess(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }
 
 export async function POST(req: Request) {
-  const moduleGuard = await ensureAdminModuleResponse("moduleDeadlines");
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
   if (moduleGuard) return moduleGuard;
 
   const user = await getSessionUser();
@@ -27,55 +27,48 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!canManageDeadlines(user.role)) {
+  if (!canManageProcess(user.role)) {
     return NextResponse.json(
-      { ok: false, message: "Sem permissão para concluir prazo." },
+      { ok: false, message: "Sem permissão para desarquivar processo." },
       { status: 403 }
     );
   }
 
   const body = await req.json().catch(() => null);
-  const id = (body?.id ?? "").toString().trim();
-  const done = Boolean(body?.done ?? true);
+  const processId = (body?.processId ?? "").toString().trim();
 
-  if (!id) {
+  if (!processId) {
     return NextResponse.json(
-      { ok: false, message: "id obrigatório." },
+      { ok: false, message: "processId obrigatório." },
       { status: 400 }
     );
   }
 
-  const existing = await prisma.deadline.findFirst({
+  const process = await prisma.legalProcess.findFirst({
     where: {
-      id,
-      process: {
-        firmId: user.firmId,
-      },
+      id: processId,
+      firmId: user.firmId,
     },
   });
 
-  if (!existing) {
+  if (!process) {
     return NextResponse.json(
-      { ok: false, message: "Prazo não encontrado." },
+      { ok: false, message: "Processo não encontrado." },
       { status: 404 }
     );
   }
 
-  const updated = await prisma.deadline.update({
-    where: { id },
-    data: { done },
-    include: {
-      process: {
-        include: {
-          client: true,
-        },
-      },
+  await prisma.legalProcess.update({
+    where: {
+      id: processId,
+    },
+    data: {
+      archived: false,
     },
   });
 
   return NextResponse.json({
     ok: true,
-    deadline: updated,
-    message: done ? "Prazo concluído com sucesso." : "Prazo reaberto com sucesso.",
+    message: "Processo desarquivado com sucesso.",
   });
 }

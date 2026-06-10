@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -7,15 +6,25 @@ function canManageProcess(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }
 
-export async function POST(req: Request) {
-  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
-  if (moduleGuard) return moduleGuard;
+async function ensureModuleAllowed(firmId: string, role: string) {
+  if (role === "SUPERADMIN") return true;
 
+  const config = await prisma.firmConfig.findUnique({
+    where: { firmId },
+    select: {
+      moduleProcesses: true,
+    },
+  });
+
+  return config?.moduleProcesses ?? false;
+}
+
+export async function POST(req: Request) {
   const user = await getSessionUser();
 
   if (!user) {
     return NextResponse.json(
-      { ok: false, message: "Não autenticado." },
+      { ok: false, message: "Sessão expirada ou não encontrada." },
       { status: 401 }
     );
   }
@@ -34,6 +43,15 @@ export async function POST(req: Request) {
     );
   }
 
+  const allowed = await ensureModuleAllowed(user.firmId, user.role);
+
+  if (!allowed) {
+    return NextResponse.json(
+      { ok: false, message: "Módulo de processos não está liberado." },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const processId = (body?.processId ?? "").toString().trim();
 
@@ -48,6 +66,9 @@ export async function POST(req: Request) {
     where: {
       id: processId,
       firmId: user.firmId,
+    },
+    select: {
+      id: true,
     },
   });
 

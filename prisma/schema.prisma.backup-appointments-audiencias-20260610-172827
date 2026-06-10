@@ -148,7 +148,6 @@ model LegalProcess {
   updates   ProcessUpdate[]
   deadlines Deadline[]
   documents ProcessDocument[]
-  appointments Appointment[]
   charges   Charge[]
 
   @@unique([firmId, cnj])
@@ -197,8 +196,6 @@ model Appointment {
   scheduledAt     DateTime
   durationMinutes Int      @default(60)
   status          String   @default("AGENDADO") // SCHEDULED | CONFIRMED | CANCELLED | COMPLETED
-  appointmentType String   @default("CLIENT") // CLIENT | AUDIENCIA
-  title           String?
   source          String   @default("INTERNAL") // INTERNAL | PUBLIC
   notes           String?
   createdAt       DateTime @default(now())
@@ -209,9 +206,6 @@ model Appointment {
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  processId String?
-  process   LegalProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
 
   availabilitySlotId String? @unique
 
@@ -224,8 +218,6 @@ model Appointment {
   @@index([clientId])
   @@index([createdByUserId])
   @@index([scheduledAt])
-  @@index([processId])
-  @@index([appointmentType])
 }
 
 model AvailabilityWindow {

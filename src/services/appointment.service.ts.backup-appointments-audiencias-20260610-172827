@@ -13,24 +13,15 @@ type SessionUser = {
   firmId: string | null;
 };
 
-type AppointmentType = "CLIENT" | "AUDIENCIA";
-
 type CreateAppointmentInput = {
-  clientId?: string;
-  processId?: string;
-  appointmentType?: AppointmentType;
-  title?: string;
+  clientId: string;
   scheduledAt: string;
   durationMinutes?: number;
   notes?: string;
 };
 
 function isAllowedRole(role: string) {
-  return role === "MASTER" || role === "SECRETARY" || role === "SUPERADMIN";
-}
-
-function normalizeAppointmentType(value: unknown): AppointmentType {
-  return value === "AUDIENCIA" ? "AUDIENCIA" : "CLIENT";
+  return role === "MASTER" || role === "SECRETARY";
 }
 
 export async function listAppointmentsForFirm(user: SessionUser) {
@@ -49,23 +40,6 @@ export async function listAppointmentsForFirm(user: SessionUser) {
           document: true,
           phone: true,
           email: true,
-        },
-      },
-      process: {
-        select: {
-          id: true,
-          cnj: true,
-          tribunal: true,
-          vara: true,
-          status: true,
-          archived: true,
-          client: {
-            select: {
-              id: true,
-              name: true,
-              document: true,
-            },
-          },
         },
       },
       createdByUser: {
@@ -99,14 +73,14 @@ export async function createAppointmentForFirm(
     throw new Error("Usuário sem advocacia vinculada.");
   }
 
-  const appointmentType = normalizeAppointmentType(input.appointmentType);
-  const processId = (input.processId || "").trim();
-  let clientId = (input.clientId || "").trim();
-
+  const clientId = (input.clientId || "").trim();
   const scheduledAt = new Date(input.scheduledAt);
   const durationMinutes = Number(input.durationMinutes || 60);
   const notes = (input.notes || "").trim();
-  const title = (input.title || "").trim();
+
+  if (!clientId) {
+    throw new Error("Selecione o cliente.");
+  }
 
   if (Number.isNaN(scheduledAt.getTime())) {
     throw new Error("Data/hora inválida.");
@@ -114,36 +88,6 @@ export async function createAppointmentForFirm(
 
   if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes > 480) {
     throw new Error("Duração inválida.");
-  }
-
-  let process: { id: string; clientId: string } | null = null;
-
-  if (appointmentType === "AUDIENCIA") {
-    if (!processId) {
-      throw new Error("Selecione o processo da audiência.");
-    }
-
-    process = await prisma.legalProcess.findFirst({
-      where: {
-        id: processId,
-        firmId: user.firmId,
-        archived: false,
-      },
-      select: {
-        id: true,
-        clientId: true,
-      },
-    });
-
-    if (!process) {
-      throw new Error("Processo não encontrado nesta advocacia.");
-    }
-
-    clientId = process.clientId;
-  }
-
-  if (!clientId) {
-    throw new Error("Selecione o cliente.");
   }
 
   const client = await prisma.client.findFirst({
@@ -155,7 +99,6 @@ export async function createAppointmentForFirm(
     select: {
       id: true,
       name: true,
-      document: true,
     },
   });
 
@@ -186,21 +129,18 @@ export async function createAppointmentForFirm(
   });
 
   if (conflito) {
-    throw new Error("Já existe um agendamento ou audiência neste horário.");
+    throw new Error("Já existe um agendamento neste horário.");
   }
 
   const appointment = await prisma.appointment.create({
     data: {
       firmId: user.firmId,
       clientId: client.id,
-      processId: appointmentType === "AUDIENCIA" ? process?.id : null,
       createdByUserId: user.id,
       scheduledAt,
       durationMinutes,
       notes: notes || null,
-      title: title || (appointmentType === "AUDIENCIA" ? "Audiência" : "Atendimento"),
       source: "INTERNO",
-      appointmentType,
       status: "AGENDADO",
     },
     include: {
@@ -211,21 +151,6 @@ export async function createAppointmentForFirm(
           document: true,
           phone: true,
           email: true,
-        },
-      },
-      process: {
-        select: {
-          id: true,
-          cnj: true,
-          tribunal: true,
-          vara: true,
-          client: {
-            select: {
-              id: true,
-              name: true,
-              document: true,
-            },
-          },
         },
       },
       createdByUser: {
@@ -326,23 +251,6 @@ export async function updateAppointmentStatusForFirm(
           id: true,
           name: true,
           document: true,
-          phone: true,
-          email: true,
-        },
-      },
-      process: {
-        select: {
-          id: true,
-          cnj: true,
-          tribunal: true,
-          vara: true,
-          client: {
-            select: {
-              id: true,
-              name: true,
-              document: true,
-            },
-          },
         },
       },
       createdByUser: {
@@ -410,6 +318,7 @@ export async function deleteFinishedAppointmentForFirm(
     select: {
       id: true,
       status: true,
+      availabilitySlotId: true,
     },
   });
 
@@ -417,15 +326,28 @@ export async function deleteFinishedAppointmentForFirm(
     throw new Error("Agendamento não encontrado.");
   }
 
-  if (!["CONCLUIDO", "CANCELADO"].includes(appointment.status)) {
-    throw new Error("Somente agendamentos finalizados podem ser excluídos da lista.");
+  if (!["CANCELADO", "CONCLUIDO"].includes(appointment.status)) {
+    throw new Error("Só é possível excluir agendamentos cancelados ou concluídos.");
   }
 
-  await prisma.appointment.delete({
-    where: {
-      id: appointment.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    if (appointment.availabilitySlotId) {
+      await tx.availabilitySlot.update({
+        where: { id: appointment.availabilitySlotId },
+        data: {
+          isBooked: false,
+          bookedAt: null,
+          appointment: {
+            disconnect: true,
+          },
+        },
+      });
+    }
+
+    await tx.appointment.delete({
+      where: { id: appointment.id },
+    });
   });
 
-  return true;
+  return { ok: true };
 }

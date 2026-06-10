@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -6,28 +7,12 @@ function canManageProcess(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }
 
-async function ensureModuleAllowed(firmId: string, role: string) {
-  if (role === "SUPERADMIN") return true;
-
-  const config = await prisma.firmConfig.findUnique({
-    where: { firmId },
-    select: {
-      moduleProcesses: true,
-    },
-  });
-
-  return config?.moduleProcesses ?? false;
-}
-
 export async function GET() {
-  const user = await getSessionUser();
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
 
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Sessão não encontrada." },
-      { status: 401 }
-    );
-  }
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -37,19 +22,7 @@ export async function GET() {
   }
 
   if (!canManageProcess(user.role)) {
-    return NextResponse.json(
-      { ok: false, message: "Sem permissão para visualizar arquivados." },
-      { status: 403 }
-    );
-  }
-
-  const allowed = await ensureModuleAllowed(user.firmId, user.role);
-
-  if (!allowed) {
-    return NextResponse.json(
-      { ok: false, message: "Módulo de processos não está liberado." },
-      { status: 403 }
-    );
+    return NextResponse.json({ ok: false }, { status: 403 });
   }
 
   const processes = await prisma.legalProcess.findMany({
@@ -74,14 +47,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
 
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Sessão expirada ou não encontrada." },
-      { status: 401 }
-    );
-  }
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -93,15 +63,6 @@ export async function POST(req: Request) {
   if (!canManageProcess(user.role)) {
     return NextResponse.json(
       { ok: false, message: "Sem permissão para arquivar processo." },
-      { status: 403 }
-    );
-  }
-
-  const allowed = await ensureModuleAllowed(user.firmId, user.role);
-
-  if (!allowed) {
-    return NextResponse.json(
-      { ok: false, message: "Módulo de processos não está liberado." },
       { status: 403 }
     );
   }
@@ -120,9 +81,6 @@ export async function POST(req: Request) {
     where: {
       id: processId,
       firmId: user.firmId,
-    },
-    select: {
-      id: true,
     },
   });
 

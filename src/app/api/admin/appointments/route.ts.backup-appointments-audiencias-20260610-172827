@@ -9,7 +9,6 @@ import {
 export async function GET() {
   const moduleGuard = await ensureAdminModuleResponse("moduleAppointments");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
 
   if (!user) {
@@ -29,7 +28,6 @@ export async function GET() {
 export async function POST(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleAppointments");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
 
   if (!user) {
@@ -40,10 +38,7 @@ export async function POST(req: Request) {
 
   try {
     const appointment = await createAppointmentForFirm(user, {
-      appointmentType: body?.appointmentType,
-      title: body?.title,
       clientId: body?.clientId,
-      processId: body?.processId,
       scheduledAt: body?.scheduledAt,
       durationMinutes: body?.durationMinutes,
       notes: body?.notes,
@@ -52,10 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       appointment,
-      message:
-        appointment.appointmentType === "AUDIENCIA"
-          ? "Audiência criada com sucesso."
-          : "Agendamento criado com sucesso.",
+      message: "Agendamento criado com sucesso.",
     });
   } catch (error) {
     const message =

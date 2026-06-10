@@ -39,31 +39,11 @@ type DeadlineItem = {
   };
 };
 
-type AppointmentItem = {
-  id: string;
-  title?: string | null;
-  appointmentType?: string;
-  scheduledAt: string;
-  status: string;
-  client?: {
-    name?: string;
-  };
-  process?: {
-    cnj?: string;
-    client?: {
-      name?: string;
-    };
-  } | null;
-};
-
 type DashboardData = {
   clients: number;
   processes: number;
   pendingDeadlines: number;
   recentDeadlines: DeadlineItem[];
-  audiencesToday: number;
-  audiencesWeek: number;
-  upcomingAudiences: AppointmentItem[];
 };
 
 function normalizeMe(meJson: MeResponse) {
@@ -101,10 +81,6 @@ function formatDate(date?: string) {
   } catch {
     return date;
   }
-}
-
-function getAudienceClientName(item: AppointmentItem) {
-  return item.client?.name || item.process?.client?.name || "Não informado";
 }
 
 function getDeadlineClientName(deadline: DeadlineItem) {
@@ -179,9 +155,6 @@ export default function AdminDashboardPage() {
     processes: 0,
     pendingDeadlines: 0,
     recentDeadlines: [],
-    audiencesToday: 0,
-    audiencesWeek: 0,
-    upcomingAudiences: [],
   });
 
   async function load() {
@@ -192,17 +165,15 @@ export default function AdminDashboardPage() {
       setMe(normalizeMe(meJson));
     }
 
-    const [clientsRes, processesRes, deadlinesRes, appointmentsRes] = await Promise.all([
-      fetch("/api/admin/clients", { cache: "no-store", credentials: "include" }),
-      fetch("/api/admin/processes", { cache: "no-store", credentials: "include" }),
-      fetch("/api/admin/deadlines", { cache: "no-store", credentials: "include" }),
-      fetch("/api/admin/appointments", { cache: "no-store", credentials: "include" }),
+    const [clientsRes, processesRes, deadlinesRes] = await Promise.all([
+      fetch("/api/admin/clients", { cache: "no-store" }),
+      fetch("/api/admin/processes", { cache: "no-store" }),
+      fetch("/api/admin/deadlines", { cache: "no-store" }),
     ]);
 
     const clientsJson = clientsRes.ok ? await clientsRes.json() : [];
     const processesJson = processesRes.ok ? await processesRes.json() : [];
     const deadlinesJson = deadlinesRes.ok ? await deadlinesRes.json() : [];
-    const appointmentsJson = appointmentsRes.ok ? await appointmentsRes.json() : [];
 
     const clients = extractArrayPayload(clientsJson, ["clients"]);
     const processes = extractArrayPayload(processesJson, ["processes"]);
@@ -211,48 +182,12 @@ export default function AdminDashboardPage() {
     ) as DeadlineItem[];
 
     const pending = deadlines.filter((deadline) => !deadline.done);
-    const appointments = extractArrayPayload(appointmentsJson, ["appointments"]).filter(
-      (item) => typeof item === "object" && item !== null
-    ) as AppointmentItem[];
-
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayEnd = new Date(now);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const weekEnd = new Date(todayStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    weekEnd.setHours(23, 59, 59, 999);
-
-    const activeAudiences = appointments.filter((item) => {
-      const scheduledAt = new Date(item.scheduledAt);
-      return (
-        item.appointmentType === "AUDIENCIA" &&
-        ["AGENDADO", "CONFIRMADO"].includes(item.status) &&
-        scheduledAt >= todayStart
-      );
-    });
-
-    const audiencesToday = activeAudiences.filter((item) => {
-      const scheduledAt = new Date(item.scheduledAt);
-      return scheduledAt >= todayStart && scheduledAt <= todayEnd;
-    });
-
-    const audiencesWeek = activeAudiences.filter((item) => {
-      const scheduledAt = new Date(item.scheduledAt);
-      return scheduledAt >= todayStart && scheduledAt <= weekEnd;
-    });
 
     setData({
       clients: clients.length,
       processes: processes.length,
       pendingDeadlines: pending.length,
       recentDeadlines: pending.slice(0, 6),
-      audiencesToday: audiencesToday.length,
-      audiencesWeek: audiencesWeek.length,
-      upcomingAudiences: activeAudiences.slice(0, 6),
     });
   }
 
@@ -297,13 +232,13 @@ export default function AdminDashboardPage() {
       },
       {
         title: "Audiências agendadas",
-        primary: `${data.audiencesToday} hoje`,
-        secondary: `${data.audiencesWeek} esta semana`,
+        primary: "0 hoje",
+        secondary: "0 esta semana",
         Icon: FaCalendarCheck,
         tone: "slate" as const,
       },
     ],
-    [data.processes, data.audiencesToday, data.audiencesWeek]
+    [data.processes]
   );
 
   if (!me) {
@@ -913,51 +848,6 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          <div className="jv-panel">
-            <div className="jv-panel-title-row">
-              <h2 className="jv-panel-title">
-                <FaCalendarCheck />
-                Próximas audiências
-              </h2>
-
-              <div className="jv-warning-pill">
-                {data.audiencesToday} hoje
-              </div>
-            </div>
-
-            {data.upcomingAudiences.length > 0 ? (
-              <table className="jv-deadline-table">
-                <thead>
-                  <tr>
-                    <th>Audiência</th>
-                    <th>Processo</th>
-                    <th>Cliente</th>
-                    <th>Data</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.upcomingAudiences.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.title || "Audiência"}</td>
-                      <td>{item.process?.cnj || "Não vinculado"}</td>
-                      <td>{getAudienceClientName(item)}</td>
-                      <td>{formatDate(item.scheduledAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="jv-empty-deadlines">
-                <div>
-                  <div className="jv-empty-icon">
-                    <FaCalendarCheck />
-                  </div>
-                  <div className="jv-empty-title">Nenhuma audiência próxima.</div>
-                  <div className="jv-empty-subtitle">Sem audiências agendadas para exibir.</div>
-                </div>
-              </div>
-            )}
-          </div>
           <div className="jv-panel">
             <div className="jv-panel-title-row">
               <h2 className="jv-panel-title">
