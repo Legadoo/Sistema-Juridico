@@ -1,0 +1,209 @@
+import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import path from "path";
+import { mkdir, writeFile } from "fs/promises";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
+import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
+
+const STORAGE_ROOT = path.join(process.cwd(), "storage", "process-documents");
+
+async function ensureProcess(processId: string, firmId: string) {
+  const process = await prisma.legalProcess.findFirst({
+    where: {
+      id: processId,
+      firmId,
+    },
+  });
+
+  if (!process) {
+    throw new Error("Processo não encontrado.");
+  }
+
+  return process;
+}
+
+function sanitizeName(name: string) {
+  return (name || "documento.pdf")
+    .replace(/[^\w.\-À-ÿ ]+/g, "")
+    .trim()
+    .slice(0, 120) || "documento.pdf";
+}
+
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
+
+  const user = await getSessionUser();
+  if (!user || !user.firmId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  const params = await context.params;
+  const processId = params.id;
+
+  await ensureProcess(processId, user.firmId);
+
+  const documents = await prisma.processDocument.findMany({
+    where: {
+      processId,
+      firmId: user.firmId,
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
+  return NextResponse.json({
+    ok: true,
+    documents,
+  });
+}
+
+export async function POST(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
+
+  const user = await getSessionUser();
+  if (!user || !user.firmId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  const params = await context.params;
+  const processId = params.id;
+
+  await ensureProcess(processId, user.firmId);
+
+  const formData = await req.formData();
+  const file = formData.get("file");
+  const docType = (formData.get("docType") ?? "").toString().trim();
+
+  if (!(file instanceof File)) {
+    return NextResponse.json(
+      { ok: false, message: "Arquivo PDF obrigatório." },
+      { status: 400 }
+    );
+  }
+
+  const originalName = sanitizeName(file.name);
+
+  if (!originalName.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+    return NextResponse.json(
+      { ok: false, message: "Somente arquivos PDF são permitidos." },
+      { status: 400 }
+    );
+  }
+
+  if (file.size <= 0) {
+    return NextResponse.json(
+      { ok: false, message: "Arquivo PDF inválido." },
+      { status: 400 }
+    );
+  }
+
+  if (file.size > 25 * 1024 * 1024) {
+    return NextResponse.json(
+      { ok: false, message: "PDF muito grande. Limite de 25MB." },
+      { status: 400 }
+    );
+  }
+
+  const currentCount = await prisma.processDocument.count({
+    where: {
+      processId,
+      firmId: user.firmId,
+    },
+  });
+
+  const storedName = `${randomUUID()}.pdf`;
+  const dir = path.join(STORAGE_ROOT, user.firmId, processId);
+  const filePath = path.join(dir, storedName);
+
+  await mkdir(dir, { recursive: true });
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (bytes.subarray(0, 4).toString() !== "%PDF") {
+    return NextResponse.json(
+      { ok: false, message: "O arquivo enviado não parece ser um PDF válido." },
+      { status: 400 }
+    );
+  }
+
+  await writeFile(filePath, bytes);
+
+  const document = await prisma.processDocument.create({
+    data: {
+      processId,
+      firmId: user.firmId,
+      originalName,
+      storedName,
+      filePath,
+      mimeType: "application/pdf",
+      sizeBytes: file.size,
+      sortOrder: currentCount,
+      docType: docType || "Documento",
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    document,
+    message: "PDF anexado com sucesso.",
+  });
+}
+
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
+  if (moduleGuard) return moduleGuard;
+
+  const user = await getSessionUser();
+  if (!user || !user.firmId) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  const params = await context.params;
+  const processId = params.id;
+
+  await ensureProcess(processId, user.firmId);
+
+  const body = await req.json().catch(() => null);
+  const documents = Array.isArray(body?.documents) ? body.documents : [];
+
+  await prisma.$transaction(
+    documents.map((item: { id?: string; sortOrder?: number; docType?: string }, index: number) =>
+      prisma.processDocument.updateMany({
+        where: {
+          id: item.id,
+          processId,
+          firmId: user.firmId,
+        },
+        data: {
+          sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+          docType: item.docType?.trim() || "Documento",
+        },
+      })
+    )
+  );
+
+  const updated = await prisma.processDocument.findMany({
+    where: {
+      processId,
+      firmId: user.firmId,
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
+  return NextResponse.json({
+    ok: true,
+    documents: updated,
+    message: "Ordem dos documentos atualizada.",
+  });
+}

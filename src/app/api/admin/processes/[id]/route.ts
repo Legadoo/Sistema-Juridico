@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { updateProcessForFirm } from "@/services/process.service";
 
-function canManageProcess(role: string) {
-  return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
+function canDeleteProcess(role: string) {
+  return role === "MASTER" || role === "SUPERADMIN";
 }
 
-export async function GET() {
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
   if (moduleGuard) return moduleGuard;
 
@@ -21,32 +25,31 @@ export async function GET() {
     );
   }
 
-  if (!canManageProcess(user.role)) {
-    return NextResponse.json({ ok: false }, { status: 403 });
-  }
+  const params = await context.params;
+  const processId = params.id;
+  const body = await req.json().catch(() => null);
 
-  const processes = await prisma.legalProcess.findMany({
-    where: {
-      firmId: user.firmId,
-      archived: true,
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      client: true,
-      updates: {
-        orderBy: { date: "desc" },
-        take: 3,
-      },
-      documents: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      },
-    },
+  const process = await updateProcessForFirm(processId, user.firmId, {
+    cnj: body?.cnj,
+    clientId: body?.clientId,
+    notes: body?.notes,
+    tribunal: body?.tribunal,
+    vara: body?.vara,
+    status: body?.status,
+    startDate: body?.startDate,
   });
 
-  return NextResponse.json({ ok: true, processes });
+  return NextResponse.json({
+    ok: true,
+    process,
+    message: "Processo atualizado com sucesso.",
+  });
 }
 
-export async function POST(req: Request) {
+export async function DELETE(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const moduleGuard = await ensureAdminModuleResponse("moduleProcesses");
   if (moduleGuard) return moduleGuard;
 
@@ -60,22 +63,15 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!canManageProcess(user.role)) {
+  if (!canDeleteProcess(user.role)) {
     return NextResponse.json(
-      { ok: false, message: "Sem permissão para arquivar processo." },
+      { ok: false, message: "Somente advogado pode excluir processo." },
       { status: 403 }
     );
   }
 
-  const body = await req.json().catch(() => null);
-  const processId = (body?.processId ?? "").toString().trim();
-
-  if (!processId) {
-    return NextResponse.json(
-      { ok: false, message: "processId obrigatório." },
-      { status: 400 }
-    );
-  }
+  const params = await context.params;
+  const processId = params.id;
 
   const process = await prisma.legalProcess.findFirst({
     where: {
@@ -91,17 +87,14 @@ export async function POST(req: Request) {
     );
   }
 
-  await prisma.legalProcess.update({
+  await prisma.legalProcess.delete({
     where: {
       id: processId,
-    },
-    data: {
-      archived: true,
     },
   });
 
   return NextResponse.json({
     ok: true,
-    message: "Processo arquivado com sucesso.",
+    message: "Processo excluído com sucesso.",
   });
 }

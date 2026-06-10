@@ -31,14 +31,11 @@ export async function listProcessesByFirm(
       client: true,
       updates: {
         orderBy: { date: "desc" },
-        take: 3,
+        take: 1,
       },
       deadlines: {
         orderBy: { dueDate: "asc" },
         take: 3,
-      },
-      documents: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       },
     },
     orderBy: {
@@ -62,36 +59,13 @@ export async function ensureClientBelongsToFirm(clientId: string, firmId: string
   return client;
 }
 
-export async function ensureProcessBelongsToFirm(processId: string, firmId: string) {
-  const process = await prisma.legalProcess.findFirst({
-    where: {
-      id: processId,
-      firmId,
-    },
-    include: {
-      client: true,
-    },
-  });
-
-  if (!process) {
-    throw new Error("Processo não encontrado.");
-  }
-
-  return process;
-}
-
-export async function ensureUniqueProcessCnjInFirm(
-  cnj: string,
-  firmId: string,
-  ignoreProcessId?: string
-) {
+export async function ensureUniqueProcessCnjInFirm(cnj: string, firmId: string) {
   const normalizedCnj = onlyDigits(cnj);
 
   const existing = await prisma.legalProcess.findFirst({
     where: {
       firmId,
       cnj: normalizedCnj,
-      ...(ignoreProcessId ? { NOT: { id: ignoreProcessId } } : {}),
     },
   });
 
@@ -134,75 +108,6 @@ export async function createProcessForFirm(
     },
     include: {
       client: true,
-      updates: {
-        orderBy: { date: "desc" },
-        take: 3,
-      },
-      documents: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      },
-    },
-  });
-}
-
-export async function updateProcessForFirm(
-  processId: string,
-  firmId: string,
-  payload: Partial<CreateProcessPayload>
-) {
-  const existing = await ensureProcessBelongsToFirm(processId, firmId);
-
-  const nextCnj =
-    typeof payload.cnj === "string" && payload.cnj.trim()
-      ? await ensureUniqueProcessCnjInFirm(payload.cnj, firmId, processId)
-      : existing.cnj;
-
-  const nextClientId =
-    typeof payload.clientId === "string" && payload.clientId.trim()
-      ? payload.clientId.trim()
-      : existing.clientId;
-
-  await ensureClientBelongsToFirm(nextClientId, firmId);
-
-  return prisma.legalProcess.update({
-    where: {
-      id: processId,
-    },
-    data: {
-      cnj: nextCnj,
-      clientId: nextClientId,
-      notes:
-        payload.notes !== undefined
-          ? (payload.notes ?? "").toString().trim() || null
-          : existing.notes,
-      tribunal:
-        payload.tribunal !== undefined
-          ? (payload.tribunal ?? "").toString().trim() || null
-          : existing.tribunal,
-      vara:
-        payload.vara !== undefined
-          ? (payload.vara ?? "").toString().trim() || null
-          : existing.vara,
-      status:
-        payload.status !== undefined
-          ? (payload.status ?? "ACTIVE").toString().trim() || "ACTIVE"
-          : existing.status,
-      startDate:
-        payload.startDate !== undefined
-          ? payload.startDate
-            ? new Date(payload.startDate)
-            : null
-          : existing.startDate,
-    },
-    include: {
-      client: true,
-      updates: {
-        orderBy: { date: "desc" },
-        take: 3,
-      },
-      documents: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      },
     },
   });
 }

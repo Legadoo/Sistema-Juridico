@@ -147,7 +147,6 @@ model LegalProcess {
 
   updates   ProcessUpdate[]
   deadlines Deadline[]
-  documents ProcessDocument[]
   charges   Charge[]
 
   @@unique([firmId, cnj])
@@ -555,22 +554,3 @@ model SaaSSubscription {
   @@index([publicPlanId])
 }
 
-model ProcessDocument {
-  id           String   @id @default(cuid())
-  processId    String
-  process      LegalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
-  firmId       String
-  originalName String
-  storedName   String
-  filePath     String
-  mimeType     String   @default("application/pdf")
-  sizeBytes    Int
-  sortOrder    Int      @default(0)
-  docType      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([processId])
-  @@index([firmId])
-  @@index([sortOrder])
-}
