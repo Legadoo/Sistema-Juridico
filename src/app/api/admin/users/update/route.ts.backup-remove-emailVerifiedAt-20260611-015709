@@ -1,0 +1,144 @@
+import { NextResponse } from "next/server";
+import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
+
+function canManageUsers(role: string) {
+  return role === "MASTER";
+}
+
+export async function POST(req: Request) {
+  const moduleGuard = await ensureAdminModuleResponse("moduleUsers");
+  if (moduleGuard) return moduleGuard;
+
+  const actor = await getSessionUser();
+
+  if (!actor) {
+    return NextResponse.json(
+      { ok: false, message: "Não autenticado." },
+      { status: 401 }
+    );
+  }
+
+  if (!canManageUsers(actor.role)) {
+    return NextResponse.json(
+      { ok: false, message: "Somente advogado pode editar acesso de usuários." },
+      { status: 403 }
+    );
+  }
+
+  if (!actor.firmId) {
+    return NextResponse.json(
+      { ok: false, message: "Usuário sem advocacia vinculada." },
+      { status: 403 }
+    );
+  }
+
+  const body = await req.json().catch(() => null);
+
+  const userId = (body?.userId ?? "").toString().trim();
+  const email = (body?.email ?? "").toString().trim().toLowerCase();
+  const password = (body?.password ?? "").toString();
+
+  if (!userId) {
+    return NextResponse.json(
+      { ok: false, message: "userId obrigatório." },
+      { status: 400 }
+    );
+  }
+
+  if (!email && !password) {
+    return NextResponse.json(
+      { ok: false, message: "Informe novo e-mail ou nova senha." },
+      { status: 400 }
+    );
+  }
+
+  const target = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      firmId: actor.firmId,
+    },
+  });
+
+  if (!target) {
+    return NextResponse.json(
+      { ok: false, message: "Usuário não encontrado nesta advocacia." },
+      { status: 404 }
+    );
+  }
+
+  if (target.role !== "SECRETARY") {
+    return NextResponse.json(
+      { ok: false, message: "O advogado só pode editar e-mail e senha de secretárias." },
+      { status: 403 }
+    );
+  }
+
+  if (actor.id === target.id) {
+    return NextResponse.json(
+      { ok: false, message: "Você não pode editar sua própria conta por esta aba." },
+      { status: 403 }
+    );
+  }
+
+  const data: Record<string, unknown> = {};
+
+  if (email && email !== target.email) {
+    const exists = await prisma.user.findFirst({
+      where: {
+        email,
+        NOT: {
+          id: userId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (exists) {
+      return NextResponse.json(
+        { ok: false, message: "E-mail já está em uso." },
+        { status: 400 }
+      );
+    }
+
+    data.email = email;
+    data.emailVerified = true;
+    data.emailVerifiedAt = new Date();
+  }
+
+  if (password) {
+    if (password.length < 6) {
+      return NextResponse.json(
+        { ok: false, message: "A senha precisa ter pelo menos 6 caracteres." },
+        { status: 400 }
+      );
+    }
+
+    data.password = await bcrypt.hash(password, 10);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    user: updated,
+    message: "Acesso da secretária atualizado com sucesso.",
+  });
+}

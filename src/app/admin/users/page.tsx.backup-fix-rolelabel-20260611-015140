@@ -38,7 +38,7 @@ type UserRow = {
   name: string;
   email: string;
   phone?: string | null;
-  role: UserRole;
+  role?: UserRole;
   active: boolean;
   createdAt?: string;
 };
@@ -114,10 +114,10 @@ function formatDate(date?: string) {
   }
 }
 
-function roleLabel(role?: string | null) {
+function roleLabel(role: string) {
   if (role === "MASTER") return "Advogado";
   if (role === "SECRETARY") return "Secretária";
-  return "Usuário";
+  return role;
 }
 
 export default function UsersPage() {
@@ -231,7 +231,7 @@ export default function UsersPage() {
   }
 
   function openEditModal(user: UserRow) {
-    if ((user.role || "") !== "SECRETARY") {
+    if (user.role !== "SECRETARY") {
       showToast("O advogado só pode editar acesso de secretárias.", "warning");
       return;
     }
@@ -1115,7 +1115,7 @@ export default function UsersPage() {
                       </div>
 
                       <div className="jv-actions">
-                        {(user.role || "") === "SECRETARY" ? (
+                        {user.role === "SECRETARY" ? (
                           <>
                             <button className="jv-secondary" onClick={() => openEditModal(user)}>
                               <FaPenToSquare />

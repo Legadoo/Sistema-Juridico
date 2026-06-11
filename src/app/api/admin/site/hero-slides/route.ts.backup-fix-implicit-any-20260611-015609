@@ -2,14 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-
-type HeroSlideInput = {
-  url: string;
-  title?: string;
-  subtitle?: string;
-  buttonText?: string;
-  sortOrder?: number;
-};
 function forbidden() {
   return NextResponse.json(
     { ok: false, message: "Apenas SUPERADMIN pode acessar esta área." },
@@ -120,7 +112,7 @@ export async function POST(req: Request) {
         isActive: safeBoolean(item.isActive, true),
       };
     })
-    .filter((item: HeroSlideInput) => item.url && isValidImageUrl(item.url));
+    .filter((item) => item.url && isValidImageUrl(item.url));
 
   if (rawSlides.length > 0 && slides.length === 0) {
     return NextResponse.json(

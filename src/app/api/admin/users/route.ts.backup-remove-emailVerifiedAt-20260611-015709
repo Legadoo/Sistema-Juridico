@@ -129,6 +129,7 @@ export async function POST(req: Request) {
       active: true,
       firmId: user.firmId,
       emailVerified: true,
+      emailVerifiedAt: new Date(),
       onboardingStatus: "ACTIVE",
       selectedPlanId: null,
       selectedPlanNameSnapshot: null,

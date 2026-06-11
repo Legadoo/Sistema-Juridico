@@ -24,12 +24,10 @@ async function ensureProcess(processId: string, firmId: string) {
 }
 
 function sanitizeName(name: string) {
-  return (
-    (name || "documento.pdf")
-      .replace(/[^\w.\-À-ÿ ]+/g, "")
-      .trim()
-      .slice(0, 120) || "documento.pdf"
-  );
+  return (name || "documento.pdf")
+    .replace(/[^\w.\-À-ÿ ]+/g, "")
+    .trim()
+    .slice(0, 120) || "documento.pdf";
 }
 
 export async function GET(
@@ -40,24 +38,19 @@ export async function GET(
   if (moduleGuard) return moduleGuard;
 
   const user = await getSessionUser();
-
   if (!user || !user.firmId) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado ou sem advocacia vinculada." },
-      { status: 401 }
-    );
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const firmId = user.firmId;
   const params = await context.params;
   const processId = params.id;
 
-  await ensureProcess(processId, firmId);
+  await ensureProcess(processId, user.firmId);
 
   const documents = await prisma.processDocument.findMany({
     where: {
       processId,
-      firmId,
+      firmId: user.firmId,
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
@@ -76,19 +69,14 @@ export async function POST(
   if (moduleGuard) return moduleGuard;
 
   const user = await getSessionUser();
-
   if (!user || !user.firmId) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado ou sem advocacia vinculada." },
-      { status: 401 }
-    );
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const firmId = user.firmId;
   const params = await context.params;
   const processId = params.id;
 
-  await ensureProcess(processId, firmId);
+  await ensureProcess(processId, user.firmId);
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -127,12 +115,12 @@ export async function POST(
   const currentCount = await prisma.processDocument.count({
     where: {
       processId,
-      firmId,
+      firmId: user.firmId,
     },
   });
 
   const storedName = `${randomUUID()}.pdf`;
-  const dir = path.join(STORAGE_ROOT, firmId, processId);
+  const dir = path.join(STORAGE_ROOT, user.firmId, processId);
   const filePath = path.join(dir, storedName);
 
   await mkdir(dir, { recursive: true });
@@ -151,7 +139,7 @@ export async function POST(
   const document = await prisma.processDocument.create({
     data: {
       processId,
-      firmId,
+      firmId: user.firmId,
       originalName,
       storedName,
       filePath,
@@ -177,47 +165,38 @@ export async function PATCH(
   if (moduleGuard) return moduleGuard;
 
   const user = await getSessionUser();
-
   if (!user || !user.firmId) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado ou sem advocacia vinculada." },
-      { status: 401 }
-    );
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const firmId = user.firmId;
   const params = await context.params;
   const processId = params.id;
 
-  await ensureProcess(processId, firmId);
+  await ensureProcess(processId, user.firmId);
 
   const body = await req.json().catch(() => null);
   const documents = Array.isArray(body?.documents) ? body.documents : [];
 
   await prisma.$transaction(
-    documents
-      .filter((item: { id?: string }) => Boolean(item.id))
-      .map((item: { id?: string; sortOrder?: number; docType?: string }, index: number) =>
-        prisma.processDocument.updateMany({
-          where: {
-            id: item.id,
-            processId,
-            firmId,
-          },
-          data: {
-            sortOrder: Number.isFinite(Number(item.sortOrder))
-              ? Number(item.sortOrder)
-              : index,
-            docType: item.docType?.trim() || "Documento",
-          },
-        })
-      )
+    documents.map((item: { id?: string; sortOrder?: number; docType?: string }, index: number) =>
+      prisma.processDocument.updateMany({
+        where: {
+          id: item.id,
+          processId,
+          firmId: user.firmId,
+        },
+        data: {
+          sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : index,
+          docType: item.docType?.trim() || "Documento",
+        },
+      })
+    )
   );
 
   const updated = await prisma.processDocument.findMany({
     where: {
       processId,
-      firmId,
+      firmId: user.firmId,
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
