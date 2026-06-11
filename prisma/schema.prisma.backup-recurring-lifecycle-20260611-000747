@@ -373,15 +373,6 @@ model RecurringCharge {
   lateFeeValue                Float?
   status                      String   @default("ACTIVE")
   nextChargeDate              DateTime
-  currentChargeId             String?
-  currentPaymentUrl           String?
-  currentProviderPreferenceId String?
-  currentAmount               Float?
-  currentDueDate              DateTime?
-  currentExpiresAt            DateTime?
-  currentStatus               String   @default("PENDING")
-  lastPaidAt                  DateTime?
-  lastPaidInstallment         Int?
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 
@@ -392,8 +383,6 @@ model RecurringCharge {
 
   @@index([firmId, status])
   @@index([clientId])
-  @@index([currentChargeId])
-  @@index([currentStatus])
 }
 
 model RecurringChargeInstallment {

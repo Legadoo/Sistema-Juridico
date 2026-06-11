@@ -437,21 +437,8 @@ export async function createRecurringCharge(input: CreateRecurringChargeInput) {
     interestStartsAtInstallment: input.interestStartsAtInstallment,
   });
 
-  const activeRecurring = await prisma.recurringCharge.update({
-    where: { id: recurring.id },
-    data: {
-      currentChargeId: firstCharge.id,
-      currentPaymentUrl: firstCharge.paymentUrl,
-      currentProviderPreferenceId: firstCharge.providerPreferenceId,
-      currentAmount: firstAmount,
-      currentDueDate: firstChargeDate,
-      currentExpiresAt: firstExpiresAt,
-      currentStatus: "PENDING",
-    },
-  });
-
   return {
-    recurring: activeRecurring,
+    recurring,
     firstInstallment,
     firstCharge,
     preview,

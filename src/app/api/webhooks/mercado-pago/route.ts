@@ -1,21 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processMercadoPagoWebhook } from "@/services/charge.service";
+import { decryptText } from "@/lib/crypto";
+import { prisma } from "@/lib/prisma";
+import { advanceRecurringChargeFromPaidCharge } from "@/services/recurring-charge-lifecycle.service";
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json().catch(() => ({}));
-    const result = await processMercadoPagoWebhook(body);
+async function getPaymentFromMercadoPago(paymentId: string) {
+  const configs = await prisma.paymentGatewayConfig.findMany({
+    where: {
+      isActive: true,
+      enabledBySuperadmin: true,
+    },
+  });
 
+  for (const config of configs) {
+    try {
+      const accessToken = decryptText(config.accessTokenEnc);
+
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+
+      if (data?.id) return data;
+    } catch (error) {
+      console.error("Falha ao consultar pagamento Mercado Pago:", error);
+    }
+  }
+
+  return null;
+}
+
+function extractPaymentId(req: NextRequest, body: any) {
+  const searchParams = req.nextUrl.searchParams;
+
+  return (
+    searchParams.get("id") ||
+    searchParams.get("data.id") ||
+    body?.id?.toString?.() ||
+    body?.data?.id?.toString?.() ||
+    body?.resource?.toString?.().split("/").pop() ||
+    ""
+  ).trim();
+}
+
+export async function GET(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+async function handleWebhook(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const paymentId = extractPaymentId(req, body);
+
+  if (!paymentId) {
+    return NextResponse.json({ ok: true, ignored: true, message: "Sem paymentId." });
+  }
+
+  const payment = await getPaymentFromMercadoPago(paymentId);
+
+  if (!payment) {
+    return NextResponse.json({ ok: true, ignored: true, message: "Pagamento não encontrado." });
+  }
+
+  if (payment.status !== "approved") {
     return NextResponse.json({
       ok: true,
-      data: result,
-      message: result.ignored ? "Webhook ignorado." : "Webhook processado.",
+      ignored: true,
+      status: payment.status,
+      message: "Pagamento ainda não aprovado.",
     });
-  } catch (error) {
-    console.error("mercado-pago webhook error:", error);
-    return NextResponse.json(
-      { ok: false, message: "Falha ao processar webhook." },
-      { status: 500 },
-    );
   }
+
+  const externalReference = payment.external_reference?.toString?.() || "";
+
+  if (!externalReference) {
+    return NextResponse.json({ ok: true, ignored: true, message: "Sem referência externa." });
+  }
+
+  const charge = await prisma.charge.findFirst({
+    where: {
+      externalReference,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!charge) {
+    return NextResponse.json({ ok: true, ignored: true, message: "Cobrança não encontrada." });
+  }
+
+  const result = await advanceRecurringChargeFromPaidCharge({
+    chargeId: charge.id,
+    providerPaymentId: payment.id?.toString?.() || paymentId,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    result,
+  });
 }
