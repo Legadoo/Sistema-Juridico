@@ -10,8 +10,7 @@ export type FirmModuleKey =
   | "moduleAppointments"
   | "moduleAvailability"
   | "moduleUsers"
-  | "moduleCharges"
-  | "moduleFinances";
+  | "moduleCharges";
 
 export async function ensureAdminModuleResponse(moduleKey: FirmModuleKey) {
   const user = await getSessionUser();
@@ -45,7 +44,6 @@ export async function ensureAdminModuleResponse(moduleKey: FirmModuleKey) {
       moduleAvailability: true,
       moduleUsers: true,
       moduleCharges: true,
-      moduleFinances: true,
     },
   });
 

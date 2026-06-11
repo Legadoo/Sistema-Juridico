@@ -40,7 +40,6 @@ model FirmConfig {
   moduleAvailability Boolean  @default(true)
   moduleUsers        Boolean  @default(true)
   moduleCharges      Boolean  @default(true)
-  moduleFinances     Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -593,35 +592,4 @@ model ProcessDocument {
   @@index([processId])
   @@index([firmId])
   @@index([sortOrder])
-}
-
-model FinanceTransaction {
-  id                String   @id @default(cuid())
-  firmId            String
-  type              String   // INCOME | EXPENSE
-  category          String
-  amount            Decimal
-  description       String?
-  occurredAt        DateTime @default(now())
-  paymentMethod     String?
-  clientId          String?
-  clientName        String?
-  processId         String?
-  processNumber     String?
-  chargeId          String?  @unique
-  createdByUserId   String
-  createdByUserName String?
-  attachmentUrl     String?
-  isAutomatic       Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([firmId])
-  @@index([type])
-  @@index([category])
-  @@index([occurredAt])
-  @@index([clientId])
-  @@index([processId])
-  @@index([chargeId])
-  @@index([createdByUserId])
 }

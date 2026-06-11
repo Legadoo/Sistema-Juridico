@@ -1,0 +1,2082 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FaCalendarDays,
+  FaChartSimple,
+  FaCreditCard,
+  FaMagnifyingGlass,
+  FaPenToSquare,
+  FaPlus,
+  FaTrash,
+  FaXmark,
+} from "react-icons/fa6";
+import AdminShell from "@/components/AdminShell";
+import PremiumModal from "@/components/PremiumModal";
+import PremiumToast from "@/components/PremiumToast";
+
+type MeResponse = {
+  ok?: boolean;
+  user?: {
+    id?: string;
+    name?: string;
+    role?: string;
+  };
+  firm?: {
+    name?: string;
+  } | null;
+};
+
+type MeState = {
+  id: string;
+  name: string;
+  role: string;
+  firmName: string;
+};
+
+type FinanceType = "INCOME" | "EXPENSE";
+
+type TransactionRow = {
+  id: string;
+  type: FinanceType;
+  category: string;
+  amount: string | number;
+  description?: string | null;
+  occurredAt: string;
+  paymentMethod?: string | null;
+  clientId?: string | null;
+  clientName?: string | null;
+  processId?: string | null;
+  processNumber?: string | null;
+  chargeId?: string | null;
+  createdByUserId: string;
+  createdByUserName?: string | null;
+  attachmentUrl?: string | null;
+  isAutomatic?: boolean;
+  createdAt?: string;
+};
+
+type ClientRow = {
+  id: string;
+  name: string;
+  document?: string | null;
+};
+
+type ProcessRow = {
+  id: string;
+  cnj?: string | null;
+  number?: string | null;
+  processNumber?: string | null;
+  clientId?: string | null;
+  client?: {
+    id?: string | null;
+    name?: string | null;
+  } | null;
+};
+
+type ToastState = {
+  open: boolean;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+};
+
+type FormState = {
+  type: FinanceType;
+  category: string;
+  amount: string;
+  description: string;
+  occurredAt: string;
+  paymentMethod: string;
+  clientId: string;
+  processId: string;
+  processNumber: string;
+  attachmentUrl: string;
+};
+
+const emptyForm: FormState = {
+  type: "INCOME",
+  category: "Honorários",
+  amount: "",
+  description: "",
+  occurredAt: "",
+  paymentMethod: "PIX",
+  clientId: "",
+  processId: "",
+  processNumber: "",
+  attachmentUrl: "",
+};
+
+const incomeCategories = [
+  "Honorários",
+  "Consulta",
+  "Acordo",
+  "Pagamento de processo",
+  "Cobrança paga",
+  "Reembolso",
+  "Outros",
+];
+
+const expenseCategories = [
+  "Salário de estágio",
+  "Salário de funcionário",
+  "Água",
+  "Luz",
+  "Internet",
+  "Aluguel",
+  "Manutenção",
+  "Material de escritório",
+  "Transporte",
+  "Marketing",
+  "Sistema",
+  "Contabilidade",
+  "Impostos",
+  "Outros",
+];
+
+function normalizeMe(data: MeResponse): MeState | null {
+  if (!data?.ok || !data.user) return null;
+
+  return {
+    id: data.user.id || "",
+    name: data.user.name || "Usuário",
+    role: data.user.role || "SECRETARY",
+    firmName: data.firm?.name || "Advocacia",
+  };
+}
+
+function onlyDigits(value: string) {
+  return (value || "").replace(/\D/g, "");
+}
+
+function normalizeText(value: string) {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function toNumber(value: string | number | null | undefined) {
+  if (typeof value === "number") return value;
+
+  const normalized = String(value || "0")
+    .replace(/\./g, "")
+    .replace(",", ".");
+
+  const numeric = Number(normalized);
+
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function formatCurrency(value: string | number | null | undefined) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(toNumber(value));
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Não informado";
+
+  try {
+    return new Date(value).toLocaleDateString("pt-BR");
+  } catch {
+    return value;
+  }
+}
+
+function toInputDate(value?: string | null) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().slice(0, 10);
+}
+
+function getMonthKey(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthLabel(monthKey: string) {
+  const [year, month] = monthKey.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "short",
+    year: "2-digit",
+  }).format(date);
+}
+
+function getCurrentMonthKey() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthRangeEndingAt(monthKey: string, totalMonths = 6) {
+  const [year, month] = monthKey.split("-");
+  const endDate = new Date(Number(year), Number(month) - 1, 1);
+  const result: string[] = [];
+
+  for (let index = totalMonths - 1; index >= 0; index--) {
+    const date = new Date(endDate);
+    date.setMonth(endDate.getMonth() - index);
+
+    result.push(
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+    );
+  }
+
+  return result;
+}
+
+function getProcessNumber(process?: ProcessRow | null) {
+  return process?.cnj || process?.number || process?.processNumber || "";
+}
+
+function escapeCsv(value: unknown) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function sanitizeFilename(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+}
+
+function downloadBlob(filename: string, content: BlobPart, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+function escapePdfText(text: string) {
+  return String(text || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function stripAccentsForPdf(text: string) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "");
+}
+
+type PdfReportRow = {
+  data: string;
+  tipo: string;
+  categoria: string;
+  valor: number;
+  valorFormatado: string;
+  cliente: string;
+  processo: string;
+  pagamento: string;
+  descricao: string;
+  origem: string;
+  responsavel: string;
+};
+
+type PdfReportSummary = {
+  firmName: string;
+  monthLabel: string;
+  generatedAt: string;
+  income: string;
+  expense: string;
+  result: string;
+  totalRows: number;
+};
+
+function pdfText(text: string, x: number, y: number, size = 10, font = "F1", color = "0 0 0") {
+  return [
+    "BT",
+    `/${font} ${size} Tf`,
+    `${color} rg`,
+    `${x} ${y} Td`,
+    `(${escapePdfText(stripAccentsForPdf(text))}) Tj`,
+    "ET",
+  ].join("\n");
+}
+
+function pdfRect(x: number, y: number, w: number, h: number, color: string) {
+  return [
+    `${color} rg`,
+    `${x} ${y} ${w} ${h} re`,
+    "f",
+  ].join("\n");
+}
+
+function truncatePdfText(text: string, max = 48) {
+  const clean = stripAccentsForPdf(text || "-");
+  return clean.length > max ? `${clean.slice(0, max - 3)}...` : clean;
+}
+
+function buildFinancePdf(summary: PdfReportSummary, rows: PdfReportRow[]) {
+  const pageWidth = 595;
+  const pageHeight = 842;
+
+  const rowHeight = 26;
+  const firstPageStartY = 560;
+  const otherPageStartY = 720;
+  const bottomY = 74;
+
+  const pages: PdfReportRow[][] = [];
+  let currentPage: PdfReportRow[] = [];
+  let currentY = firstPageStartY;
+
+  rows.forEach((row) => {
+    if (currentY < bottomY) {
+      pages.push(currentPage);
+      currentPage = [];
+      currentY = otherPageStartY;
+    }
+
+    currentPage.push(row);
+    currentY -= rowHeight;
+  });
+
+  if (currentPage.length > 0 || pages.length === 0) {
+    pages.push(currentPage);
+  }
+
+  function drawHeader(pageIndex: number) {
+    const commands: string[] = [];
+
+    commands.push(pdfRect(0, 0, pageWidth, pageHeight, "0.98 0.98 1"));
+
+    commands.push(pdfRect(0, 760, pageWidth, 82, "0.05 0.06 0.12"));
+    commands.push(pdfRect(0, 755, pageWidth, 5, "0.49 0.23 0.93"));
+
+    commands.push(pdfText("JURIDICVAS", 42, 807, 15, "F2", "0.85 0.75 1"));
+    commands.push(pdfText("Relatorio financeiro", 42, 785, 22, "F2", "1 1 1"));
+    commands.push(pdfText(summary.firmName, 390, 807, 10, "F2", "1 1 1"));
+    commands.push(pdfText(`Emitido em ${summary.generatedAt}`, 390, 790, 9, "F1", "0.78 0.82 0.90"));
+
+    if (pageIndex === 0) {
+      commands.push(pdfText("Resumo do caixa", 42, 720, 15, "F2", "0.08 0.09 0.16"));
+      commands.push(pdfText(`Periodo da lista: ${summary.monthLabel}`, 42, 701, 10, "F1", "0.35 0.38 0.47"));
+
+      commands.push(pdfRect(42, 625, 122, 52, "0.94 0.98 0.96"));
+      commands.push(pdfRect(174, 625, 122, 52, "1 0.95 0.95"));
+      commands.push(pdfRect(306, 625, 122, 52, "0.95 0.94 1"));
+      commands.push(pdfRect(438, 625, 115, 52, "0.94 0.97 1"));
+
+      commands.push(pdfText("Entradas", 54, 656, 9, "F2", "0.08 0.45 0.24"));
+      commands.push(pdfText(summary.income, 54, 638, 13, "F2", "0.04 0.36 0.18"));
+
+      commands.push(pdfText("Saidas", 186, 656, 9, "F2", "0.65 0.12 0.12"));
+      commands.push(pdfText(summary.expense, 186, 638, 13, "F2", "0.55 0.08 0.08"));
+
+      commands.push(pdfText("Resultado", 318, 656, 9, "F2", "0.31 0.18 0.65"));
+      commands.push(pdfText(summary.result, 318, 638, 13, "F2", "0.25 0.12 0.55"));
+
+      commands.push(pdfText("Registros", 450, 656, 9, "F2", "0.10 0.24 0.48"));
+      commands.push(pdfText(String(summary.totalRows), 450, 638, 13, "F2", "0.08 0.18 0.40"));
+
+      commands.push(pdfText("Movimentacoes", 42, 590, 15, "F2", "0.08 0.09 0.16"));
+    } else {
+      commands.push(pdfText("Movimentacoes", 42, 730, 15, "F2", "0.08 0.09 0.16"));
+    }
+
+    return commands;
+  }
+
+  function drawTableHeader(y: number) {
+    const commands: string[] = [];
+
+    commands.push(pdfRect(42, y - 6, 511, 24, "0.10 0.12 0.20"));
+    commands.push(pdfText("Data", 50, y + 2, 8, "F2", "1 1 1"));
+    commands.push(pdfText("Tipo", 100, y + 2, 8, "F2", "1 1 1"));
+    commands.push(pdfText("Categoria", 152, y + 2, 8, "F2", "1 1 1"));
+    commands.push(pdfText("Cliente", 250, y + 2, 8, "F2", "1 1 1"));
+    commands.push(pdfText("Valor", 465, y + 2, 8, "F2", "1 1 1"));
+
+    return commands;
+  }
+
+  function drawRows(pageRows: PdfReportRow[], startY: number) {
+    const commands: string[] = [];
+    let y = startY;
+
+    commands.push(...drawTableHeader(y));
+    y -= 30;
+
+    if (pageRows.length === 0) {
+      commands.push(pdfRect(42, y - 6, 511, 32, "0.95 0.96 0.98"));
+      commands.push(pdfText("Nenhuma movimentacao encontrada para este filtro.", 58, y + 6, 10, "F1", "0.35 0.38 0.47"));
+      return commands;
+    }
+
+    pageRows.forEach((row, index) => {
+      const isIncome = row.tipo === "Entrada";
+      const bg = index % 2 === 0 ? "1 1 1" : "0.96 0.97 0.99";
+      const valueColor = isIncome ? "0.05 0.45 0.20" : "0.70 0.10 0.10";
+
+      commands.push(pdfRect(42, y - 6, 511, 24, bg));
+      commands.push(pdfText(row.data, 50, y + 2, 8, "F1", "0.18 0.20 0.28"));
+      commands.push(pdfText(row.tipo, 100, y + 2, 8, "F2", isIncome ? "0.05 0.45 0.20" : "0.70 0.10 0.10"));
+      commands.push(pdfText(truncatePdfText(row.categoria, 20), 152, y + 2, 8, "F1", "0.18 0.20 0.28"));
+      commands.push(pdfText(truncatePdfText(row.cliente || "-", 32), 250, y + 2, 8, "F1", "0.18 0.20 0.28"));
+      commands.push(pdfText(row.valorFormatado, 465, y + 2, 8, "F2", valueColor));
+
+      y -= 24;
+
+      if (row.descricao || row.processo || row.pagamento) {
+        commands.push(pdfText(
+          truncatePdfText(`Desc: ${row.descricao || "-"} | Processo: ${row.processo || "-"} | Pagamento: ${row.pagamento || "-"}`, 95),
+          52,
+          y + 6,
+          7,
+          "F1",
+          "0.45 0.48 0.58"
+        ));
+
+        y -= 12;
+      }
+    });
+
+    return commands;
+  }
+
+  function drawFooter(pageIndex: number, totalPages: number) {
+    return [
+      pdfRect(42, 42, 511, 1, "0.82 0.84 0.88"),
+      pdfText("JuridicVas - Sistema de Gestao Juridica", 42, 26, 8, "F1", "0.45 0.48 0.58"),
+      pdfText(`Pagina ${pageIndex + 1} de ${totalPages}`, 500, 26, 8, "F1", "0.45 0.48 0.58"),
+    ];
+  }
+
+  const pageStreams = pages.map((pageRows, pageIndex) => {
+    const commands: string[] = [];
+
+    commands.push(...drawHeader(pageIndex));
+    commands.push(...drawRows(pageRows, pageIndex === 0 ? firstPageStartY : otherPageStartY));
+    commands.push(...drawFooter(pageIndex, pages.length));
+
+    return commands.join("\n");
+  });
+
+  const objects: string[] = [];
+
+  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
+
+  const pageObjectNumbers: number[] = [];
+  const contentObjectNumbers: number[] = [];
+
+  const fontRegularObjectNumber = 3;
+  const fontBoldObjectNumber = 4;
+
+  objects.push("");
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+  pageStreams.forEach((stream) => {
+    const pageObjectNumber = objects.length + 1;
+    const contentObjectNumber = objects.length + 2;
+
+    pageObjectNumbers.push(pageObjectNumber);
+    contentObjectNumbers.push(contentObjectNumber);
+
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegularObjectNumber} 0 R /F2 ${fontBoldObjectNumber} 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`);
+    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
+
+  const kids = pageObjectNumbers.map((number) => `${number} 0 R`).join(" ");
+  objects[1] = `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return pdf;
+}
+
+export default function FinancesPage() {
+  const [me, setMe] = useState<MeState | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [processes, setProcesses] = useState<ProcessRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [saving, setSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<TransactionRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"ALL" | FinanceType>("ALL");
+  const [filterMonth, setFilterMonth] = useState(getCurrentMonthKey());
+  const [barChartEndMonth, setBarChartEndMonth] = useState(getCurrentMonthKey());
+  const [categoryChartMonth, setCategoryChartMonth] = useState(getCurrentMonthKey());
+  const [exportOpen, setExportOpen] = useState(false);
+
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    message: "",
+    type: "info",
+  });
+
+  const canManage = me?.role === "MASTER" || me?.role === "SECRETARY";
+
+  const selectedCategories = form.type === "INCOME" ? incomeCategories : expenseCategories;
+
+  const filteredProcesses = useMemo(() => {
+    if (!form.clientId) return processes;
+
+    return processes.filter((process) => {
+      const processClientId = process.clientId || process.client?.id;
+      return !processClientId || processClientId === form.clientId;
+    });
+  }, [form.clientId, processes]);
+
+  const visibleTransactions = useMemo(() => {
+    const term = normalizeText(search);
+    const digits = onlyDigits(search);
+
+    return transactions.filter((item) => {
+      if (filterType !== "ALL" && item.type !== filterType) return false;
+      if (filterMonth && getMonthKey(item.occurredAt) !== filterMonth) return false;
+
+      if (!term && !digits) return true;
+
+      const text = normalizeText(
+        [
+          item.category,
+          item.description,
+          item.clientName,
+          item.processNumber,
+          item.paymentMethod,
+          item.createdByUserName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+
+      const digitText = onlyDigits(
+        [item.processNumber, item.amount].filter(Boolean).join(" ")
+      );
+
+      return text.includes(term) || Boolean(digits && digitText.includes(digits));
+    });
+  }, [transactions, filterType, filterMonth, search]);
+
+  const stats = useMemo(() => {
+    const monthItems = transactions.filter(
+      (item) => !filterMonth || getMonthKey(item.occurredAt) === filterMonth
+    );
+
+    const totalIncome = transactions
+      .filter((item) => item.type === "INCOME")
+      .reduce((sum, item) => sum + toNumber(item.amount), 0);
+
+    const totalExpense = transactions
+      .filter((item) => item.type === "EXPENSE")
+      .reduce((sum, item) => sum + toNumber(item.amount), 0);
+
+    const monthIncome = monthItems
+      .filter((item) => item.type === "INCOME")
+      .reduce((sum, item) => sum + toNumber(item.amount), 0);
+
+    const monthExpense = monthItems
+      .filter((item) => item.type === "EXPENSE")
+      .reduce((sum, item) => sum + toNumber(item.amount), 0);
+
+    return {
+      balance: totalIncome - totalExpense,
+      monthIncome,
+      monthExpense,
+      result: monthIncome - monthExpense,
+    };
+  }, [transactions, filterMonth]);
+
+  const monthlyChart = useMemo(() => {
+    const map = new Map<string, { income: number; expense: number }>();
+
+    getMonthRangeEndingAt(barChartEndMonth, 6).forEach((key) => {
+      map.set(key, { income: 0, expense: 0 });
+    });
+
+    transactions.forEach((item) => {
+      const key = getMonthKey(item.occurredAt);
+      const row = map.get(key);
+
+      if (!row) return;
+
+      if (item.type === "INCOME") row.income += toNumber(item.amount);
+      if (item.type === "EXPENSE") row.expense += toNumber(item.amount);
+    });
+
+    const rows = Array.from(map.entries()).map(([key, value]) => ({
+      key,
+      label: getMonthLabel(key),
+      ...value,
+    }));
+
+    const max = Math.max(
+      1,
+      ...rows.flatMap((row) => [row.income, row.expense])
+    );
+
+    return {
+      rows,
+      max,
+    };
+  }, [transactions, barChartEndMonth]);
+
+  const categoryChart = useMemo(() => {
+    const expenses = transactions.filter((item) => {
+      if (item.type !== "EXPENSE") return false;
+      if (categoryChartMonth && getMonthKey(item.occurredAt) !== categoryChartMonth) return false;
+      return true;
+    });
+
+    const map = new Map<string, number>();
+
+    expenses.forEach((item) => {
+      map.set(item.category, (map.get(item.category) || 0) + toNumber(item.amount));
+    });
+
+    const rows = Array.from(map.entries())
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6);
+
+    const total = rows.reduce((sum, item) => sum + item.amount, 0);
+
+    return {
+      rows,
+      total,
+    };
+  }, [transactions, categoryChartMonth]);
+
+  function showToast(message: string, type: ToastState["type"] = "info") {
+    setToast({ open: true, message, type });
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const [meResponse, financesResponse, clientsResponse, processesResponse] = await Promise.all([
+        fetch("/api/me", { cache: "no-store", credentials: "include" })
+          .then((response) => response.json())
+          .catch(() => null),
+        fetch("/api/admin/finances", { cache: "no-store", credentials: "include" })
+          .then((response) => response.json())
+          .catch(() => null),
+        fetch("/api/admin/clients", { cache: "no-store", credentials: "include" })
+          .then((response) => response.json())
+          .catch(() => null),
+        fetch("/api/admin/processes?status=all", { cache: "no-store", credentials: "include" })
+          .then((response) => response.json())
+          .catch(() => null),
+      ]);
+
+      const normalizedMe = normalizeMe(meResponse);
+
+      if (!normalizedMe) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setMe(normalizedMe);
+
+      setTransactions(
+        Array.isArray(financesResponse?.transactions) ? financesResponse.transactions : []
+      );
+
+      setClients(
+        Array.isArray(clientsResponse?.clients)
+          ? clientsResponse.clients
+          : Array.isArray(clientsResponse?.data)
+            ? clientsResponse.data
+            : []
+      );
+
+      setProcesses(
+        Array.isArray(processesResponse?.processes)
+          ? processesResponse.processes
+          : Array.isArray(processesResponse?.data)
+            ? processesResponse.data
+            : []
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function openCreate(type: FinanceType) {
+    setFormMode("create");
+    setEditingId(null);
+    setForm({
+      ...emptyForm,
+      type,
+      category: type === "INCOME" ? "Honorários" : "Internet",
+      occurredAt: new Date().toISOString().slice(0, 10),
+    });
+    setFormOpen(true);
+  }
+
+  function openEdit(item: TransactionRow) {
+    if (item.isAutomatic) {
+      showToast("Movimentações automáticas de cobrança paga não podem ser editadas.", "warning");
+      return;
+    }
+
+    setFormMode("edit");
+    setEditingId(item.id);
+    setForm({
+      type: item.type,
+      category: item.category,
+      amount: String(item.amount).replace(".", ","),
+      description: item.description || "",
+      occurredAt: toInputDate(item.occurredAt),
+      paymentMethod: item.paymentMethod || "",
+      clientId: item.clientId || "",
+      processId: item.processId || "",
+      processNumber: item.processNumber || "",
+      attachmentUrl: item.attachmentUrl || "",
+    });
+    setFormOpen(true);
+  }
+
+  async function submitForm() {
+    const amount = toNumber(form.amount);
+
+    if (!amount || amount <= 0) {
+      showToast("Informe um valor válido.", "warning");
+      return;
+    }
+
+    if (!form.category) {
+      showToast("Informe uma categoria.", "warning");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const payload = {
+        ...form,
+        amount,
+        occurredAt: form.occurredAt || new Date().toISOString(),
+      };
+
+      const endpoint =
+        formMode === "create" ? "/api/admin/finances" : `/api/admin/finances/${editingId}`;
+
+      const response = await fetch(endpoint, {
+        method: formMode === "create" ? "POST" : "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async (response) => ({
+        ok: response.ok,
+        data: await response.json().catch(() => ({})),
+      }));
+
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao salvar movimentação.", "error");
+        return;
+      }
+
+      setFormOpen(false);
+      setEditingId(null);
+      setForm(emptyForm);
+      await load();
+      showToast("Movimentação salva com sucesso.", "success");
+    } catch {
+      showToast("Não foi possível salvar a movimentação.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(`/api/admin/finances/${deleteTarget.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).then(async (response) => ({
+        ok: response.ok,
+        data: await response.json().catch(() => ({})),
+      }));
+
+      if (!response.ok || !response.data?.ok) {
+        showToast(response.data?.message || "Erro ao excluir movimentação.", "error");
+        return;
+      }
+
+      setDeleteTarget(null);
+      await load();
+      showToast("Movimentação excluída com sucesso.", "success");
+    } catch {
+      showToast("Não foi possível excluir a movimentação.", "error");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function getReportRows() {
+    return visibleTransactions.map((item) => ({
+      data: formatDate(item.occurredAt),
+      tipo: item.type === "INCOME" ? "Entrada" : "Saída",
+      categoria: item.category,
+      valor: toNumber(item.amount),
+      valorFormatado: formatCurrency(item.amount),
+      cliente: item.clientName || "",
+      processo: item.processNumber || "",
+      pagamento: item.paymentMethod || "",
+      descricao: item.description || "",
+      origem: item.isAutomatic ? "Automático" : "Manual",
+      responsavel: item.createdByUserName || "",
+    }));
+  }
+
+  function exportCsv() {
+    const rows = getReportRows();
+
+    const headers = [
+      "Data",
+      "Tipo",
+      "Categoria",
+      "Valor",
+      "Cliente",
+      "Processo",
+      "Pagamento",
+      "Origem",
+      "Responsável",
+      "Descrição",
+    ];
+
+    const csv = [
+      headers.map(escapeCsv).join(";"),
+      ...rows.map((row) =>
+        [
+          row.data,
+          row.tipo,
+          row.categoria,
+          row.valorFormatado,
+          row.cliente,
+          row.processo,
+          row.pagamento,
+          row.origem,
+          row.responsavel,
+          row.descricao,
+        ]
+          .map(escapeCsv)
+          .join(";")
+      ),
+    ].join("\n");
+
+    const filename = `relatorio-financeiro-${sanitizeFilename(filterMonth || "geral")}.csv`;
+    downloadBlob(filename, "\uFEFF" + csv, "text/csv;charset=utf-8;");
+    setExportOpen(false);
+    showToast("Relatório CSV baixado.", "success");
+  }
+
+  function exportExcel() {
+    const rows = getReportRows();
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            table { border-collapse: collapse; font-family: Arial, sans-serif; width: 100%; }
+            th { background: #111827; color: #ffffff; padding: 10px; border: 1px solid #d1d5db; }
+            td { padding: 9px; border: 1px solid #d1d5db; }
+            .income { color: #15803d; font-weight: bold; }
+            .expense { color: #b91c1c; font-weight: bold; }
+            .title { font-size: 22px; font-weight: bold; margin-bottom: 8px; }
+            .subtitle { color: #4b5563; margin-bottom: 16px; }
+          </style>
+        </head>
+        <body>
+          <div class="title">Relatório financeiro - JuridicVas</div>
+          <div class="subtitle">Mês da lista: ${filterMonth || "Todos"} | Gerado em ${new Date().toLocaleString("pt-BR")}</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Valor</th>
+                <th>Cliente</th>
+                <th>Processo</th>
+                <th>Pagamento</th>
+                <th>Origem</th>
+                <th>Responsável</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (row) => `
+                    <tr>
+                      <td>${row.data}</td>
+                      <td>${row.tipo}</td>
+                      <td>${row.categoria}</td>
+                      <td class="${row.tipo === "Entrada" ? "income" : "expense"}">${row.valorFormatado}</td>
+                      <td>${row.cliente}</td>
+                      <td>${row.processo}</td>
+                      <td>${row.pagamento}</td>
+                      <td>${row.origem}</td>
+                      <td>${row.responsavel}</td>
+                      <td>${row.descricao}</td>
+                    </tr>
+                  `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const filename = `relatorio-financeiro-${sanitizeFilename(filterMonth || "geral")}.xls`;
+    downloadBlob(filename, "\uFEFF" + html, "application/vnd.ms-excel;charset=utf-8;");
+    setExportOpen(false);
+    showToast("Relatório Excel baixado.", "success");
+  }
+
+  function exportPdf() {
+    const rows = getReportRows();
+
+    const income = rows
+      .filter((row) => row.tipo === "Entrada")
+      .reduce((sum, row) => sum + row.valor, 0);
+
+    const expense = rows
+      .filter((row) => row.tipo === "Saída")
+      .reduce((sum, row) => sum + row.valor, 0);
+
+    const result = income - expense;
+
+    const pdf = buildFinancePdf(
+      {
+        firmName: me?.firmName || "Advocacia",
+        monthLabel: filterMonth ? getMonthLabel(filterMonth) : "Todos",
+        generatedAt: new Date().toLocaleString("pt-BR"),
+        income: formatCurrency(income),
+        expense: formatCurrency(expense),
+        result: formatCurrency(result),
+        totalRows: rows.length,
+      },
+      rows
+    );
+
+    const filename = `relatorio-financeiro-${sanitizeFilename(filterMonth || "geral")}.pdf`;
+    downloadBlob(filename, pdf, "application/pdf");
+    setExportOpen(false);
+    showToast("Relatório PDF premium baixado.", "success");
+  }
+
+  if (!me && loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#fff" }}>
+        Carregando finanças...
+      </div>
+    );
+  }
+
+  return (
+    <AdminShell
+      userName={me?.name || "Usuário"}
+      role={me?.role || "SECRETARY"}
+      firmName={me?.firmName || "Advocacia"}
+    >
+      <PremiumToast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+      />
+
+      <PremiumModal
+        open={formOpen}
+        onClose={() => {
+          if (!saving) setFormOpen(false);
+        }}
+        title={form.type === "INCOME" ? "Nova entrada" : "Nova saída"}
+        description={
+          form.type === "INCOME"
+            ? "Registre uma entrada no caixa da advocacia."
+            : "Registre uma retirada ou despesa do escritório."
+        }
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setFormOpen(false)} disabled={saving}>
+              Cancelar
+            </button>
+
+            <button className="jv-premium-btn" onClick={submitForm} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar movimentação"}
+            </button>
+          </>
+        }
+      >
+        <div className="jv-finance-form">
+          <div className="jv-type-switch">
+            <button
+              className={form.type === "INCOME" ? "active income" : ""}
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  type: "INCOME",
+                  category: "Honorários",
+                }))
+              }
+              type="button"
+            >
+              Entrada
+            </button>
+
+            <button
+              className={form.type === "EXPENSE" ? "active expense" : ""}
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  type: "EXPENSE",
+                  category: "Internet",
+                }))
+              }
+              type="button"
+            >
+              Saída
+            </button>
+          </div>
+
+          <input
+            className="jv-premium-input"
+            placeholder="Valor. Ex.: 1500,00"
+            value={form.amount}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, amount: event.target.value }))
+            }
+          />
+
+          <select
+            className="jv-premium-input jv-dark-select"
+            value={form.category}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, category: event.target.value }))
+            }
+          >
+            {selectedCategories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+
+          <input
+            className="jv-premium-input"
+            type="date"
+            value={form.occurredAt}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, occurredAt: event.target.value }))
+            }
+          />
+
+          <input
+            className="jv-premium-input"
+            placeholder="Forma de pagamento. Ex.: PIX, dinheiro, cartão"
+            value={form.paymentMethod}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, paymentMethod: event.target.value }))
+            }
+          />
+
+          <select
+            className="jv-premium-input jv-dark-select"
+            value={form.clientId}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, clientId: event.target.value, processId: "" }))
+            }
+          >
+            <option value="">Cliente relacionado, se houver</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+
+          <select
+            className="jv-premium-input jv-dark-select"
+            value={form.processId}
+            onChange={(event) => {
+              const selected = processes.find((process) => process.id === event.target.value);
+              setForm((prev) => ({
+                ...prev,
+                processId: event.target.value,
+                processNumber: getProcessNumber(selected),
+              }));
+            }}
+          >
+            <option value="">Processo relacionado, se houver</option>
+            {filteredProcesses.map((process) => (
+              <option key={process.id} value={process.id}>
+                {getProcessNumber(process) || process.id}
+              </option>
+            ))}
+          </select>
+
+          <textarea
+            className="jv-premium-input"
+            placeholder="Descrição da movimentação"
+            value={form.description}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, description: event.target.value }))
+            }
+          />
+
+          <input
+            className="jv-premium-input"
+            placeholder="URL do comprovante, opcional"
+            value={form.attachmentUrl}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, attachmentUrl: event.target.value }))
+            }
+          />
+
+          <div className="jv-preview">
+            <span>Prévia</span>
+            <strong className={form.type === "EXPENSE" ? "expense" : "income"}>
+              {form.type === "EXPENSE" ? "-" : "+"}
+              {formatCurrency(toNumber(form.amount))}
+            </strong>
+          </div>
+        </div>
+      </PremiumModal>
+
+      <PremiumModal
+        open={!!deleteTarget}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        title="Excluir movimentação"
+        description="Confirme se deseja remover esta movimentação do caixa."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancelar
+            </button>
+
+            <button
+              className="jv-premium-btn"
+              onClick={confirmDelete}
+              disabled={deleting}
+              style={{
+                background: "linear-gradient(135deg, #ef4444, #7f1d1d)",
+              }}
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </button>
+          </>
+        }
+        size="sm"
+      >
+        <div className="jv-confirm-box">
+          <strong>{deleteTarget?.category}</strong>
+          <span>{formatCurrency(deleteTarget?.amount)}</span>
+        </div>
+      </PremiumModal>
+
+      <div className="jv-finances-page">
+        <style>{`
+          .jv-finances-page { display: grid; gap: 20px; }
+          .jv-finances-page * { box-sizing: border-box; }
+
+          .jv-finance-form { display: grid; gap: 12px; }
+          .jv-finance-form textarea { min-height: 105px; resize: vertical; }
+
+          .jv-dark-select,
+          .jv-dark-select option {
+            background-color: #111827 !important;
+            color: #f8fafc !important;
+            color-scheme: dark;
+          }
+
+          .jv-type-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+          .jv-type-switch button {
+            min-height: 46px;
+            border-radius: 15px;
+            border: 1px solid rgba(148,163,184,0.16);
+            background: rgba(255,255,255,0.035);
+            color: #cbd5e1;
+            cursor: pointer;
+            font-weight: 950;
+          }
+
+          .jv-type-switch button.active.income {
+            color: #a7f3d0;
+            border-color: rgba(52,211,153,0.32);
+            background: rgba(6,78,59,0.22);
+          }
+
+          .jv-type-switch button.active.expense {
+            color: #fecaca;
+            border-color: rgba(248,113,113,0.32);
+            background: rgba(127,29,29,0.20);
+          }
+
+          .jv-preview,
+          .jv-confirm-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(148,163,184,0.16);
+          }
+
+          .jv-preview span,
+          .jv-confirm-box span { color: #94a3b8; }
+
+          .jv-preview strong { font-size: 20px; font-weight: 950; }
+          .jv-preview strong.income { color: #22c55e; }
+          .jv-preview strong.expense { color: #ef4444; }
+
+          .jv-hero {
+            min-height: 230px;
+            border-radius: 28px;
+            border: 1px solid rgba(168,85,247,0.22);
+            background:
+              linear-gradient(90deg, rgba(7,10,23,0.96), rgba(12,15,31,0.84), rgba(17,24,39,0.72)),
+              radial-gradient(circle at 82% 17%, rgba(124,58,237,0.34), transparent 32%),
+              linear-gradient(135deg, #090b16, #111827);
+            padding: 34px 38px;
+            box-shadow:
+              0 34px 90px rgba(0,0,0,0.36),
+              inset 0 1px 0 rgba(255,255,255,0.045);
+          }
+
+          .jv-hero-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            flex-wrap: wrap;
+          }
+
+          .jv-kicker {
+            width: fit-content;
+            color: #c4b5fd;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 950;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+          }
+
+          .jv-title {
+            margin: 16px 0 0;
+            color: #f8fafc;
+            font-size: clamp(36px, 4vw, 54px);
+            font-weight: 950;
+            line-height: 0.98;
+            letter-spacing: -0.06em;
+          }
+
+          .jv-subtitle {
+            margin: 12px 0 0;
+            color: #cbd5e1;
+            font-size: 16px;
+            line-height: 1.7;
+            max-width: 900px;
+          }
+
+          .jv-actions-top {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          }
+
+          .jv-export-wrap {
+            position: relative;
+          }
+
+          .jv-export-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            width: 210px;
+            z-index: 20;
+            display: grid;
+            gap: 6px;
+            padding: 8px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,0.18);
+            background: rgba(15,23,42,0.98);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.36);
+          }
+
+          .jv-export-menu button {
+            min-height: 42px;
+            border: 0;
+            border-radius: 12px;
+            padding: 0 12px;
+            text-align: left;
+            color: #e5e7eb;
+            background: rgba(255,255,255,0.04);
+            cursor: pointer;
+            font-weight: 850;
+          }
+
+          .jv-export-menu button:hover {
+            background: rgba(124,58,237,0.22);
+          }
+
+          .jv-primary,
+          .jv-secondary,
+          .jv-danger,
+          .jv-success {
+            min-height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            border-radius: 14px;
+            padding: 0 16px;
+            cursor: pointer;
+            font-weight: 950;
+            text-decoration: none;
+          }
+
+          .jv-primary {
+            border: 0;
+            color: #fff;
+            background: linear-gradient(135deg, #a855f7, #4f46e5);
+            box-shadow: 0 18px 40px rgba(79,70,229,0.22);
+          }
+
+          .jv-secondary {
+            color: #e5e7eb;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(148,163,184,0.15);
+          }
+
+          .jv-danger {
+            color: #fecaca;
+            background: rgba(127,29,29,0.18);
+            border: 1px solid rgba(248,113,113,0.25);
+          }
+
+          .jv-success {
+            color: #a7f3d0;
+            background: rgba(6,78,59,0.18);
+            border: 1px solid rgba(52,211,153,0.24);
+          }
+
+          .jv-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+          }
+
+          .jv-stat-card {
+            min-height: 132px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            border-radius: 22px;
+            border: 1px solid rgba(148,163,184,0.16);
+            background:
+              radial-gradient(circle at 95% 5%, rgba(124,58,237,0.18), transparent 32%),
+              linear-gradient(180deg, rgba(15,23,42,0.88), rgba(15,23,42,0.64));
+            box-shadow: 0 26px 60px rgba(0,0,0,0.27);
+          }
+
+          .jv-stat-icon {
+            width: 58px;
+            height: 58px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            color: #d8b4fe;
+            background: radial-gradient(circle, rgba(168,85,247,0.40), rgba(15,23,42,0.70));
+            font-size: 24px;
+          }
+
+          .jv-stat-title { color: #a1a1aa; font-size: 13px; }
+          .jv-stat-value { margin-top: 6px; color: #f8fafc; font-size: 30px; font-weight: 950; line-height: 1; }
+          .jv-stat-subtitle { margin-top: 8px; color: #a1a1aa; font-size: 13px; }
+
+          .jv-panel {
+            border-radius: 24px;
+            border: 1px solid rgba(168,85,247,0.22);
+            background:
+              radial-gradient(circle at 0% 0%, rgba(124,58,237,0.11), transparent 30%),
+              linear-gradient(180deg, rgba(15,23,42,0.88), rgba(15,23,42,0.56));
+            box-shadow: 0 28px 70px rgba(0,0,0,0.26);
+            padding: 22px;
+          }
+
+          .jv-panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+          }
+
+          .jv-chart-filter {
+            min-height: 42px;
+            border-radius: 14px;
+            border: 1px solid rgba(148,163,184,0.16);
+            background: rgba(15,23,42,0.72);
+            color: #f8fafc;
+            padding: 0 12px;
+            color-scheme: dark;
+          }
+
+          .jv-panel-title {
+            color: #f8fafc;
+            font-size: 24px;
+            font-weight: 950;
+            letter-spacing: -0.045em;
+            margin-bottom: 6px;
+          }
+
+          .jv-panel-subtitle { color: #94a3b8; }
+
+          .jv-charts-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(340px, 0.75fr);
+            gap: 16px;
+          }
+
+          .jv-bars {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            align-items: end;
+            min-height: 260px;
+            padding-top: 18px;
+          }
+
+          .jv-bar-month {
+            display: grid;
+            gap: 8px;
+            align-items: end;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+          }
+
+          .jv-bar-stack {
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: end;
+            gap: 6px;
+            border-bottom: 1px solid rgba(148,163,184,0.18);
+          }
+
+          .jv-bar-income,
+          .jv-bar-expense {
+            width: 18px;
+            min-height: 4px;
+            border-radius: 999px 999px 0 0;
+          }
+
+          .jv-bar-income { background: linear-gradient(180deg, #4ade80, #16a34a); }
+          .jv-bar-expense { background: linear-gradient(180deg, #fb7185, #dc2626); }
+
+          .jv-chart-legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            color: #94a3b8;
+            font-size: 12px;
+          }
+
+          .jv-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+          }
+
+          .jv-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+          }
+
+          .jv-legend-dot.income { background: #22c55e; }
+          .jv-legend-dot.expense { background: #ef4444; }
+
+          .jv-donut-wrap {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 20px;
+            align-items: center;
+          }
+
+          .jv-donut {
+            width: 180px;
+            height: 180px;
+            border-radius: 999px;
+            background:
+              radial-gradient(circle at center, #0f172a 0 47%, transparent 48%),
+              conic-gradient(#7c3aed 0 35%, #2563eb 35% 55%, #22c55e 55% 72%, #f97316 72% 84%, #ef4444 84% 94%, #94a3b8 94% 100%);
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
+          }
+
+          .jv-donut-center {
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 12px;
+          }
+
+          .jv-donut-center strong {
+            display: block;
+            color: #f8fafc;
+            font-size: 16px;
+          }
+
+          .jv-category-list { display: grid; gap: 10px; }
+
+          .jv-category-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            color: #cbd5e1;
+            font-size: 14px;
+          }
+
+          .jv-filters {
+            display: grid;
+            grid-template-columns: minmax(280px, 1fr) 150px 150px;
+            gap: 12px;
+            margin-bottom: 18px;
+          }
+
+          .jv-search-box {
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,0.16);
+            background: rgba(15,23,42,0.62);
+            padding: 0 15px;
+            color: #cbd5e1;
+          }
+
+          .jv-search-box input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: #f8fafc;
+          }
+
+          .jv-list { display: grid; gap: 13px; }
+
+          .jv-transaction-card {
+            display: grid;
+            grid-template-columns: auto minmax(260px, 1fr) auto;
+            gap: 16px;
+            align-items: center;
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(148,163,184,0.13);
+            background: rgba(255,255,255,0.035);
+          }
+
+          .jv-transaction-icon {
+            width: 54px;
+            height: 54px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            font-size: 22px;
+            font-weight: 950;
+          }
+
+          .jv-transaction-icon.income {
+            color: #86efac;
+            background: rgba(6,78,59,0.22);
+            border: 1px solid rgba(52,211,153,0.24);
+          }
+
+          .jv-transaction-icon.expense {
+            color: #fca5a5;
+            background: rgba(127,29,29,0.20);
+            border: 1px solid rgba(248,113,113,0.24);
+          }
+
+          .jv-transaction-title {
+            color: #f8fafc;
+            font-size: 18px;
+            font-weight: 950;
+          }
+
+          .jv-transaction-meta {
+            margin-top: 7px;
+            color: #94a3b8;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+
+          .jv-pills,
+          .jv-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+
+          .jv-pills { margin-top: 12px; }
+          .jv-actions { justify-content: flex-end; }
+
+          .jv-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 11px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .jv-pill-purple {
+            color: #ddd6fe;
+            background: rgba(124,58,237,0.13);
+            border: 1px solid rgba(168,85,247,0.24);
+          }
+
+          .jv-pill-blue {
+            color: #bfdbfe;
+            background: rgba(59,130,246,0.13);
+            border: 1px solid rgba(96,165,250,0.24);
+          }
+
+          .jv-pill-green {
+            color: #a7f3d0;
+            background: rgba(6,78,59,0.18);
+            border: 1px solid rgba(52,211,153,0.24);
+          }
+
+          .jv-pill-red {
+            color: #fecaca;
+            background: rgba(127,29,29,0.18);
+            border: 1px solid rgba(248,113,113,0.24);
+          }
+
+          .jv-transaction-amount {
+            font-size: 19px;
+            font-weight: 950;
+            text-align: right;
+          }
+
+          .jv-transaction-amount.income { color: #22c55e; }
+          .jv-transaction-amount.expense { color: #ef4444; }
+
+          .jv-empty {
+            padding: 22px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.035);
+            border: 1px dashed rgba(148,163,184,0.22);
+            color: #94a3b8;
+            text-align: center;
+          }
+
+          @media (max-width: 1200px) {
+            .jv-stats-grid,
+            .jv-charts-grid,
+            .jv-filters {
+              grid-template-columns: 1fr;
+            }
+
+            .jv-donut-wrap { grid-template-columns: 1fr; }
+          }
+
+          @media (max-width: 720px) {
+            .jv-hero {
+              min-height: auto;
+              padding: 28px 22px;
+            }
+
+            .jv-actions-top {
+              width: 100%;
+              display: grid;
+            }
+
+            .jv-export-wrap,
+            .jv-primary,
+            .jv-secondary,
+            .jv-danger,
+            .jv-success {
+              width: 100%;
+            }
+
+            .jv-export-menu {
+              left: 0;
+              right: auto;
+              width: 100%;
+            }
+
+            .jv-transaction-card { grid-template-columns: 1fr; }
+            .jv-transaction-amount { text-align: left; }
+
+            .jv-bars {
+              overflow-x: auto;
+              grid-template-columns: repeat(6, 80px);
+            }
+          }
+        `}</style>
+
+        <section className="jv-hero">
+          <div className="jv-hero-content">
+            <div>
+              <div className="jv-kicker">Caixa do escritório</div>
+
+              <h1 className="jv-title">Finanças</h1>
+
+              <p className="jv-subtitle">
+                Controle entradas, saídas, despesas, honorários e movimentações financeiras da advocacia.
+              </p>
+            </div>
+
+            {canManage ? (
+              <div className="jv-actions-top">
+                <button className="jv-primary" onClick={() => openCreate("INCOME")}>
+                  <FaPlus />
+                  Nova entrada
+                </button>
+
+                <button className="jv-secondary" onClick={() => openCreate("EXPENSE")}>
+                  <FaPlus />
+                  Nova saída
+                </button>
+
+                <div className="jv-export-wrap">
+                  <button className="jv-secondary" onClick={() => setExportOpen((prev) => !prev)}>
+                    Exportar relatório ▾
+                  </button>
+
+                  {exportOpen ? (
+                    <div className="jv-export-menu">
+                      <button onClick={exportPdf}>Baixar PDF</button>
+                      <button onClick={exportExcel}>Baixar Excel</button>
+                      <button onClick={exportCsv}>Baixar CSV</button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="jv-stats-grid">
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon">
+              <FaCreditCard />
+            </div>
+            <div>
+              <div className="jv-stat-title">Saldo atual</div>
+              <div className="jv-stat-value">{formatCurrency(stats.balance)}</div>
+              <div className="jv-stat-subtitle">Entradas - saídas</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon">
+              <FaChartSimple />
+            </div>
+            <div>
+              <div className="jv-stat-title">Entradas do mês</div>
+              <div className="jv-stat-value">{formatCurrency(stats.monthIncome)}</div>
+              <div className="jv-stat-subtitle">Receitas registradas</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon">
+              <FaCalendarDays />
+            </div>
+            <div>
+              <div className="jv-stat-title">Saídas do mês</div>
+              <div className="jv-stat-value">{formatCurrency(stats.monthExpense)}</div>
+              <div className="jv-stat-subtitle">Despesas registradas</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon">
+              <FaChartSimple />
+            </div>
+            <div>
+              <div className="jv-stat-title">Resultado líquido</div>
+              <div className="jv-stat-value">{formatCurrency(stats.result)}</div>
+              <div className="jv-stat-subtitle">No mês selecionado</div>
+            </div>
+          </article>
+        </section>
+
+        <section className="jv-charts-grid">
+          <div className="jv-panel">
+            <div className="jv-panel-head">
+              <div>
+                <div className="jv-panel-title">Entradas x Saídas</div>
+                <div className="jv-panel-subtitle">Comparativo dos últimos 6 meses até o mês selecionado.</div>
+              </div>
+
+              <input
+                className="jv-chart-filter"
+                type="month"
+                value={barChartEndMonth}
+                onChange={(event) => setBarChartEndMonth(event.target.value)}
+              />
+            </div>
+
+            <div className="jv-bars">
+              {monthlyChart.rows.map((row) => (
+                <div className="jv-bar-month" key={row.key}>
+                  <div className="jv-bar-stack">
+                    <div
+                      className="jv-bar-income"
+                      title={`Entradas: ${formatCurrency(row.income)}`}
+                      style={{ height: `${Math.max(4, (row.income / monthlyChart.max) * 190)}px` }}
+                    />
+                    <div
+                      className="jv-bar-expense"
+                      title={`Saídas: ${formatCurrency(row.expense)}`}
+                      style={{ height: `${Math.max(4, (row.expense / monthlyChart.max) * 190)}px` }}
+                    />
+                  </div>
+                  <strong>{row.label}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="jv-chart-legend">
+              <span className="jv-legend-item">
+                <span className="jv-legend-dot income" />
+                Entradas
+              </span>
+
+              <span className="jv-legend-item">
+                <span className="jv-legend-dot expense" />
+                Saídas
+              </span>
+            </div>
+          </div>
+
+          <div className="jv-panel">
+            <div className="jv-panel-head">
+              <div>
+                <div className="jv-panel-title">Despesas por categoria</div>
+                <div className="jv-panel-subtitle">Distribuição das saídas no mês selecionado.</div>
+              </div>
+
+              <input
+                className="jv-chart-filter"
+                type="month"
+                value={categoryChartMonth}
+                onChange={(event) => setCategoryChartMonth(event.target.value)}
+              />
+            </div>
+
+            <div className="jv-donut-wrap">
+              <div className="jv-donut">
+                <div className="jv-donut-center">
+                  Total
+                  <strong>{formatCurrency(categoryChart.total)}</strong>
+                </div>
+              </div>
+
+              <div className="jv-category-list">
+                {categoryChart.rows.length === 0 ? (
+                  <div className="jv-empty">Nenhuma saída no mês.</div>
+                ) : (
+                  categoryChart.rows.map((row) => (
+                    <div className="jv-category-row" key={row.category}>
+                      <span>{row.category}</span>
+                      <strong>{formatCurrency(row.amount)}</strong>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="jv-panel">
+          <div className="jv-panel-title">Transações</div>
+          <div className="jv-panel-subtitle">
+            Busque e acompanhe todas as movimentações do caixa.
+          </div>
+
+          <div className="jv-filters">
+            <label className="jv-search-box">
+              <FaMagnifyingGlass />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por categoria, cliente, processo ou descrição..."
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  style={{
+                    border: 0,
+                    background: "transparent",
+                    color: "#CBD5E1",
+                    cursor: "pointer",
+                  }}
+                >
+                  <FaXmark />
+                </button>
+              ) : null}
+            </label>
+
+            <select
+              className="jv-premium-input jv-dark-select"
+              value={filterType}
+              onChange={(event) => setFilterType(event.target.value as "ALL" | FinanceType)}
+            >
+              <option value="ALL">Todas</option>
+              <option value="INCOME">Entradas</option>
+              <option value="EXPENSE">Saídas</option>
+            </select>
+
+            <input
+              className="jv-premium-input"
+              type="month"
+              value={filterMonth}
+              onChange={(event) => setFilterMonth(event.target.value)}
+            />
+          </div>
+
+          {loading ? (
+            <div className="jv-empty">Carregando finanças...</div>
+          ) : visibleTransactions.length === 0 ? (
+            <div className="jv-empty">Nenhuma movimentação encontrada.</div>
+          ) : (
+            <div className="jv-list">
+              {visibleTransactions.map((item) => {
+                const isIncome = item.type === "INCOME";
+
+                return (
+                  <article className="jv-transaction-card" key={item.id}>
+                    <div className={isIncome ? "jv-transaction-icon income" : "jv-transaction-icon expense"}>
+                      {isIncome ? "↓" : "↑"}
+                    </div>
+
+                    <div>
+                      <div className="jv-transaction-title">{item.category}</div>
+                      <div className="jv-transaction-meta">
+                        {item.description || "Sem descrição"}
+                      </div>
+                      <div className="jv-transaction-meta">
+                        {formatDate(item.occurredAt)}
+                        {item.clientName ? ` · Cliente: ${item.clientName}` : ""}
+                        {item.processNumber ? ` · Processo: ${item.processNumber}` : ""}
+                      </div>
+
+                      <div className="jv-pills">
+                        <span className={isIncome ? "jv-pill jv-pill-green" : "jv-pill jv-pill-red"}>
+                          {isIncome ? "Entrada" : "Saída"}
+                        </span>
+
+                        {item.paymentMethod ? (
+                          <span className="jv-pill jv-pill-blue">{item.paymentMethod}</span>
+                        ) : null}
+
+                        {item.isAutomatic ? (
+                          <span className="jv-pill jv-pill-purple">Automático</span>
+                        ) : null}
+
+                        {item.createdByUserName ? (
+                          <span className="jv-pill jv-pill-purple">Por: {item.createdByUserName}</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className={isIncome ? "jv-transaction-amount income" : "jv-transaction-amount expense"}>
+                        {isIncome ? "+" : "-"}
+                        {formatCurrency(item.amount)}
+                      </div>
+
+                      {!item.isAutomatic ? (
+                        <div className="jv-actions" style={{ marginTop: 12 }}>
+                          <button className="jv-secondary" onClick={() => openEdit(item)}>
+                            <FaPenToSquare />
+                            Editar
+                          </button>
+
+                          <button className="jv-danger" onClick={() => setDeleteTarget(item)}>
+                            <FaTrash />
+                            Excluir
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </AdminShell>
+  );
+}

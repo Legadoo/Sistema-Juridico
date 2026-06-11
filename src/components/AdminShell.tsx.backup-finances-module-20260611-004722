@@ -44,7 +44,6 @@ type MeResponse = {
     moduleAvailability?: boolean;
     moduleUsers?: boolean;
     moduleCharges?: boolean;
-    moduleFinances?: boolean;
   } | null;
 };
 
@@ -134,7 +133,6 @@ export default function AdminShell({
     moduleAvailability: true,
     moduleUsers: true,
     moduleCharges: true,
-    moduleFinances: true,
   });
 
   useEffect(() => {
@@ -166,7 +164,6 @@ export default function AdminShell({
               moduleAvailability: data.firmConfig.moduleAvailability ?? true,
               moduleUsers: data.firmConfig.moduleUsers ?? true,
               moduleCharges: data.firmConfig.moduleCharges ?? true,
-              moduleFinances: data.firmConfig.moduleFinances ?? true,
             });
 
             const routeBlocked =
@@ -177,8 +174,7 @@ export default function AdminShell({
               (pathname.startsWith("/admin/appointments") && !(data.firmConfig.moduleAppointments ?? true)) ||
               (pathname.startsWith("/admin/availability") && !(data.firmConfig.moduleAvailability ?? true)) ||
               (pathname.startsWith("/admin/users") && !(data.firmConfig.moduleUsers ?? true)) ||
-              (pathname.startsWith("/admin/charges") && !(data.firmConfig.moduleCharges ?? true)) ||
-              (pathname.startsWith("/admin/finances") && !(data.firmConfig.moduleFinances ?? true));
+              (pathname.startsWith("/admin/charges") && !(data.firmConfig.moduleCharges ?? true));
 
             if (role !== "SUPERADMIN" && routeBlocked) {
               window.location.href = "/admin";
@@ -306,15 +302,6 @@ export default function AdminShell({
         href: "/admin/charges",
         label: "Cobranças",
         icon: <FaCreditCard />,
-      });
-    }
-
-    if (role === "SUPERADMIN" || firmModules.moduleFinances) {
-      items.push({
-        href: "/admin/finances",
-        label: "Finanças",
-        icon: <FaChartSimple />,
-        mobile: true,
       });
     }
 

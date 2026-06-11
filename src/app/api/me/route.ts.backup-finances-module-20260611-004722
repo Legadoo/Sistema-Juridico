@@ -84,7 +84,6 @@ export async function GET() {
         moduleAvailability: true,
         moduleUsers: true,
         moduleCharges: true,
-        moduleFinances: true,
       },
     });
   }
