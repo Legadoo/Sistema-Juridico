@@ -4,29 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-function canManageUsers(role: string) {
-  return role === "MASTER";
-}
-
 export async function GET() {
   const moduleGuard = await ensureAdminModuleResponse("moduleUsers");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado." },
-      { status: 401 }
-    );
-  }
-
-  if (!canManageUsers(user.role)) {
-    return NextResponse.json(
-      { ok: false, message: "Somente advogado pode acessar usuários." },
-      { status: 403 }
-    );
-  }
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -38,19 +20,12 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: {
       firmId: user.firmId,
-      role: {
-        in: ["MASTER", "SECRETARY"],
-      },
     },
-    orderBy: [
-      { role: "asc" },
-      { createdAt: "desc" },
-    ],
+    orderBy: { createdAt: "desc" },
     select: {
       id: true,
       name: true,
       email: true,
-      phone: true,
       role: true,
       active: true,
       createdAt: true,
@@ -65,22 +40,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const moduleGuard = await ensureAdminModuleResponse("moduleUsers");
   if (moduleGuard) return moduleGuard;
-
   const user = await getSessionUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, message: "Não autenticado." },
-      { status: 401 }
-    );
-  }
-
-  if (!canManageUsers(user.role)) {
-    return NextResponse.json(
-      { ok: false, message: "Somente advogado pode criar usuários." },
-      { status: 403 }
-    );
-  }
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   if (!user.firmId) {
     return NextResponse.json(
@@ -93,8 +54,8 @@ export async function POST(req: Request) {
 
   const name = (body?.name ?? "").toString().trim();
   const email = (body?.email ?? "").toString().trim().toLowerCase();
-  const phone = (body?.phone ?? "").toString().trim();
   const password = (body?.password ?? "").toString();
+  const role = (body?.role ?? "SECRETARY").toString().trim().toUpperCase();
 
   if (!name || !email || !password) {
     return NextResponse.json(
@@ -103,16 +64,24 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!["MASTER", "SECRETARY"].includes(role)) {
+    return NextResponse.json(
+      { ok: false, message: "Perfil inválido." },
+      { status: 400 }
+    );
+  }
+
   const existing = await prisma.user.findFirst({
     where: {
       email,
+      firmId: user.firmId,
     },
     select: { id: true },
   });
 
   if (existing) {
     return NextResponse.json(
-      { ok: false, message: "Já existe um usuário com este e-mail." },
+      { ok: false, message: "Já existe um usuário com este e-mail nesta advocacia." },
       { status: 409 }
     );
   }
@@ -123,22 +92,15 @@ export async function POST(req: Request) {
     data: {
       name,
       email,
-      phone: phone || null,
       password: hash,
-      role: "SECRETARY",
+      role,
       active: true,
       firmId: user.firmId,
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
-      onboardingStatus: "ACTIVE",
-      selectedPlanId: null,
-      selectedPlanNameSnapshot: null,
     },
     select: {
       id: true,
       name: true,
       email: true,
-      phone: true,
       role: true,
       active: true,
       createdAt: true,
@@ -147,9 +109,5 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    user: created,
-    message: "Secretária criada com sucesso.",
-  });
+  return NextResponse.json({ ok: true, user: created });
 }

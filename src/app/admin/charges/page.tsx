@@ -1,8 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FaArrowUpRightFromSquare,
+  FaBan,
+  FaCalculator,
+  FaCircleCheck,
+  FaClock,
+  FaCopy,
+  FaEnvelope,
+  FaMagnifyingGlass,
+  FaMoneyBillWave,
+  FaPlus,
+  FaRotate,
+  FaShieldHalved,
+  FaWhatsapp,
+  FaXmark,
+} from "react-icons/fa6";
 import AdminShell from "@/components/AdminShell";
+import PremiumModal from "@/components/PremiumModal";
+import PremiumToast from "@/components/PremiumToast";
 
 type Role = "SUPERADMIN" | "MASTER" | "SECRETARY";
 
@@ -18,6 +35,7 @@ type ClientItem = {
   name: string;
   email?: string | null;
   phone?: string | null;
+  document?: string | null;
 };
 
 type RawProcessItem = {
@@ -27,6 +45,7 @@ type RawProcessItem = {
   clientId?: string | null;
   client?: {
     id?: string | null;
+    name?: string | null;
   } | null;
 };
 
@@ -40,13 +59,22 @@ type ProcessItem = {
 type ChargeItem = {
   id: string;
   amount: string | number;
+  currentAmount?: string | number | null;
+  originalAmount?: string | number | null;
   dueDate?: string | null;
+  expiresAt?: string | null;
+  expiredAt?: string | null;
   message?: string | null;
   status: string;
   paymentUrl?: string | null;
   emailTarget?: string | null;
   phoneTarget?: string | null;
   emailSentAt?: string | null;
+  previousChargeId?: string | null;
+  replacedByChargeId?: string | null;
+  lateFeeApplied?: boolean;
+  lateFeeType?: string | null;
+  lateFeeValue?: number | null;
   createdAt: string;
   createdByUser?: {
     id: string;
@@ -58,6 +86,7 @@ type ChargeItem = {
     id: string;
     name: string;
     email?: string | null;
+    phone?: string | null;
   } | null;
   process?: {
     id: string;
@@ -66,12 +95,41 @@ type ChargeItem = {
   } | null;
 };
 
-function formatCurrency(value: string | number) {
-  const num = typeof value === "number" ? value : Number(value);
+type ToastState = {
+  open: boolean;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+};
+
+type ConfirmAction = "create" | "cancel" | null;
+
+function formatCurrency(value: string | number | null | undefined) {
+  const num = typeof value === "number" ? value : Number(value ?? 0);
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
   }).format(Number.isFinite(num) ? num : 0);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Não informado";
+
+  try {
+    return new Date(value).toLocaleDateString("pt-BR");
+  } catch {
+    return value;
+  }
+}
+
+function onlyDigits(value: string) {
+  return (value || "").replace(/\D/g, "");
+}
+
+function normalizeText(value: string) {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function statusLabel(status: string) {
@@ -87,29 +145,52 @@ function statusLabel(status: string) {
   }
 }
 
-function statusClass(status: string) {
+function statusPillClass(status: string) {
   switch (status) {
     case "PAID":
-      return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20";
+      return "jv-pill-green";
     case "CANCELLED":
-      return "bg-red-500/15 text-red-300 ring-1 ring-red-400/20";
+      return "jv-pill-red";
     case "EXPIRED":
-      return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/20";
+      return "jv-pill-yellow";
     default:
-      return "bg-violet-500/15 text-violet-300 ring-1 ring-violet-400/20";
+      return "jv-pill-purple";
   }
 }
 
-const fieldClassName =
-  "w-full appearance-none rounded-2xl border border-white/10 bg-zinc-950/100 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 shadow-inner shadow-black/30 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20";
-const infoBoxClassName =
-  "min-h-[56px] rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-200 break-words overflow-hidden";
-const sectionCardClassName =
-  "rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-2xl backdrop-blur-xl";
+function toMoneyNumber(value: string) {
+  const clean = value.replace(/\./g, "").replace(",", ".");
+  const numeric = Number(clean);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function calcLateFee(base: number, type: "NONE" | "PERCENT" | "FIXED", value: string) {
+  const fee = toMoneyNumber(value);
+
+  if (type === "NONE" || fee <= 0) {
+    return {
+      increase: 0,
+      final: base,
+    };
+  }
+
+  if (type === "PERCENT") {
+    const increase = Number((base * (fee / 100)).toFixed(2));
+    return {
+      increase,
+      final: Number((base + increase).toFixed(2)),
+    };
+  }
+
+  const increase = Number(fee.toFixed(2));
+
+  return {
+    increase,
+    final: Number((base + increase).toFixed(2)),
+  };
+}
 
 export default function ChargesPage() {
-  const router = useRouter();
-
   const [me, setMe] = useState<MeResponse | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -117,12 +198,12 @@ export default function ChargesPage() {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
   const [charges, setCharges] = useState<ChargeItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   const [clientId, setClientId] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
   const [processId, setProcessId] = useState("");
   const [amount, setAmount] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [message, setMessage] = useState("");
 
   const [isRecurring, setIsRecurring] = useState(false);
@@ -137,15 +218,35 @@ export default function ChargesPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [chargeView, setChargeView] = useState<"active" | "expired">("active");
 
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const [cancelTarget, setCancelTarget] = useState<ChargeItem | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    message: "",
+    type: "info",
+  });
 
   const selectedClient = useMemo(
     () => clients.find((c) => c.id === clientId) ?? null,
-    [clients, clientId],
+    [clients, clientId]
   );
+
+  const filteredClients = useMemo(() => {
+    const term = normalizeText(clientSearch);
+    const digits = onlyDigits(clientSearch);
+
+    if (!term && !digits) return clients;
+
+    return clients.filter((client) => {
+      const text = normalizeText(`${client.name} ${client.email || ""} ${client.phone || ""} ${client.document || ""}`);
+      const digitText = onlyDigits(`${client.phone || ""} ${client.document || ""}`);
+
+      return text.includes(term) || Boolean(digits && digitText.includes(digits));
+    });
+  }, [clientSearch, clients]);
 
   const filteredProcesses = useMemo(() => {
     if (!clientId) return processes;
@@ -153,12 +254,18 @@ export default function ChargesPage() {
   }, [processes, clientId]);
 
   const recurringPreview = useMemo(() => {
-    const total = Number(amount.replace(",", "."));
+    const total = toMoneyNumber(amount);
     const totalInstallments = Number(installments);
-    const interest = Number(interestPercent.replace(",", "."));
+    const interest = toMoneyNumber(interestPercent);
     const interestStart = Number(interestStartsAtInstallment);
 
-    if (!isRecurring || !Number.isFinite(total) || total <= 0 || !Number.isFinite(totalInstallments) || totalInstallments < 2) {
+    if (
+      !isRecurring ||
+      !Number.isFinite(total) ||
+      total <= 0 ||
+      !Number.isFinite(totalInstallments) ||
+      totalInstallments < 2
+    ) {
       return null;
     }
 
@@ -166,100 +273,52 @@ export default function ChargesPage() {
     const baseCents = Math.floor(totalCents / totalInstallments);
     const remainder = totalCents - baseCents * totalInstallments;
 
-    const firstInstallmentValue = baseCents / 100;
-    const lastBaseInstallmentValue =
-      (baseCents + remainder) / 100;
+    const rows = Array.from({ length: totalInstallments }).map((_, index) => {
+      const installmentNumber = index + 1;
+      const base = (installmentNumber === totalInstallments ? baseCents + remainder : baseCents) / 100;
 
-    let installmentWithInterest = firstInstallmentValue;
+      const hasInstallmentInterest =
+        hasInterest &&
+        Number.isFinite(interest) &&
+        interest > 0 &&
+        Number.isFinite(interestStart) &&
+        installmentNumber >= interestStart;
 
-    if (hasInterest && Number.isFinite(interest) && interest > 0) {
-      installmentWithInterest = Number(
-        (firstInstallmentValue * (1 + interest / 100)).toFixed(2)
-      );
-    }
+      const finalAmount = hasInstallmentInterest
+        ? Number((base * (1 + interest / 100)).toFixed(2))
+        : Number(base.toFixed(2));
+
+      return {
+        installmentNumber,
+        base,
+        finalAmount,
+        hasInterest: hasInstallmentInterest,
+      };
+    });
 
     return {
       total,
       totalInstallments,
-      firstInstallmentValue,
-      lastBaseInstallmentValue,
-      installmentWithInterest,
-      interestStart: Number.isFinite(interestStart) && interestStart > 0 ? interestStart : null,
-      hasInterest: hasInterest && Number.isFinite(interest) && interest > 0,
-      interest,
+      rows,
     };
-  }, [
-    amount,
-    installments,
-    isRecurring,
-    hasInterest,
-    interestPercent,
-    interestStartsAtInstallment,
-  ]);
+  }, [amount, installments, isRecurring, hasInterest, interestPercent, interestStartsAtInstallment]);
 
   const lateFeePreview = useMemo(() => {
-    if (!isRecurring || !recurringPreview) {
-      return null;
-    }
-
-    const validityDays = Number(paymentValidityDays);
-    const safeValidityDays =
-      Number.isFinite(validityDays) && validityDays > 0
-        ? Math.floor(validityDays)
-        : 3;
-
-    const feeValue = Number(lateFeeValue.replace(",", "."));
-    const safeFeeValue =
-      Number.isFinite(feeValue) && feeValue > 0 ? feeValue : 0;
-
-    const baseAmountAfterInstallmentInterest =
-      recurringPreview.installmentWithInterest || recurringPreview.firstInstallmentValue;
-
-    let increaseAmount = 0;
-
-    if (lateFeeType === "PERCENT") {
-      increaseAmount = Number(
-        (baseAmountAfterInstallmentInterest * (safeFeeValue / 100)).toFixed(2)
-      );
-    }
-
-    if (lateFeeType === "FIXED") {
-      increaseAmount = Number(safeFeeValue.toFixed(2));
-    }
-
-    const finalAmount = Number(
-      (baseAmountAfterInstallmentInterest + increaseAmount).toFixed(2)
-    );
-
-    return {
-      validityDays: safeValidityDays,
-      lateFeeType,
-      lateFeeValue: safeFeeValue,
-      baseAmount: baseAmountAfterInstallmentInterest,
-      increaseAmount,
-      finalAmount,
-      hasLateFee: lateFeeType !== "NONE" && safeFeeValue > 0,
-    };
-  }, [
-    isRecurring,
-    recurringPreview,
-    paymentValidityDays,
-    lateFeeType,
-    lateFeeValue,
-  ]);
+    const base = recurringPreview?.rows[0]?.finalAmount ?? toMoneyNumber(amount);
+    return calcLateFee(base, lateFeeType, lateFeeValue);
+  }, [amount, lateFeeType, lateFeeValue, recurringPreview]);
 
   const filteredCharges = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const term = normalizeText(search);
+    const digits = onlyDigits(search);
 
     return charges.filter((charge) => {
-      const matchesStatus =
-        statusFilter === "ALL" ? true : charge.status === statusFilter;
-
+      const matchesStatus = statusFilter === "ALL" ? true : charge.status === statusFilter;
       if (!matchesStatus) return false;
 
-      if (!query) return true;
+      if (!term && !digits) return true;
 
-      const haystack = [
+      const text = normalizeText([
         charge.client?.name,
         charge.emailTarget,
         charge.phoneTarget,
@@ -267,12 +326,15 @@ export default function ChargesPage() {
         charge.process?.cnj,
         charge.message,
         statusLabel(charge.status),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      ].filter(Boolean).join(" "));
 
-      return haystack.includes(query);
+      const digitText = onlyDigits([
+        charge.phoneTarget,
+        charge.process?.cnjNumber,
+        charge.process?.cnj,
+      ].filter(Boolean).join(" "));
+
+      return text.includes(term) || Boolean(digits && digitText.includes(digits));
     });
   }, [charges, search, statusFilter]);
 
@@ -281,19 +343,61 @@ export default function ChargesPage() {
     const pending = charges.filter((c) => c.status === "PENDING").length;
     const paid = charges.filter((c) => c.status === "PAID").length;
     const cancelled = charges.filter((c) => c.status === "CANCELLED").length;
+    const expired = charges.filter((c) => c.status === "EXPIRED").length;
 
     const pendingAmount = charges
       .filter((c) => c.status === "PENDING")
-      .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+      .reduce((sum, c) => sum + Number(c.currentAmount ?? c.amount ?? 0), 0);
 
-    return {
-      total,
-      pending,
-      paid,
-      cancelled,
-      pendingAmount,
-    };
+    return { total, pending, paid, cancelled, expired, pendingAmount };
   }, [charges]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const [clientsRes, processesRes, chargesRes] = await Promise.all([
+        fetch("/api/admin/clients", { cache: "no-store", credentials: "include" }),
+        fetch("/api/admin/processes?status=all", { cache: "no-store", credentials: "include" }),
+        fetch("/api/admin/charges", { cache: "no-store", credentials: "include" }),
+      ]);
+
+      const [clientsJson, processesJson, chargesJson] = await Promise.all([
+        clientsRes.json(),
+        processesRes.json(),
+        chargesRes.json(),
+      ]);
+
+      const rawClients = Array.isArray(clientsJson.data)
+        ? clientsJson.data
+        : Array.isArray(clientsJson.clients)
+          ? clientsJson.clients
+          : [];
+
+      const rawProcesses = Array.isArray(processesJson.data)
+        ? processesJson.data
+        : Array.isArray(processesJson.processes)
+          ? processesJson.processes
+          : [];
+
+      const rawCharges = Array.isArray(chargesJson.data) ? chargesJson.data : [];
+
+      setClients(rawClients);
+      setProcesses(
+        rawProcesses.map((p: RawProcessItem) => ({
+          id: p.id,
+          cnjNumber: p.cnjNumber ?? null,
+          cnj: p.cnj ?? null,
+          clientId: p.clientId ?? p.client?.id ?? null,
+        }))
+      );
+      setCharges(rawCharges);
+    } catch {
+      showToast("Falha ao carregar cobranças.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -304,31 +408,28 @@ export default function ChargesPage() {
 
         const response = await fetch("/api/me", {
           cache: "no-store",
+          credentials: "include",
         });
 
         const json = await response.json();
 
         if (!response.ok || !json?.ok || !json?.user) {
-          router.replace("/login");
+          window.location.href = "/login";
           return;
         }
 
         const user = json.user as MeResponse;
 
         if (user.role !== "MASTER" && user.role !== "SECRETARY") {
-          router.replace("/admin");
+          window.location.href = "/admin";
           return;
         }
 
-        if (mounted) {
-          setMe(user);
-        }
+        if (mounted) setMe(user);
       } catch {
-        router.replace("/login");
+        window.location.href = "/login";
       } finally {
-        if (mounted) {
-          setAuthLoading(false);
-        }
+        if (mounted) setAuthLoading(false);
       }
     }
 
@@ -337,97 +438,57 @@ export default function ChargesPage() {
     return () => {
       mounted = false;
     };
-  }, [router]);
-
-  async function loadData() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [clientsRes, processesRes, chargesRes] = await Promise.all([
-        fetch("/api/admin/clients", { cache: "no-store" }),
-        fetch("/api/admin/processes", { cache: "no-store" }),
-        fetch(`/api/admin/charges?view=${chargeView}`, { cache: "no-store" }),
-      ]);
-
-      const [clientsJson, processesJson, chargesJson] = await Promise.all([
-        clientsRes.json(),
-        processesRes.json(),
-        chargesRes.json(),
-      ]);
-
-      if (!clientsJson?.ok) {
-        throw new Error(clientsJson?.message || "Falha ao carregar clientes.");
-      }
-
-      if (!processesJson?.ok) {
-        throw new Error(processesJson?.message || "Falha ao carregar processos.");
-      }
-
-      if (!chargesJson?.ok) {
-        throw new Error(chargesJson?.message || "Falha ao carregar cobranças.");
-      }
-
-      const rawClients = Array.isArray(clientsJson.data)
-        ? (clientsJson.data as ClientItem[])
-        : Array.isArray(clientsJson.clients)
-          ? (clientsJson.clients as ClientItem[])
-          : [];
-
-      const rawProcesses = Array.isArray(processesJson.data)
-        ? (processesJson.data as RawProcessItem[])
-        : Array.isArray(processesJson.processes)
-          ? (processesJson.processes as RawProcessItem[])
-          : [];
-
-      const rawCharges = Array.isArray(chargesJson.data)
-        ? (chargesJson.data as ChargeItem[])
-        : [];
-
-      setClients(rawClients);
-      setProcesses(
-        rawProcesses.map((p) => ({
-          id: p.id,
-          cnjNumber: p.cnjNumber ?? null,
-          cnj: p.cnj ?? null,
-          clientId: p.clientId ?? p.client?.id ?? null,
-        })),
-      );
-      setCharges(rawCharges);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao carregar página.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, []);
 
   useEffect(() => {
     if (!me) return;
     void loadData();
-  }, [me]);
+  }, [me, loadData]);
 
-  async function handleCreateCharge(e: React.FormEvent) {
-    e.preventDefault();
+  function showToast(message: string, type: ToastState["type"] = "info") {
+    setToast({ open: true, message, type });
+  }
 
-    try {
-      setSubmitting(true);
-      setError(null);
-      setFeedback(null);
+  function validateBeforeConfirm() {
+    const numericAmount = toMoneyNumber(amount);
 
-      const numericAmount = Number(amount.replace(",", "."));
+    if (!clientId) {
+      showToast("Selecione o cliente.", "warning");
+      return;
+    }
 
-      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-        throw new Error("Informe um valor válido para a cobrança.");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      showToast("Informe um valor válido para a cobrança.", "warning");
+      return;
+    }
+
+    if (isRecurring) {
+      if (Number(installments) < 2) {
+        showToast("Cobrança recorrente precisa ter pelo menos 2 parcelas.", "warning");
+        return;
       }
 
+      if (Number(chargeDay) < 1 || Number(chargeDay) > 28) {
+        showToast("O dia de cobrança precisa estar entre 1 e 28.", "warning");
+        return;
+      }
+    }
+
+    setConfirmAction("create");
+  }
+
+  async function createCharge() {
+    try {
+      setSubmitting(true);
+
+      const numericAmount = toMoneyNumber(amount);
       let response: Response;
 
       if (isRecurring) {
         response = await fetch("/api/admin/charges/recurring", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             clientId,
             description:
@@ -439,33 +500,32 @@ export default function ChargesPage() {
             hasInterest,
             interestPercent:
               hasInterest && interestPercent.trim()
-                ? Number(interestPercent.replace(",", "."))
+                ? toMoneyNumber(interestPercent)
                 : null,
             interestStartsAtInstallment:
               hasInterest && interestStartsAtInstallment.trim()
                 ? Number(interestStartsAtInstallment)
                 : null,
-            paymentValidityDays:
-              paymentValidityDays.trim()
-                ? Number(paymentValidityDays)
-                : 3,
+            paymentValidityDays: paymentValidityDays.trim()
+              ? Number(paymentValidityDays)
+              : 3,
             lateFeeType,
             lateFeeValue:
               lateFeeType !== "NONE" && lateFeeValue.trim()
-                ? Number(lateFeeValue.replace(",", "."))
+                ? toMoneyNumber(lateFeeValue)
                 : null,
           }),
         });
       } else {
         response = await fetch("/api/admin/charges", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             clientId,
             processId: processId || null,
             amount: numericAmount,
+            dueDate: dueDate || null,
             message: message.trim() || null,
           }),
         });
@@ -473,25 +533,17 @@ export default function ChargesPage() {
 
       const json = await response.json();
 
-      if (!json?.ok) {
-        throw new Error(
-          json?.message ||
-            (isRecurring
-              ? "Falha ao criar cobrança recorrente."
-              : "Falha ao criar cobrança."),
-        );
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.message || "Falha ao criar cobrança.");
       }
 
-      setFeedback(
-        isRecurring
-          ? "Cobrança recorrente criada com sucesso."
-          : "Cobrança criada com sucesso. Se o cliente tiver e-mail cadastrado, a cobrança foi encaminhada automaticamente.",
-      );
-
+      setConfirmAction(null);
       setClientId("");
+      setClientSearch("");
       setProcessId("");
       setAmount("");
-      setError(null);
+      setDueDate("");
+      setMessage("");
       setIsRecurring(false);
       setInstallments("2");
       setChargeDay("10");
@@ -502,71 +554,46 @@ export default function ChargesPage() {
       setLateFeeType("NONE");
       setLateFeeValue("");
 
-      await loadData();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Falha ao criar cobrança.",
+      showToast(
+        isRecurring
+          ? "Cobrança recorrente criada com sucesso."
+          : "Cobrança criada com sucesso.",
+        "success"
       );
+
+      await loadData();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Falha ao criar cobrança.", "error");
     } finally {
       setSubmitting(false);
     }
   }
 
-
-  async function handleDeleteExpiredCharge(chargeId: string) {
-    if (!confirm("Excluir esta cobrança expirada? Só faça isso quando a cobrança substituta já estiver concluída.")) {
-      return;
-    }
-
-    setError(null);
-    setFeedback(null);
+  async function cancelCharge() {
+    if (!cancelTarget) return;
 
     try {
-      const response = await fetch(`/api/admin/charges/expired/${chargeId}`, {
-        method: "DELETE",
-      });
+      setSubmitting(true);
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || "Falha ao excluir cobrança expirada.");
-      }
-
-      setFeedback(data.message || "Cobrança expirada excluída.");
-      await loadData();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Falha ao excluir cobrança expirada.",
-      );
-    }
-  }
-  async function handleCancelCharge(chargeId: string) {
-    const confirmed = window.confirm("Deseja realmente cancelar esta cobrança?");
-    if (!confirmed) return;
-
-    try {
-      setCancelingId(chargeId);
-      setError(null);
-      setFeedback(null);
-
-      const response = await fetch(`/api/admin/charges/${chargeId}/cancel`, {
+      const response = await fetch(`/api/admin/charges/${cancelTarget.id}/cancel`, {
         method: "POST",
+        credentials: "include",
       });
 
       const json = await response.json();
 
-      if (!json?.ok) {
+      if (!response.ok || !json?.ok) {
         throw new Error(json?.message || "Falha ao cancelar cobrança.");
       }
 
-      setFeedback(json?.message || "Cobrança cancelada com sucesso.");
+      setCancelTarget(null);
+      setConfirmAction(null);
+      showToast("Cobrança cancelada com sucesso.", "success");
       await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao cancelar cobrança.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Falha ao cancelar cobrança.", "error");
     } finally {
-      setCancelingId(null);
+      setSubmitting(false);
     }
   }
 
@@ -574,628 +601,791 @@ export default function ChargesPage() {
     const phone = (charge.phoneTarget || "").replace(/\D/g, "");
     if (!phone || !charge.paymentUrl || charge.status === "CANCELLED") return null;
 
-    const dueDate = charge.dueDate
-      ? new Date(charge.dueDate).toLocaleDateString("pt-BR")
-      : "Não informado";
-
+    const due = charge.dueDate ? formatDate(charge.dueDate) : "Não informado";
     const lawyerName = charge.createdByUser?.name || "Seu advogado";
-    const lawyerEmail = charge.createdByUser?.email || "Não informado";
-    const lawyerPhone = charge.createdByUser?.phone || "Não informado";
     const clientName = charge.client?.name || "cliente";
 
     const text = [
       `Olá, ${clientName}`,
       "",
-      `${lawyerName} gerou uma cobrança para você no valor de ${formatCurrency(charge.amount)}, com vencimento em ${dueDate}.`,
+      `${lawyerName} gerou uma cobrança para você no valor de ${formatCurrency(charge.currentAmount ?? charge.amount)}, com vencimento em ${due}.`,
       "",
-      "Para efetuar o pagamento e visualizar mais informações da cobrança, clique no link:",
+      "Para efetuar o pagamento, acesse:",
       charge.paymentUrl,
       "",
-      "Se você não reconhece essa cobrança, ou tem alguma dúvida sobre o pagamento, entre em contato com o seu fornecedor:",
-      `Telefone: ${lawyerPhone}`,
-      `E-mail: ${lawyerEmail}`,
-      "",
-      "Caso você já tenha efetuado o pagamento nas últimas 48 horas, favor desconsiderar esta mensagem.",
+      "Caso já tenha efetuado o pagamento, favor desconsiderar esta mensagem.",
     ].join("\n");
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   }
 
-  async function handleCopyLink(url?: string | null) {
+  async function copyLink(url?: string | null) {
     if (!url) return;
     await navigator.clipboard.writeText(url);
-    setFeedback("Link da cobrança copiado com sucesso.");
+    showToast("Link da cobrança copiado.", "success");
   }
 
   if (authLoading || !me) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
-        Carregando...
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#fff" }}>
+        Carregando cobranças...
       </div>
     );
   }
 
   return (
     <AdminShell userName={me.name || "Usuário"} role={me.role}>
-      <div className="space-y-6">
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/20 via-fuchsia-500/10 to-cyan-500/10 p-6 shadow-2xl backdrop-blur-xl">
-          <div className="flex flex-col gap-3">
-            <span className="inline-flex w-fit rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-              Financeiro
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Cobranças
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-zinc-300">
-              Gere cobranças para seus clientes, envie por e-mail e compartilhe por WhatsApp.
-            </p>
-          </div>
-        </section>
+      <PremiumToast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+      />
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 shadow-xl">
-            <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">Total</div>
-            <div className="mt-3 text-3xl font-bold text-white">{stats.total}</div>
-            <div className="mt-1 text-sm text-zinc-400">Cobranças registradas</div>
+      <PremiumModal
+        open={confirmAction === "create"}
+        onClose={() => {
+          if (!submitting) setConfirmAction(null);
+        }}
+        title={isRecurring ? "Confirmar cobrança recorrente" : "Confirmar cobrança"}
+        description="Confira a prévia antes de gerar o link de pagamento."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setConfirmAction(null)} disabled={submitting}>
+              Voltar
+            </button>
+            <button className="jv-premium-btn" onClick={createCharge} disabled={submitting}>
+              {submitting ? "Criando..." : "Criar e enviar cobrança"}
+            </button>
+          </>
+        }
+      >
+        <div className="jv-preview-modal">
+          <div>
+            <span>Cliente</span>
+            <strong>{selectedClient?.name || "Não informado"}</strong>
           </div>
-
-          <div className="rounded-3xl border border-violet-500/20 bg-violet-500/10 p-5 shadow-xl">
-            <div className="text-xs uppercase tracking-[0.18em] text-violet-300/70">Pendentes</div>
-            <div className="mt-3 text-3xl font-bold text-white">{stats.pending}</div>
-            <div className="mt-1 text-sm text-violet-200/80">{formatCurrency(stats.pendingAmount)} em aberto</div>
+          <div>
+            <span>Tipo</span>
+            <strong>{isRecurring ? "Recorrente" : "Única"}</strong>
           </div>
-
-          <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-5 shadow-xl">
-            <div className="text-xs uppercase tracking-[0.18em] text-emerald-300/70">Pagas</div>
-            <div className="mt-3 text-3xl font-bold text-white">{stats.paid}</div>
-            <div className="mt-1 text-sm text-emerald-200/80">Cobranças concluídas</div>
+          <div>
+            <span>Valor base</span>
+            <strong>{formatCurrency(toMoneyNumber(amount))}</strong>
           </div>
-
-          <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-5 shadow-xl">
-            <div className="text-xs uppercase tracking-[0.18em] text-red-300/70">Canceladas</div>
-            <div className="mt-3 text-3xl font-bold text-white">{stats.cancelled}</div>
-            <div className="mt-1 text-sm text-red-200/80">Cobranças encerradas</div>
-          </div>
-        </section>
-
-        {error ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
-            {error}
-          </div>
-        ) : null}
-
-        {feedback ? (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-            {feedback}
-          </div>
-        ) : null}
-
-        <section className="grid gap-6 xl:grid-cols-[440px_minmax(0,1fr)]">
-          <form
-            onSubmit={handleCreateCharge}
-            className={sectionCardClassName}
-          >
-            <div className="mb-5 flex items-center justify-between gap-3">
+          {isRecurring ? (
+            <>
               <div>
-                <h2 className="text-lg font-semibold text-white">Nova cobrança</h2>
-                <p className="mt-1 text-sm text-zinc-400">
-                  Crie uma cobrança e dispare os canais de contato do cliente.
-                </p>
+                <span>Parcelas</span>
+                <strong>{installments}x</strong>
               </div>
-              <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-300">
-                Mercado Pago
+              <div>
+                <span>Dia de cobrança</span>
+                <strong>Todo dia {chargeDay}</strong>
               </div>
+              <div>
+                <span>Validade do link</span>
+                <strong>{paymentValidityDays} dia(s)</strong>
+              </div>
+              <div>
+                <span>Valor após atraso</span>
+                <strong>{formatCurrency(lateFeePreview.final)}</strong>
+              </div>
+            </>
+          ) : dueDate ? (
+            <div>
+              <span>Vencimento</span>
+              <strong>{formatDate(dueDate)}</strong>
+            </div>
+          ) : null}
+        </div>
+      </PremiumModal>
+
+      <PremiumModal
+        open={!!cancelTarget}
+        onClose={() => {
+          if (!submitting) setCancelTarget(null);
+        }}
+        title="Cancelar cobrança"
+        description="A cobrança será marcada como cancelada e o cliente não deve mais usar este link."
+        footer={
+          <>
+            <button className="jv-premium-btn-secondary" onClick={() => setCancelTarget(null)} disabled={submitting}>
+              Voltar
+            </button>
+            <button
+              className="jv-premium-btn"
+              onClick={cancelCharge}
+              disabled={submitting}
+              style={{ background: "linear-gradient(135deg, #ef4444, #7f1d1d)" }}
+            >
+              {submitting ? "Cancelando..." : "Cancelar cobrança"}
+            </button>
+          </>
+        }
+        size="sm"
+      >
+        <div className="jv-confirm-box">
+          <strong>{cancelTarget?.client?.name || "Cliente"}</strong>
+          <span>{formatCurrency(cancelTarget?.currentAmount ?? cancelTarget?.amount ?? 0)}</span>
+        </div>
+      </PremiumModal>
+
+      <div className="jv-charges-page">
+        <style>{`
+          .jv-charges-page { display: grid; gap: 20px; }
+          .jv-charges-page * { box-sizing: border-box; }
+
+          .jv-hero {
+            min-height: 230px;
+            border-radius: 28px;
+            border: 1px solid rgba(168,85,247,.22);
+            background:
+              linear-gradient(90deg, rgba(7,10,23,.96), rgba(12,15,31,.84), rgba(17,24,39,.72)),
+              radial-gradient(circle at 82% 17%, rgba(124,58,237,.34), transparent 32%),
+              linear-gradient(135deg, #090b16, #111827);
+            padding: 34px 38px;
+            box-shadow: 0 34px 90px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.045);
+          }
+
+          .jv-hero-content {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+          }
+
+          .jv-kicker {
+            width: fit-content;
+            color: #c4b5fd;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 950;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+          }
+
+          .jv-title {
+            margin: 16px 0 0;
+            color: #f8fafc;
+            font-size: clamp(36px,4vw,54px);
+            font-weight: 950;
+            line-height: .98;
+            letter-spacing: -.06em;
+          }
+
+          .jv-subtitle {
+            margin: 12px 0 0;
+            color: #cbd5e1;
+            font-size: 16px;
+            line-height: 1.7;
+            max-width: 880px;
+          }
+
+          .jv-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4,minmax(0,1fr));
+            gap: 14px;
+          }
+
+          .jv-stat-card {
+            min-height: 132px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            border-radius: 22px;
+            border: 1px solid rgba(148,163,184,.16);
+            background:
+              radial-gradient(circle at 95% 5%, rgba(124,58,237,.18), transparent 32%),
+              linear-gradient(180deg, rgba(15,23,42,.88), rgba(15,23,42,.64));
+            box-shadow: 0 26px 60px rgba(0,0,0,.27);
+          }
+
+          .jv-stat-icon {
+            width: 58px;
+            height: 58px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            color: #d8b4fe;
+            background: radial-gradient(circle, rgba(168,85,247,.40), rgba(15,23,42,.70));
+            font-size: 24px;
+          }
+
+          .jv-stat-title { color: #a1a1aa; font-size: 13px; }
+          .jv-stat-value { margin-top: 6px; color: #f8fafc; font-size: 34px; font-weight: 950; line-height: 1; }
+          .jv-stat-subtitle { margin-top: 8px; color: #a1a1aa; font-size: 13px; }
+
+          .jv-layout {
+            display: grid;
+            grid-template-columns: minmax(360px,.52fr) minmax(0,1fr);
+            gap: 16px;
+            align-items: start;
+          }
+
+          .jv-panel {
+            border-radius: 24px;
+            border: 1px solid rgba(168,85,247,.22);
+            background:
+              radial-gradient(circle at 0% 0%, rgba(124,58,237,.11), transparent 30%),
+              linear-gradient(180deg, rgba(15,23,42,.88), rgba(15,23,42,.56));
+            box-shadow: 0 28px 70px rgba(0,0,0,.26);
+            padding: 22px;
+          }
+
+          .jv-panel-title {
+            color: #f8fafc;
+            font-size: 24px;
+            font-weight: 950;
+            letter-spacing: -.045em;
+          }
+
+          .jv-panel-subtitle {
+            margin-top: 5px;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+
+          .jv-form { display: grid; gap: 12px; margin-top: 16px; }
+
+          .jv-input,
+          .jv-select,
+          .jv-textarea {
+            width: 100%;
+            min-height: 52px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,.16);
+            background: rgba(15,23,42,.72);
+            color: #f8fafc;
+            padding: 0 15px;
+            outline: none;
+            color-scheme: dark;
+          }
+
+          .jv-select option { background: #111827; color: #f8fafc; }
+
+          .jv-textarea {
+            min-height: 110px;
+            padding: 14px 15px;
+            resize: vertical;
+          }
+
+          .jv-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+
+          .jv-info-box {
+            min-height: 56px;
+            display: grid;
+            gap: 4px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,.14);
+            background: rgba(255,255,255,.035);
+            padding: 12px 14px;
+          }
+
+          .jv-info-box span { color: #94a3b8; font-size: 12px; font-weight: 800; }
+          .jv-info-box strong { color: #f8fafc; font-size: 14px; word-break: break-word; }
+
+          .jv-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 56px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,.14);
+            background: rgba(255,255,255,.035);
+            padding: 12px 14px;
+            color: #e5e7eb;
+            font-weight: 900;
+          }
+
+          .jv-primary,
+          .jv-secondary,
+          .jv-danger,
+          .jv-success {
+            min-height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            border-radius: 14px;
+            padding: 0 16px;
+            cursor: pointer;
+            font-weight: 950;
+            text-decoration: none;
+          }
+
+          .jv-primary {
+            border: 0;
+            color: #fff;
+            background: linear-gradient(135deg,#a855f7,#4f46e5);
+            box-shadow: 0 18px 40px rgba(79,70,229,.22);
+          }
+
+          .jv-secondary {
+            color: #e5e7eb;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(148,163,184,.15);
+          }
+
+          .jv-danger {
+            color: #fecaca;
+            background: rgba(127,29,29,.18);
+            border: 1px solid rgba(248,113,113,.25);
+          }
+
+          .jv-success {
+            color: #a7f3d0;
+            background: rgba(6,78,59,.18);
+            border: 1px solid rgba(52,211,153,.24);
+          }
+
+          .jv-preview-box {
+            display: grid;
+            gap: 10px;
+            border-radius: 18px;
+            border: 1px solid rgba(168,85,247,.20);
+            background: rgba(124,58,237,.08);
+            padding: 14px;
+          }
+
+          .jv-preview-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: #cbd5e1;
+            font-size: 13px;
+          }
+
+          .jv-preview-row strong { color: #f8fafc; }
+
+          .jv-installments {
+            display: grid;
+            gap: 7px;
+            max-height: 220px;
+            overflow: auto;
+            padding-right: 4px;
+          }
+
+          .jv-installment-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.035);
+            padding: 8px 10px;
+            color: #cbd5e1;
+            font-size: 12px;
+          }
+
+          .jv-filters {
+            display: grid;
+            grid-template-columns: minmax(280px,1fr) auto;
+            gap: 12px;
+            margin: 16px 0;
+          }
+
+          .jv-search-box {
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,.16);
+            background: rgba(15,23,42,.62);
+            padding: 0 15px;
+            color: #cbd5e1;
+          }
+
+          .jv-search-box input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: #f8fafc;
+          }
+
+          .jv-list { display: grid; gap: 13px; }
+
+          .jv-charge-card {
+            display: grid;
+            grid-template-columns: minmax(260px,1fr) auto;
+            gap: 18px;
+            align-items: center;
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(148,163,184,.13);
+            background: rgba(255,255,255,.035);
+          }
+
+          .jv-charge-title {
+            color: #f8fafc;
+            font-size: 19px;
+            font-weight: 950;
+          }
+
+          .jv-charge-meta,
+          .jv-charge-muted {
+            margin-top: 7px;
+            color: #94a3b8;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+
+          .jv-charge-amount {
+            margin-top: 8px;
+            color: #fff;
+            font-size: 25px;
+            font-weight: 950;
+          }
+
+          .jv-pills,
+          .jv-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+
+          .jv-pills { margin-top: 12px; }
+          .jv-actions { justify-content: flex-end; }
+
+          .jv-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 11px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .jv-pill-purple { color: #ddd6fe; background: rgba(124,58,237,.13); border: 1px solid rgba(168,85,247,.24); }
+          .jv-pill-blue { color: #bfdbfe; background: rgba(59,130,246,.13); border: 1px solid rgba(96,165,250,.24); }
+          .jv-pill-green { color: #a7f3d0; background: rgba(6,78,59,.18); border: 1px solid rgba(52,211,153,.24); }
+          .jv-pill-red { color: #fecaca; background: rgba(127,29,29,.18); border: 1px solid rgba(248,113,113,.24); }
+          .jv-pill-yellow { color: #fde68a; background: rgba(202,138,4,.14); border: 1px solid rgba(245,158,11,.24); }
+
+          .jv-empty {
+            padding: 22px;
+            border-radius: 20px;
+            background: rgba(255,255,255,.035);
+            border: 1px dashed rgba(148,163,184,.22);
+            color: #94a3b8;
+            text-align: center;
+          }
+
+          .jv-confirm-box,
+          .jv-preview-modal {
+            display: grid;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.035);
+            border: 1px solid rgba(148,163,184,.16);
+          }
+
+          .jv-preview-modal div {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+          }
+
+          .jv-preview-modal span,
+          .jv-confirm-box span { color: #94a3b8; }
+
+          .jv-preview-modal strong,
+          .jv-confirm-box strong { color: #f8fafc; }
+
+          @media (max-width: 1200px) {
+            .jv-stats-grid,
+            .jv-layout,
+            .jv-filters {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .jv-hero { padding: 28px 22px; min-height: auto; }
+            .jv-grid-2 { grid-template-columns: 1fr; }
+            .jv-charge-card { grid-template-columns: 1fr; }
+            .jv-actions { display: grid; justify-content: stretch; }
+            .jv-primary, .jv-secondary, .jv-danger, .jv-success { width: 100%; }
+          }
+        `}</style>
+
+        <section className="jv-hero">
+          <div className="jv-hero-content">
+            <div>
+              <div className="jv-kicker">Financeiro</div>
+              <h1 className="jv-title">Cobranças</h1>
+              <p className="jv-subtitle">
+                Crie cobranças únicas ou recorrentes, acompanhe pagamentos, aplique regras de atraso e compartilhe links com o cliente.
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-200">
-                  Cliente
-                </label>
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                  required
-                >
-                  <option value="">Selecione um cliente</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+            <button className="jv-secondary" onClick={() => void loadData()}>
+              <FaRotate />
+              Processar recorrências
+            </button>
+          </div>
+        </section>
+
+        <section className="jv-stats-grid">
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon"><FaMoneyBillWave /></div>
+            <div>
+              <div className="jv-stat-title">Total</div>
+              <div className="jv-stat-value">{stats.total}</div>
+              <div className="jv-stat-subtitle">Cobranças registradas</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon"><FaClock /></div>
+            <div>
+              <div className="jv-stat-title">Pendentes</div>
+              <div className="jv-stat-value">{stats.pending}</div>
+              <div className="jv-stat-subtitle">{formatCurrency(stats.pendingAmount)} em aberto</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon"><FaCircleCheck /></div>
+            <div>
+              <div className="jv-stat-title">Pagas</div>
+              <div className="jv-stat-value">{stats.paid}</div>
+              <div className="jv-stat-subtitle">Pagamentos aprovados</div>
+            </div>
+          </article>
+
+          <article className="jv-stat-card">
+            <div className="jv-stat-icon"><FaShieldHalved /></div>
+            <div>
+              <div className="jv-stat-title">Expiradas</div>
+              <div className="jv-stat-value">{stats.expired}</div>
+              <div className="jv-stat-subtitle">Substituídas ou vencidas</div>
+            </div>
+          </article>
+        </section>
+
+        <section className="jv-layout">
+          <div className="jv-panel">
+            <div className="jv-panel-title">Nova cobrança</div>
+            <div className="jv-panel-subtitle">
+              Configure o valor, vencimento, recorrência e regras de atraso.
+            </div>
+
+            <div className="jv-form">
+              <input
+                className="jv-input"
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                placeholder="Buscar cliente por nome, CPF/CNPJ, e-mail ou telefone"
+              />
+
+              <select className="jv-select" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <option value="">Selecione um cliente</option>
+                {filteredClients.map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+
+              <div className="jv-grid-2">
+                <div className="jv-info-box">
+                  <span>E-mail</span>
+                  <strong>{selectedClient?.email || "Não informado"}</strong>
+                </div>
+                <div className="jv-info-box">
+                  <span>Telefone</span>
+                  <strong>{selectedClient?.phone || "Não informado"}</strong>
+                </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <label className="mb-2 block text-sm font-medium text-zinc-200">
-                    E-mail identificado
-                  </label>
-                  <div className={infoBoxClassName}>
-                    {selectedClient?.email || "Não informado"}
+              <select className="jv-select" value={processId} onChange={(e) => setProcessId(e.target.value)} disabled={isRecurring}>
+                <option value="">Nenhum processo vinculado</option>
+                {filteredProcesses.map((process) => (
+                  <option key={process.id} value={process.id}>
+                    {process.cnjNumber || process.cnj || process.id}
+                  </option>
+                ))}
+              </select>
+
+              <div className="jv-grid-2">
+                <input className="jv-input" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Valor total. Ex.: 1500,00" />
+                <input className="jv-input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isRecurring} />
+              </div>
+
+              <textarea className="jv-textarea" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Mensagem opcional para o cliente" />
+
+              <label className="jv-switch">
+                <span>Cobrança recorrente</span>
+                <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+              </label>
+
+              {isRecurring ? (
+                <>
+                  <div className="jv-grid-2">
+                    <input className="jv-input" type="number" min="2" value={installments} onChange={(e) => setInstallments(e.target.value)} placeholder="Parcelas" />
+                    <input className="jv-input" type="number" min="1" max="28" value={chargeDay} onChange={(e) => setChargeDay(e.target.value)} placeholder="Dia de cobrança" />
                   </div>
+
+                  <div className="jv-grid-2">
+                    <input className="jv-input" type="number" min="1" value={paymentValidityDays} onChange={(e) => setPaymentValidityDays(e.target.value)} placeholder="Validade do link em dias" />
+                    <select className="jv-select" value={lateFeeType} onChange={(e) => setLateFeeType(e.target.value as "NONE" | "PERCENT" | "FIXED")}>
+                      <option value="NONE">Sem multa por atraso</option>
+                      <option value="PERCENT">Multa percentual</option>
+                      <option value="FIXED">Multa fixa</option>
+                    </select>
+                  </div>
+
+                  {lateFeeType !== "NONE" ? (
+                    <input className="jv-input" value={lateFeeValue} onChange={(e) => setLateFeeValue(e.target.value)} placeholder={lateFeeType === "PERCENT" ? "Percentual de atraso. Ex.: 2" : "Valor fixo. Ex.: 50,00"} />
+                  ) : null}
+
+                  <label className="jv-switch">
+                    <span>Aplicar juros nas parcelas</span>
+                    <input type="checkbox" checked={hasInterest} onChange={(e) => setHasInterest(e.target.checked)} />
+                  </label>
+
+                  {hasInterest ? (
+                    <div className="jv-grid-2">
+                      <input className="jv-input" value={interestPercent} onChange={(e) => setInterestPercent(e.target.value)} placeholder="Juros %. Ex.: 5" />
+                      <input className="jv-input" type="number" min="2" value={interestStartsAtInstallment} onChange={(e) => setInterestStartsAtInstallment(e.target.value)} placeholder="A partir da parcela" />
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+
+              <div className="jv-preview-box">
+                <div className="jv-preview-row">
+                  <span>Valor base</span>
+                  <strong>{formatCurrency(toMoneyNumber(amount))}</strong>
                 </div>
 
-                <div className="min-w-0">
-                  <label className="mb-2 block text-sm font-medium text-zinc-200">
-                    Telefone identificado
-                  </label>
-                  <div className={infoBoxClassName}>
-                    {selectedClient?.phone || "Não informado"}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-200">
-                  Processo (opcional)
-                </label>
-                <select
-                  value={processId}
-                  onChange={(e) => setProcessId(e.target.value)}
-                  className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                >
-                  <option value="">Nenhum processo vinculado</option>
-                  {filteredProcesses.map((process) => (
-                    <option key={process.id} value={process.id}>
-                      {process.cnjNumber || process.cnj || process.id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-200">
-                  Valor total da cobrança
-                </label>
-                <input
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="150.00"
-                  className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-200">
-                  Mensagem opcional
-                </label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setError(e.target.value)}
-                  rows={4}
-                  placeholder="Ex.: honorários referentes ao atendimento e análise do caso."
-                  className={`${fieldClassName} min-h-[116px] resize-y`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                />
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
-                <label className="flex items-center gap-3 text-sm font-medium text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                  />
-                  Gerar pagamento recorrente
-                </label>
-
-                {isRecurring ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-zinc-200">
-                          Quantidade de parcelas
-                        </label>
-                        <input
-                          value={installments}
-                          onChange={(e) => setInstallments(e.target.value)}
-                          className={fieldClassName}
-                          style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          required={isRecurring}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-zinc-200">
-                          Dia da cobrança mensal
-                        </label>
-                        <input
-                          value={chargeDay}
-                          onChange={(e) => setChargeDay(e.target.value)}
-                          className={fieldClassName}
-                          style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          required={isRecurring}
-                        />
-                      </div>
+                {isRecurring && recurringPreview ? (
+                  <>
+                    <div className="jv-preview-row">
+                      <span>Modelo</span>
+                      <strong>{installments} parcelas · dia {chargeDay}</strong>
                     </div>
-
-                    <label className="flex items-center gap-3 text-sm font-medium text-zinc-200">
-                      <input
-                        type="checkbox"
-                        checked={hasInterest}
-                        onChange={(e) => setHasInterest(e.target.checked)}
-                      />
-                      Aplicar juros
-                    </label>
-
-                    {hasInterest ? (
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Percentual de juros
-                          </label>
-                          <input
-                            value={interestPercent}
-                            onChange={(e) => setInterestPercent(e.target.value)}
-                            placeholder="Ex.: 10"
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                            required={hasInterest}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Juros a partir da parcela
-                          </label>
-                          <input
-                            value={interestStartsAtInstallment}
-                            onChange={(e) => setInterestStartsAtInstallment(e.target.value)}
-                            placeholder="Ex.: 3"
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                            required={hasInterest}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
-                      <div className="mb-3">
-                        <div className="text-sm font-semibold text-white">
-                          Validade e acréscimo após vencimento
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-zinc-400">
-                          Configure por quantos dias o link ficará válido e o que acontece se o cliente não pagar dentro do prazo.
-                        </p>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Validade do link (dias)
-                          </label>
-                          <input
-                            value={paymentValidityDays}
-                            onChange={(e) => setPaymentValidityDays(e.target.value)}
-                            placeholder="Ex.: 3"
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                            required={isRecurring}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            Após vencer
-                          </label>
-                          <select
-                            value={lateFeeType}
-                            onChange={(e) =>
-                              setLateFeeType(e.target.value as "NONE" | "PERCENT" | "FIXED")
-                            }
-                            className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          >
-                            <option value="NONE">Não aplicar acréscimo</option>
-                            <option value="PERCENT">Aplicar percentual</option>
-                            <option value="FIXED">Aplicar valor fixo</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {lateFeeType !== "NONE" ? (
-                        <div className="mt-4">
-                          <label className="mb-2 block text-sm font-medium text-zinc-200">
-                            {lateFeeType === "PERCENT"
-                              ? "Percentual de acréscimo após vencimento"
-                              : "Valor fixo de acréscimo após vencimento"}
-                          </label>
-                          <input
-                            value={lateFeeValue}
-                            onChange={(e) => setLateFeeValue(e.target.value)}
-                            placeholder={lateFeeType === "PERCENT" ? "Ex.: 10" : "Ex.: 30"}
-                            className={fieldClassName}
-                            style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                          />
-                        </div>
-                      ) : null}
-
-                      {lateFeePreview ? (
-                        <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                            Prévia se passar da validade
-                          </div>
-
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                Validade
-                              </div>
-                              <div className="text-sm font-semibold text-white">
-                                {lateFeePreview.validityDays} dia(s)
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                Valor base
-                              </div>
-                              <div className="text-sm font-semibold text-white">
-                                {formatCurrency(lateFeePreview.baseAmount)}
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                Acréscimo
-                              </div>
-                              <div className="text-sm font-semibold text-white">
-                                {lateFeePreview.hasLateFee
-                                  ? lateFeePreview.lateFeeType === "PERCENT"
-                                    ? `${lateFeePreview.lateFeeValue}% (+${formatCurrency(lateFeePreview.increaseAmount)})`
-                                    : formatCurrency(lateFeePreview.increaseAmount)
-                                  : "Sem acréscimo"}
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                Novo valor
-                              </div>
-                              <div className="text-sm font-semibold text-white">
-                                {formatCurrency(lateFeePreview.finalAmount)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <p className="mt-3 text-xs leading-5 text-amber-100/80">
-                            Essa é apenas a prévia visual. A aplicação automática do novo link vencido será ativada na próxima fase.
-                          </p>
-                        </div>
-                      ) : null}
+                    <div className="jv-preview-row">
+                      <span>Se atrasar</span>
+                      <strong>{formatCurrency(lateFeePreview.final)}</strong>
                     </div>
-
-                    {recurringPreview ? (
-                      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
-                        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-                          Resumo da recorrência
+                    <div className="jv-installments">
+                      {recurringPreview.rows.map((row) => (
+                        <div className="jv-installment-row" key={row.installmentNumber}>
+                          <span>Parcela {row.installmentNumber}</span>
+                          <strong>{formatCurrency(row.finalAmount)}</strong>
                         </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Valor total
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.total)}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                              Parcela inicial
-                            </div>
-                            <div className="text-sm font-semibold text-white">
-                              {formatCurrency(recurringPreview.firstInstallmentValue)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 text-sm text-zinc-300">
-                          {recurringPreview.totalInstallments} parcela(s) no total.
-                          {recurringPreview.lastBaseInstallmentValue !== recurringPreview.firstInstallmentValue ? (
-                            <> A última parcela pode ajustar centavos automaticamente.</>
-                          ) : null}
-                        </div>
-
-                        {recurringPreview.hasInterest ? (
-                          <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                            Parcela com juros: <strong>{formatCurrency(recurringPreview.installmentWithInterest)}</strong>
-                            {recurringPreview.interestStart ? (
-                              <> a partir da parcela {recurringPreview.interestStart}.</>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="jv-preview-row">
+                    <span>Tipo</span>
+                    <strong>Cobrança única</strong>
                   </div>
-                ) : null}
+                )}
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3 text-sm font-semibold text-white transition hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Enviando..." : isRecurring ? "Criar cobrança recorrente" : "Criar e enviar cobrança"}
+              <button className="jv-primary" type="button" onClick={validateBeforeConfirm}>
+                <FaPlus />
+                Criar e enviar cobrança
               </button>
             </div>
-          </form>
+          </div>
 
-          <section className={sectionCardClassName}>
-            <div className="mb-5 flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Cobranças recentes</h2>
-                  <p className="text-sm text-zinc-400">
-                    Histórico operacional da advocacia.
-                  </p>
-                </div>
+          <div className="jv-panel">
+            <div className="jv-panel-title">Cobranças recentes</div>
+            <div className="jv-panel-subtitle">Acompanhe links, pagamentos e status das cobranças.</div>
 
-                <div className="rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300">
-                  {filteredCharges.length} resultado(s)
-                </div>
-              </div>
+            <div className="jv-filters">
+              <label className="jv-search-box">
+                <FaMagnifyingGlass />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por cliente, e-mail, telefone ou processo" />
+                {search ? <button type="button" onClick={() => setSearch("")} style={{ border: 0, background: "transparent", color: "#CBD5E1", cursor: "pointer" }}><FaXmark /></button> : null}
+              </label>
 
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por cliente, e-mail, telefone ou processo"
-                  className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                />
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className={`${fieldClassName} [&>option]:bg-zinc-950 [&>option]:text-zinc-100`} style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
-                >
-                  <option value="ALL">Todos os status</option>
-                  <option value="PENDING">Pendentes</option>
-                  <option value="PAID">Pagas</option>
-                  <option value="CANCELLED">Canceladas</option>
-                  <option value="EXPIRED">Expiradas</option>
-                </select>
-              </div>
+              <select className="jv-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="ALL">Todos os status</option>
+                <option value="PENDING">Pendentes</option>
+                <option value="PAID">Pagas</option>
+                <option value="EXPIRED">Expiradas</option>
+                <option value="CANCELLED">Canceladas</option>
+              </select>
             </div>
 
             {loading ? (
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-sm text-zinc-300">
-                Carregando cobranças...
-              </div>
+              <div className="jv-empty">Carregando cobranças...</div>
             ) : filteredCharges.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-zinc-950/50 p-8 text-center text-sm text-zinc-400">
-                Nenhuma cobrança encontrada com os filtros atuais.
-              </div>
+              <div className="jv-empty">Nenhuma cobrança encontrada com os filtros atuais.</div>
             ) : (
-              <div className="space-y-4">
+              <div className="jv-list">
                 {filteredCharges.map((charge) => {
-                  const whatsappLink = buildWhatsAppLink(charge);
+                  const whatsapp = buildWhatsAppLink(charge);
+                  const amountValue = charge.currentAmount ?? charge.amount;
 
                   return (
-                    <article
-                      key={charge.id}
-                      className="rounded-3xl border border-white/10 bg-zinc-950/50 p-4 transition hover:border-white/15 hover:bg-zinc-950/60"
-                    >
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="min-w-0 flex-1 space-y-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-lg font-semibold text-white break-words">
-                              {charge.client?.name || "Cliente"}
-                            </span>
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(charge.status)}`}
-                            >
-                              {statusLabel(charge.status)}
-                            </span>
-                          </div>
+                    <article className="jv-charge-card" key={charge.id}>
+                      <div>
+                        <div className="jv-charge-title">{charge.client?.name || "Cliente"}</div>
+                        <div className="jv-charge-amount">{formatCurrency(amountValue)}</div>
+                        <div className="jv-charge-meta">Vencimento: {formatDate(charge.dueDate)}</div>
+                        <div className="jv-charge-muted">{charge.message || "Cobrança sem descrição."}</div>
 
-                          <div className="text-sm text-zinc-300">
-                            Valor:{" "}
-                            <span className="font-semibold text-white">
-                              {formatCurrency(charge.amount)}
-                            </span>
-                          </div>
-
-                          {(charge.process?.cnjNumber || charge.process?.cnj) ? (
-                            <div className="text-sm text-zinc-400 break-words">
-                              Processo: {charge.process?.cnjNumber || charge.process?.cnj}
-                            </div>
-                          ) : null}
-
-                          <div className="grid gap-3 md:grid-cols-2">
-                            {charge.emailTarget ? (
-                              <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                                <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                  E-mail
-                                </div>
-                                <div className="text-sm text-zinc-300 break-all">
-                                  {charge.emailTarget}
-                                </div>
-                              </div>
-                            ) : null}
-
-                            {charge.phoneTarget ? (
-                              <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                                <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                  Telefone
-                                </div>
-                                <div className="text-sm text-zinc-300 break-all">
-                                  {charge.phoneTarget}
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {charge.emailSentAt ? (
-                              <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                                E-mail enviado
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {charge.message ? (
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-300 break-words">
-                              {charge.message}
-                            </div>
-                          ) : null}
+                        <div className="jv-pills">
+                          <span className={`jv-pill ${statusPillClass(charge.status)}`}>{statusLabel(charge.status)}</span>
+                          {charge.emailSentAt ? <span className="jv-pill jv-pill-green"><FaEnvelope /> E-mail enviado</span> : null}
+                          {charge.lateFeeApplied ? <span className="jv-pill jv-pill-yellow">Juros aplicado</span> : null}
+                          {charge.previousChargeId ? <span className="jv-pill jv-pill-blue">Substituta</span> : null}
                         </div>
+                      </div>
 
-                        <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:max-w-[340px] xl:justify-end">
-                          {charge.paymentUrl && charge.status !== "CANCELLED" ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyLink(charge.paymentUrl)}
-                                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
-                              >
-                                Copiar link
-                              </button>
-
-                              <a
-                                href={charge.paymentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-500"
-                              >
-                                Abrir cobrança
-                              </a>
-                            </>
-                          ) : null}
-
-                          {whatsappLink ? (
-                            <a
-                              href={whatsappLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-                            >
-                              Enviar por WhatsApp
+                      <div className="jv-actions">
+                        {charge.paymentUrl && charge.status !== "CANCELLED" ? (
+                          <>
+                            <a className="jv-secondary" href={charge.paymentUrl} target="_blank">
+                              <FaArrowUpRightFromSquare />
+                              Abrir
                             </a>
-                          ) : null}
-
-                          {charge.status !== "PAID" && charge.status !== "CANCELLED" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelCharge(charge.id)}
-                              disabled={cancelingId === charge.id}
-                              className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {cancelingId === charge.id ? "Cancelando..." : "Cancelar cobrança"}
+                            <button className="jv-secondary" onClick={() => copyLink(charge.paymentUrl)}>
+                              <FaCopy />
+                              Copiar
                             </button>
-                          ) : null}
-                        </div>
+                          </>
+                        ) : null}
+
+                        {whatsapp ? (
+                          <a className="jv-success" href={whatsapp} target="_blank">
+                            <FaWhatsapp />
+                            WhatsApp
+                          </a>
+                        ) : null}
+
+                        {charge.status === "PENDING" ? (
+                          <button className="jv-danger" onClick={() => setCancelTarget(charge)}>
+                            <FaBan />
+                            Cancelar
+                          </button>
+                        ) : null}
                       </div>
                     </article>
                   );
                 })}
               </div>
             )}
-          </section>
+          </div>
         </section>
       </div>
     </AdminShell>

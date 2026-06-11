@@ -176,9 +176,6 @@ export default function AppointmentsPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
-  const [appointmentSearch, setAppointmentSearch] = useState("");
-  const [appointmentFilter, setAppointmentFilter] = useState<"active" | "finished" | "cancelled" | "all">("active");
-
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -255,22 +252,6 @@ export default function AppointmentsPage() {
     () => appointments.filter((item) => isAudience(item)),
     [appointments]
   );
-
-  const filteredClientAppointments = useMemo(() => {
-    const term = normalizeText(appointmentSearch);
-    const digits = onlyDigits(appointmentSearch);
-
-    return clientAppointments.filter((item) => {
-      if (appointmentFilter === "active" && !isActiveAppointment(item)) return false;
-      if (appointmentFilter === "finished" && item.status !== "CONCLUIDO") return false;
-      if (appointmentFilter === "cancelled" && item.status !== "CANCELADO") return false;
-
-      const fullText = normalizeText(`${item.client?.name || ""} ${item.client?.document || ""} ${item.notes || ""} ${item.title || ""}`);
-      const digitText = onlyDigits(`${item.client?.document || ""}`);
-
-      return !term && !digits ? true : fullText.includes(term) || Boolean(digits && digitText.includes(digits));
-    });
-  }, [appointmentFilter, appointmentSearch, clientAppointments]);
 
   const upcomingClientAppointments = useMemo(
     () => clientAppointments.filter(isActiveAppointment),
@@ -876,54 +857,6 @@ export default function AppointmentsPage() {
             margin-bottom: 14px;
           }
 
-          .jv-appointment-filters {
-            display: grid;
-            grid-template-columns: minmax(260px, 1fr) auto;
-            gap: 12px;
-            margin-bottom: 16px;
-          }
-
-          .jv-search-box {
-            min-height: 52px;
-            display: flex;
-            align-items: center;
-            border-radius: 16px;
-            border: 1px solid rgba(148,163,184,0.16);
-            background: rgba(15,23,42,0.62);
-            padding: 0 15px;
-          }
-
-          .jv-search-box input {
-            width: 100%;
-            border: 0;
-            outline: 0;
-            background: transparent;
-            color: #f8fafc;
-          }
-
-          .jv-mode-tabs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-          }
-
-          .jv-mode-tab {
-            min-height: 52px;
-            border-radius: 16px;
-            border: 1px solid rgba(148,163,184,0.16);
-            background: rgba(255,255,255,0.035);
-            color: #cbd5e1;
-            padding: 0 14px;
-            cursor: pointer;
-            font-weight: 900;
-          }
-
-          .jv-mode-tab-active {
-            color: #fff;
-            border-color: rgba(168,85,247,0.45);
-            background: linear-gradient(135deg, rgba(124,58,237,0.32), rgba(59,130,246,0.12));
-          }
-
           .jv-list {
             display: grid;
             gap: 13px;
@@ -1025,8 +958,7 @@ export default function AppointmentsPage() {
 
           @media (max-width: 1200px) {
             .jv-stats-grid,
-            .jv-grid,
-            .jv-appointment-filters {
+            .jv-grid {
               grid-template-columns: 1fr;
             }
           }
@@ -1137,51 +1069,11 @@ export default function AppointmentsPage() {
               </button>
             </div>
 
-            <div className="jv-appointment-filters">
-              <label className="jv-search-box">
-                <input
-                  value={appointmentSearch}
-                  onChange={(event) => setAppointmentSearch(event.target.value)}
-                  placeholder="Buscar por cliente, CPF/CNPJ ou observação..."
-                />
-              </label>
-
-              <div className="jv-mode-tabs">
-                <button
-                  className={appointmentFilter === "active" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                  onClick={() => setAppointmentFilter("active")}
-                >
-                  Ativos
-                </button>
-
-                <button
-                  className={appointmentFilter === "finished" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                  onClick={() => setAppointmentFilter("finished")}
-                >
-                  Concluídos
-                </button>
-
-                <button
-                  className={appointmentFilter === "cancelled" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                  onClick={() => setAppointmentFilter("cancelled")}
-                >
-                  Cancelados
-                </button>
-
-                <button
-                  className={appointmentFilter === "all" ? "jv-mode-tab jv-mode-tab-active" : "jv-mode-tab"}
-                  onClick={() => setAppointmentFilter("all")}
-                >
-                  Todos
-                </button>
-              </div>
-            </div>
-
             <div className="jv-list">
-              {filteredClientAppointments.length > 0 ? (
-                filteredClientAppointments.map((item) => renderCard(item, !isActiveAppointment(item)))
+              {upcomingClientAppointments.length > 0 ? (
+                upcomingClientAppointments.map((item) => renderCard(item, false))
               ) : (
-                <div className="jv-empty">Nenhum agendamento encontrado.</div>
+                <div className="jv-empty">Nenhum agendamento futuro.</div>
               )}
             </div>
           </div>
