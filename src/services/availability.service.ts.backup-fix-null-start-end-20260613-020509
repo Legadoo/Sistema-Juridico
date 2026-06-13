@@ -146,10 +146,6 @@ export async function createAvailabilityWindowForFirm(
   const startAt = combineDateAndTime(date, startTime);
   const endAt = combineDateAndTime(date, endTime);
 
-  if (!startAt || !endAt) {
-    throw new Error("Não foi possível montar os horários informados.");
-  }
-
   if (endAt <= startAt) {
     throw new Error("O horário final deve ser maior que o inicial.");
   }
