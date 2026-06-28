@@ -4,8 +4,6 @@ import {
   sendAppointmentCancelledNotification,
 } from "./email.service";
 
-
-import { sendAudienceNotificationToFirmUsers } from "./email.service";
 import { parseSaoPauloDateTimeInput } from "@/lib/saoPauloDate";
 type SessionUser = {
   id: string;

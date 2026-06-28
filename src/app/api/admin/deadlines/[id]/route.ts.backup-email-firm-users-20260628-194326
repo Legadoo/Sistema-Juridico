@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
 import { parseSaoPauloDateTimeInput } from "@/lib/saoPauloDate";
-import { notifyDeadlineToFirmUsers } from "@/services/deadline-notification.service";
 function canManageDeadlines(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }

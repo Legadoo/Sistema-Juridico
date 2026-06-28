@@ -4,8 +4,6 @@ import {
   sendAppointmentCancelledNotification,
 } from "./email.service";
 
-
-import { sendAudienceNotificationToFirmUsers } from "./email.service";
 import { parseSaoPauloDateTimeInput } from "@/lib/saoPauloDate";
 type SessionUser = {
   id: string;
@@ -242,9 +240,10 @@ export async function createAppointmentForFirm(
     },
   });
 
-  const firmNotificationUsers = await prisma.user.findMany({
+  const masters = await prisma.user.findMany({
     where: {
       firmId: user.firmId,
+      role: "MASTER",
       active: true,
       email: { not: "" },
     },
@@ -254,35 +253,17 @@ export async function createAppointmentForFirm(
   });
 
   try {
-    const recipients = firmNotificationUsers.map((m) => m.email).filter(Boolean);
-
-    if (appointmentType === "AUDIENCIA") {
-      await sendAudienceNotificationToFirmUsers({
-        recipients,
-        firmName: firm.name,
-        title: appointment.title || "Audiência",
-        clientName: client.name,
-        scheduledAt,
-        durationMinutes,
-        createdByName: user.name,
-        notes: notes || null,
-        processNumber: appointment.process?.cnj || null,
-        tribunal: appointment.process?.tribunal || null,
-        vara: appointment.process?.vara || null,
-      });
-    } else {
-      await sendAppointmentNotificationToFirmMasters({
-        recipients,
-        firmName: firm.name,
-        clientName: client.name,
-        scheduledAt,
-        durationMinutes,
-        createdByName: user.name,
-        notes: notes || null,
-      });
-    }
+    await sendAppointmentNotificationToFirmMasters({
+      recipients: masters.map((m) => m.email).filter(Boolean),
+      firmName: firm.name,
+      clientName: client.name,
+      scheduledAt,
+      durationMinutes,
+      createdByName: user.name,
+      notes: notes || null,
+    });
   } catch (error) {
-    console.error("Falha ao enviar e-mail de agendamento/audiência:", error);
+    console.error("Falha ao enviar e-mail de agendamento:", error);
   }
 
   return appointment;
