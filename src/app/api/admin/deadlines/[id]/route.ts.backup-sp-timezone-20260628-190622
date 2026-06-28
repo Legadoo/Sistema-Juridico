@@ -3,15 +3,14 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-import { parseSaoPauloDateTimeInput } from "@/lib/saoPauloDate";
 function canManageDeadlines(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }
 
 function parseDate(value: string) {
-  const date = parseSaoPauloDateTimeInput(value);
+  const date = new Date(value);
 
-  if (!date || Number.isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     throw new Error("Data inválida.");
   }
 

@@ -29,6 +29,75 @@ function isAllowedRole(role: string) {
   return role === "MASTER" || role === "SECRETARY";
 }
 
+const SAO_PAULO_TIMEZONE_OFFSET = "-03:00";
+
+function normalizeDateKey(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((value || "").trim());
+
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (!year || !month || !day) return null;
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function getSaoPauloDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error("Não foi possível normalizar a data.");
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
+function createSaoPauloDateTime(dateKey: string, time: string) {
+  const normalizedDateKey = normalizeDateKey(dateKey);
+
+  if (!normalizedDateKey) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  return new Date(`${normalizedDateKey}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000${SAO_PAULO_TIMEZONE_OFFSET}`);
+}
+
+function parseDateOnly(value: string) {
+  const normalizedDateKey = normalizeDateKey(value);
+
+  if (!normalizedDateKey) return null;
+
+  return new Date(`${normalizedDateKey}T12:00:00.000${SAO_PAULO_TIMEZONE_OFFSET}`);
+}
+
+function combineSaoPauloDateAndTime(date: Date, time: string) {
+  const dateKey = getSaoPauloDateKey(date);
+  return createSaoPauloDateTime(dateKey, time);
+}
+
 export async function listAvailabilityWindowsForFirm(user: SessionUser) {
   if (!user.firmId) {
     throw new Error("Usuário sem advocacia vinculada.");

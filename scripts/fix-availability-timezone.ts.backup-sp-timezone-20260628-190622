@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const SAO_PAULO_UTC_OFFSET = "-03:00";
+const SAO_PAULO_TIMEZONE_OFFSET = "-03:00";
 
 function getSaoPauloDateKey(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -27,7 +27,7 @@ function createSaoPauloDateTime(dateKey: string, time: string) {
   const [hours, minutes] = time.split(":").map(Number);
 
   return new Date(
-    `${dateKey}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000${SAO_PAULO_UTC_OFFSET}`
+    `${dateKey}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000${SAO_PAULO_TIMEZONE_OFFSET}`
   );
 }
 
@@ -66,10 +66,11 @@ async function main() {
       const expectedStart = new Date(cursor);
       const expectedEnd = addMinutes(expectedStart, interval);
 
-      if (
+      const needsSlotUpdate =
         slot.startAt.getTime() !== expectedStart.getTime() ||
-        slot.endAt.getTime() !== expectedEnd.getTime()
-      ) {
+        slot.endAt.getTime() !== expectedEnd.getTime();
+
+      if (needsSlotUpdate) {
         await prisma.availabilitySlot.update({
           where: {
             id: slot.id,
@@ -99,13 +100,13 @@ async function main() {
       });
 
       totalAppointmentsCorrigidos += appointmentUpdate.count;
+
       cursor = expectedEnd;
     }
   }
 
   console.log(`Slots corrigidos: ${totalSlotsCorrigidos}`);
-  console.log(`Agendamentos públicos vinculados corrigidos: ${totalAppointmentsCorrigidos}`);
-  console.log("Correção concluída.");
+  console.log(`Agendamentos vinculados corrigidos: ${totalAppointmentsCorrigidos}`);
 }
 
 main()

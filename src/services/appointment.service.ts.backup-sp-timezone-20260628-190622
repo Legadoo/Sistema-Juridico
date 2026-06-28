@@ -4,7 +4,6 @@ import {
   sendAppointmentCancelledNotification,
 } from "./email.service";
 
-import { parseSaoPauloDateTimeInput } from "@/lib/saoPauloDate";
 type SessionUser = {
   id: string;
   name: string;
@@ -104,12 +103,12 @@ export async function createAppointmentForFirm(
   const processId = (input.processId || "").trim();
   let clientId = (input.clientId || "").trim();
 
-  const scheduledAt = parseSaoPauloDateTimeInput(input.scheduledAt);
+  const scheduledAt = new Date(input.scheduledAt);
   const durationMinutes = Number(input.durationMinutes || 60);
   const notes = (input.notes || "").trim();
   const title = (input.title || "").trim();
 
-  if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+  if (Number.isNaN(scheduledAt.getTime())) {
     throw new Error("Data/hora inválida.");
   }
 

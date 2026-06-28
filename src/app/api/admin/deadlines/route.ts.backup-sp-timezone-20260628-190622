@@ -3,15 +3,14 @@ import { ensureAdminModuleResponse } from "@/lib/admin/moduleAccess";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
-import { parseSaoPauloDateTimeInput, startOfSaoPauloDay, addDaysSaoPaulo } from "@/lib/saoPauloDate";
 function canManageDeadlines(role: string) {
   return role === "MASTER" || role === "SUPERADMIN" || role === "SECRETARY";
 }
 
 function parseDate(value: string) {
-  const date = parseSaoPauloDateTimeInput(value);
+  const date = new Date(value);
 
-  if (!date || Number.isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     throw new Error("Data inválida.");
   }
 
@@ -82,7 +81,8 @@ export async function GET(req: Request) {
   if (daysParam && status !== "late") {
     const days = Number(daysParam);
     if (!Number.isNaN(days) && days > 0) {
-      const limit = addDaysSaoPaulo(new Date(), days);
+      const now = new Date();
+      const limit = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
       where.dueDate = { lte: limit };
     }
   }

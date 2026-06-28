@@ -17,7 +17,6 @@ import AdminShell from "@/components/AdminShell";
 import PremiumModal from "@/components/PremiumModal";
 import PremiumToast from "@/components/PremiumToast";
 
-import { formatSaoPauloDate, formatSaoPauloInputDateTime, startOfSaoPauloDay } from "@/lib/saoPauloDate";
 type MeResponse = {
   ok?: boolean;
   user?: {
@@ -119,11 +118,25 @@ function formatCnj(value?: string) {
 }
 
 function formatDate(date?: string) {
-  return formatSaoPauloDate(date);
+  if (!date) return "Sem data";
+
+  try {
+    return new Date(date).toLocaleDateString("pt-BR");
+  } catch {
+    return date;
+  }
 }
 
 function toInputDateTime(value?: string) {
-  return formatSaoPauloInputDateTime(value);
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function getProcessNumber(process?: ProcessRef) {
@@ -145,7 +158,7 @@ function getProcessLabel(process: ProcessRef) {
 
 function isLate(dueDate?: string) {
   if (!dueDate) return false;
-  return new Date(dueDate).getTime() < startOfSaoPauloDay().getTime();
+  return new Date(dueDate).getTime() < new Date().setHours(0, 0, 0, 0);
 }
 
 function StatCard({
@@ -715,10 +728,8 @@ export default function DeadlinesPage() {
           .jv-deadline-form select,
           .jv-deadline-form select option {
             background-color: #111827 !important;
-            import { formatSaoPauloDate, formatSaoPauloInputDateTime, startOfSaoPauloDay } from "@/lib/saoPauloDate";
-color: #f8fafc !important;
-            import { formatSaoPauloDate, formatSaoPauloInputDateTime, startOfSaoPauloDay } from "@/lib/saoPauloDate";
-color-scheme: dark;
+            color: #f8fafc !important;
+            color-scheme: dark;
           }
 
           .jv-dark-input:focus,
