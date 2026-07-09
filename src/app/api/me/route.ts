@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, destroySession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+  Vary: "Cookie",
+};
+
 function getSuggestedRedirect(params: {
   role: string;
   canAccessAdmin: boolean;
@@ -19,7 +29,7 @@ export async function GET() {
   const sessionUser = await getSessionUser();
 
   if (!sessionUser) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    return NextResponse.json({ ok: false }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
   const user = await prisma.user.findUnique({
@@ -41,7 +51,7 @@ export async function GET() {
 
   if (!user) {
     await destroySession();
-    return NextResponse.json({ ok: false }, { status: 401 });
+    return NextResponse.json({ ok: false }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
   let firm = null;
@@ -65,7 +75,7 @@ export async function GET() {
           ok: false,
           message: "Advocacia desativada.",
         },
-        { status: 401 }
+        { status: 401, headers: NO_STORE_HEADERS }
       );
     }
   }
@@ -101,24 +111,27 @@ export async function GET() {
     onboardingStatus,
   });
 
-  return NextResponse.json({
-    ok: true,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone ?? null,
-      age: user.age ?? null,
-      role: user.role,
-      active: user.active,
-      firmId: user.firmId,
-      onboardingStatus,
-      selectedPlanId: user.selectedPlanId ?? null,
-      selectedPlanNameSnapshot: user.selectedPlanNameSnapshot ?? null,
-      canAccessAdmin,
+  return NextResponse.json(
+    {
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? null,
+        age: user.age ?? null,
+        role: user.role,
+        active: user.active,
+        firmId: user.firmId,
+        onboardingStatus,
+        selectedPlanId: user.selectedPlanId ?? null,
+        selectedPlanNameSnapshot: user.selectedPlanNameSnapshot ?? null,
+        canAccessAdmin,
+      },
+      firm,
+      firmConfig,
+      suggestedRedirect,
     },
-    firm,
-    firmConfig,
-    suggestedRedirect,
-  });
+    { headers: NO_STORE_HEADERS }
+  );
 }

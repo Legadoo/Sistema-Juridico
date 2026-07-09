@@ -3,6 +3,16 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+  Vary: "Cookie",
+};
+
 function getSuggestedRedirect(params: {
   role: string;
   canAccessAdmin: boolean;
@@ -23,7 +33,7 @@ export async function POST(req: Request) {
   if (!email || !password) {
     return NextResponse.json(
       { ok: false, message: "Preencha e-mail e senha." },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -42,8 +52,8 @@ export async function POST(req: Request) {
 
   if (!user || !user.active) {
     return NextResponse.json(
-      { ok: false, message: "Login inválido." },
-      { status: 401 }
+      { ok: false, message: "Login inv\u00e1lido." },
+      { status: 401, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -51,15 +61,15 @@ export async function POST(req: Request) {
 
   if (!valid) {
     return NextResponse.json(
-      { ok: false, message: "Login inválido." },
-      { status: 401 }
+      { ok: false, message: "Login inv\u00e1lido." },
+      { status: 401, headers: NO_STORE_HEADERS }
     );
   }
 
   if (!user.emailVerified) {
     return NextResponse.json(
       { ok: false, message: "Confirme seu e-mail antes de entrar no sistema." },
-      { status: 403 }
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -69,7 +79,7 @@ export async function POST(req: Request) {
         ok: false,
         message: "Advocacia desativada. Entre em contato com o administrador da plataforma.",
       },
-      { status: 403 }
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -81,12 +91,15 @@ export async function POST(req: Request) {
 
   await createSession(user.id);
 
-  return NextResponse.json({
-    ok: true,
-    redirectTo: getSuggestedRedirect({
-      role: user.role,
-      canAccessAdmin,
-      onboardingStatus,
-    }),
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      redirectTo: getSuggestedRedirect({
+        role: user.role,
+        canAccessAdmin,
+        onboardingStatus,
+      }),
+    },
+    { headers: NO_STORE_HEADERS }
+  );
 }
